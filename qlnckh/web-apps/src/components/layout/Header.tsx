@@ -1,5 +1,6 @@
 import { useAuthStore } from '../../stores/authStore';
 import { PersonaDropdown } from '../demo/PersonaDropdown';
+import { ResetDemoButton } from '../demo/ResetDemoButton';
 
 /**
  * Header Component
@@ -8,6 +9,7 @@ import { PersonaDropdown } from '../demo/PersonaDropdown';
  * - App title/logo
  * - User info
  * - Persona dropdown (demo mode only)
+ * - Reset demo button (demo mode only)
  * - Logout button
  */
 export function Header() {
@@ -40,10 +42,13 @@ export function Header() {
             </h1>
           </div>
 
-          {/* Right side: User info, Persona dropdown, Logout */}
+          {/* Right side: User info, Persona dropdown, Reset Demo button, Logout */}
           <div className="flex items-center gap-4">
             {/* Persona dropdown (demo mode) */}
             <PersonaDropdown />
+
+            {/* Reset Demo button (demo mode) */}
+            <ResetDemoButton />
 
             {/* User info */}
             <div className="text-sm text-gray-700">

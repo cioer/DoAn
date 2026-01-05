@@ -15,11 +15,33 @@ const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.DEMO_RESET,
     Permission.CALENDAR_MANAGE,
   ],
-  PHONG_KHCN: [Permission.CALENDAR_MANAGE],
-  GIANG_VIEN: [],
-  QUAN_LY_KHOA: [],
-  HOI_DONG: [],
-  BGH: [],
+  PHONG_KHCN: [
+    Permission.CALENDAR_MANAGE,
+  ],
+  GIANG_VIEN: [
+    Permission.DEMO_SWITCH_PERSONA,
+  ],
+  QUAN_LY_KHOA: [
+    Permission.DEMO_SWITCH_PERSONA,
+  ],
+  THU_KY_KHOA: [
+    Permission.DEMO_SWITCH_PERSONA,
+  ],
+  THU_KY_HOI_DONG: [
+    Permission.DEMO_SWITCH_PERSONA,
+  ],
+  THANH_TRUNG: [
+    Permission.DEMO_SWITCH_PERSONA,
+  ],
+  BAN_GIAM_HOC: [
+    Permission.DEMO_SWITCH_PERSONA,
+  ],
+  HOI_DONG: [
+    Permission.DEMO_SWITCH_PERSONA,
+  ],
+  BGH: [
+    Permission.DEMO_SWITCH_PERSONA,
+  ],
 };
 
 /**

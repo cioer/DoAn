@@ -42,3 +42,21 @@ export interface DemoModeConfigResponse {
   enabled: boolean;
   personas: DemoPersonaResponse[];
 }
+
+/**
+ * Reset Demo Response Entity
+ * Returns reset confirmation with counts and duration
+ */
+export interface ResetDemoCounts {
+  users: number;
+  faculties: number;
+  proposals: number;
+  holidays: number;
+  permissions: number;
+}
+
+export interface ResetDemoResponse {
+  message: string;
+  counts: ResetDemoCounts;
+  duration: number;
+}

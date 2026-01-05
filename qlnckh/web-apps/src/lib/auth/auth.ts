@@ -18,6 +18,7 @@ export type {
   DemoModeConfig,
   DemoPersona,
   SwitchPersonaResponse,
+  ResetDemoResponse,
 } from '../shared/types/auth';
 
 // Handle 401 responses with automatic token refresh
@@ -79,6 +80,14 @@ export const authApi = {
     const response = await apiClient.post<{ success: true; data: SwitchPersonaResponse }>(
       '/demo/switch-persona',
       { targetUserId },
+    );
+    return response.data.data;
+  },
+
+  resetDemo: async (): Promise<ResetDemoResponse> => {
+    const response = await apiClient.post<{ success: true; data: ResetDemoResponse }>(
+      '/demo/reset',
+      { confirmed: true },
     );
     return response.data.data;
   },

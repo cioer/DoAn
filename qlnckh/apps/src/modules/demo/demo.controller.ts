@@ -13,7 +13,7 @@ import { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { DemoService, AuditContext } from './demo.service';
 import { AuthService } from '../auth/auth.service';
-import { SwitchPersonaDto } from './dto';
+import { SwitchPersonaDto, ResetDemoDto } from './dto';
 import { ConfigService } from '@nestjs/config';
 
 interface AuthRequest extends Request {
@@ -31,6 +31,7 @@ interface AuthRequest extends Request {
  * Handles demo mode endpoints:
  * - GET /api/demo/config - Get demo mode configuration
  * - POST /api/demo/switch-persona - Switch to a different persona
+ * - POST /api/demo/reset - Reset demo data (APP_MODE=demo only)
  *
  * All endpoints require authentication and demo mode to be enabled
  */
@@ -120,6 +121,69 @@ export class DemoController {
 
     // Set new auth cookies with actingAs in JWT payload
     this.setAuthCookies(res, tokens);
+
+    res.status(HttpStatus.OK).json({
+      success: true,
+      data: result,
+    });
+  }
+
+  /**
+   * POST /api/demo/reset
+   * Reset demo data and reseed
+   * Only available when APP_MODE=demo AND DEMO_MODE=true
+   * Requires explicit confirmation to prevent accidental resets
+   */
+  @Post('reset')
+  @HttpCode(HttpStatus.OK)
+  async resetDemo(
+    @Req() req: AuthRequest,
+    @Body() resetDto: ResetDemoDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(HttpStatus.UNAUTHORIZED).json({
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Chưa đăng nhập',
+        },
+      });
+      return;
+    }
+
+    // Check demo mode
+    const demoModeEnabled = this.demoService.isDemoModeEnabled();
+    if (!demoModeEnabled) {
+      res.status(HttpStatus.FORBIDDEN).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Chức năng chỉ available ở demo mode',
+        },
+      });
+      return;
+    }
+
+    // Validate confirmation
+    if (!resetDto.confirmed) {
+      res.status(HttpStatus.BAD_REQUEST).json({
+        success: false,
+        error: {
+          code: 'NOT_CONFIRMED',
+          message: 'Vui lòng xác nhận reset demo',
+        },
+      });
+      return;
+    }
+
+    // Extract audit context
+    const auditContext = this.extractAuditContext(req);
+
+    // Execute reset
+    const result = await this.demoService.resetDemo(userId, auditContext);
 
     res.status(HttpStatus.OK).json({
       success: true,

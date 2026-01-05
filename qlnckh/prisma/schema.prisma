@@ -15,12 +15,16 @@ datasource db {
 // ============================================================
 
 enum UserRole {
-  GIANG_VIEN     // Giảng viên / PI
-  QUAN_LY_KHOA   // Quản lý Khoa
-  HOI_DONG       // Thành viên Hội đồng
-  BGH            // Ban Giám hiệu
-  PHONG_KHCN     // Phòng KHCN
-  ADMIN          // Quản trị hệ thống
+  GIANG_VIEN         // Giảng viên / PI (PROJECT_OWNER)
+  QUAN_LY_KHOA       // Quản lý Khoa
+  THU_KY_KHOA        // Thư ký Khoa
+  PHONG_KHCN         // Phòng KHCN
+  THU_KY_HOI_DONG    // Thư ký Hội đồng
+  THANH_TRUNG        // Thành viên Hội đồng
+  BAN_GIAM_HOC       // Ban Giám học
+  HOI_DONG           // Thành viên Hội đồng (legacy, same as THANH_TRUNG)
+  BGH                // Ban Giám hiệu (legacy, same as BAN_GIAM_HOC)
+  ADMIN              // Quản trị hệ thống
 }
 
 enum Permission {
@@ -46,12 +50,15 @@ model User {
   updatedAt    DateTime  @updatedAt @map("updated_at")
   deletedAt    DateTime? @map("deleted_at")
 
-  refreshTokens RefreshToken[]
-  auditEventsAsActor  AuditEvent[] @relation("AuditActor")
-  auditEventsAsActing AuditEvent[] @relation("AuditActingAs")
+  faculty           Faculty?          @relation(fields: [facultyId], references: [id])
+  refreshTokens     RefreshToken[]
+  auditEventsAsActor  AuditEvent[]    @relation("AuditActor")
+  auditEventsAsActing AuditEvent[]    @relation("AuditActingAs")
+  ownedProposals    Proposal[]        @relation("ProposalOwner")
 
   @@map("users")
   @@index([email])
+  @@index([facultyId])
 }
 
 // ============================================================
@@ -115,4 +122,135 @@ model AuditEvent {
   @@index([action])
   @@index([createdAt])
   @@map("audit_events")
+}
+
+// ============================================================
+// WORKFLOW: Proposals
+// ============================================================
+
+enum ProjectState {
+  DRAFT                     // Black nháp
+  FACULTY_REVIEW            // Đang xét duyệt tại Khoa
+  SCHOOL_SELECTION_REVIEW   // Đang phân bổ Hội đồng
+  OUTLINE_COUNCIL_REVIEW    // Đang xét duyệt bởi Hội đồng
+  CHANGES_REQUESTED         // Đã yêu cầu sửa
+  APPROVED                  // Đã duyệt
+  IN_PROGRESS               // Đang thực hiện
+  FACULTY_ACCEPTANCE_REVIEW // Đang nghiệm thu cấp Khoa
+  SCHOOL_ACCEPTANCE_REVIEW  // Đang nghiệm thu cấp Trường
+  HANDOVER                  // Đã bàn giao
+  COMPLETED                 // Đã hoàn thành
+  CANCELLED                 // Đã hủy
+  REJECTED                  // Đã từ chối
+  WITHDRAWN                 // Đã rút
+  PAUSED                    // Đã tạm dừng
+}
+
+enum WorkflowAction {
+  CREATE             // Tạo mới
+  SUBMIT             // Nộp
+  APPROVE            // Duyệt
+  RETURN             // Trả về yêu cầu sửa
+  RESUBMIT           // Nộp lại
+  START_PROJECT      // Bắt đầu thực hiện
+  SUBMIT_ACCEPTANCE  // Nộp nghiệm thu
+  ACCEPT             // Chấp nhận nghiệm thu
+  REJECT             // Từ chối
+  CANCEL             // Hủy
+  WITHDRAW           // Rút
+  PAUSE              // Tạm dừng
+  RESUME             // Tiếp tục
+  FINALIZE           // Hoàn tất (đóng dự án)
+  ASSIGN_COUNCIL     // Phân bổ hội đồng
+  FACULTY_ACCEPT     // Khoa chấp nhận nghiệm thu
+}
+
+model Proposal {
+  id              String        @id @default(uuid())
+  code            String        @unique // DT-001, DT-002, etc.
+  title           String
+  state           ProjectState  @default(DRAFT)
+  ownerId         String        @map("owner_id")
+  facultyId       String        @map("faculty_id")
+  holderUnit      String?       @map("holder_unit")  // Faculty ID or "PKHCN" or "COUNCIL-XXX"
+  holderUser      String?       @map("holder_user")  // User ID (optional)
+  slaStartDate    DateTime?     @map("sla_start_date")
+  slaDeadline     DateTime?     @map("sla_deadline")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  owner           User          @relation("ProposalOwner", fields: [ownerId], references: [id])
+  faculty         Faculty       @relation(fields: [facultyId], references: [id])
+  workflowLogs    WorkflowLog[]
+
+  @@map("proposals")
+  @@index([state])
+  @@index([ownerId])
+  @@index([facultyId])
+  @@index([holderUnit])
+  @@index([code])
+}
+
+model WorkflowLog {
+  id                      String        @id @default(uuid())
+  proposalId              String        @map("proposal_id")
+  action                  WorkflowAction
+  fromState               ProjectState? @map("from_state")
+  toState                 ProjectState  @map("to_state")
+  actorId                 String        @map("actor_id")
+  actorName               String        @map("actor_name")
+  returnTargetState       ProjectState? @map("return_target_state")
+  returnTargetHolderUnit  String?       @map("return_target_holder_unit")
+  reasonCode              String?       @map("reason_code")
+  comment                 String?
+  timestamp               DateTime      @default(now())
+
+  proposal                Proposal      @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@map("workflow_logs")
+  @@index([proposalId])
+  @@index([timestamp])
+}
+
+// ============================================================
+// ORGANIZATION: Faculties
+// ============================================================
+
+enum FacultyType {
+  FACULTY     // Khoa
+  DEPARTMENT  // Bộ môn/Phòng
+}
+
+model Faculty {
+  id          String       @id @default(uuid())
+  code        String       @unique // FAC-001, FAC-002, etc.
+  name        String       // "Khoa CNTT", "Khoa Kinh tế", etc.
+  type        FacultyType  @default(FACULTY)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  users       User[]
+  proposals   Proposal[]
+
+  @@map("faculties")
+  @@index([code])
+}
+
+// ============================================================
+// CALENDAR: Business Calendar
+// ============================================================
+
+model BusinessCalendar {
+  id            String    @id @default(uuid())
+  date          DateTime  @db.Date
+  name          String
+  isHoliday     Boolean   @default(true) @map("is_holiday")
+  isWorkingDay  Boolean   @default(false) @map("is_working_day") // For compensatory days
+  recurring     Boolean   @default(false) // Yearly recurring
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@unique([date])
+  @@map("business_calendar")
+  @@index([date])
 }

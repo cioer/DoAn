@@ -6,7 +6,8 @@
     "nx": "nx",
     "seed:permissions": "ts-node -P tsconfig.base.json apps/src/seeds/permissions.seed.ts",
     "seed:role-permissions": "ts-node -P tsconfig.base.json apps/src/seeds/role-permissions.seed.ts",
-    "seed:all": "npm run seed:permissions && npm run seed:role-permissions"
+    "seed:demo": "ts-node -P tsconfig.base.json apps/src/seeds/demo.seed.ts",
+    "seed:all": "npm run seed:permissions && npm run seed:role-permissions && npm run seed:demo"
   },
   "private": true,
   "devDependencies": {

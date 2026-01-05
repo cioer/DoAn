@@ -63,3 +63,17 @@ export interface SwitchPersonaResponse {
   user: User;
   actingAs: User;
 }
+
+export interface ResetDemoCounts {
+  users: number;
+  faculties: number;
+  proposals: number;
+  holidays: number;
+  permissions: number;
+}
+
+export interface ResetDemoResponse {
+  message: string;
+  counts: ResetDemoCounts;
+  duration: number;
+}

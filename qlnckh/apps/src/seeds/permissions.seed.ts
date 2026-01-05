@@ -13,6 +13,7 @@ export const PERMISSIONS: Permission[] = [
   Permission.DEMO_SWITCH_PERSONA,
   Permission.DEMO_RESET,
   Permission.CALENDAR_MANAGE,
+  Permission.AUDIT_VIEW,
 ];
 
 /**
@@ -23,6 +24,7 @@ export const PERMISSION_DISPLAY_NAMES: Record<Permission, string> = {
   [Permission.DEMO_SWITCH_PERSONA]: 'Demo: Chuyển persona',
   [Permission.DEMO_RESET]: 'Demo: Reset dữ liệu',
   [Permission.CALENDAR_MANAGE]: 'Quản lý lịch làm việc',
+  [Permission.AUDIT_VIEW]: 'Xem audit log',
 };
 
 /**
