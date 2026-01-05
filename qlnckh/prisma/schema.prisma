@@ -28,6 +28,7 @@ enum Permission {
   DEMO_SWITCH_PERSONA   // Demo: Chuyển persona
   DEMO_RESET            // Demo: Reset dữ liệu
   CALENDAR_MANAGE       // Quản lý lịch làm việc
+  AUDIT_VIEW            // Xem audit log
 }
 
 // ============================================================
@@ -46,6 +47,8 @@ model User {
   deletedAt    DateTime? @map("deleted_at")
 
   refreshTokens RefreshToken[]
+  auditEventsAsActor  AuditEvent[] @relation("AuditActor")
+  auditEventsAsActing AuditEvent[] @relation("AuditActingAs")
 
   @@map("users")
   @@index([email])
@@ -82,4 +85,34 @@ model RolePermission {
 
   @@unique([role, permission])
   @@map("role_permissions")
+}
+
+// ============================================================
+// AUDIT: Audit Events
+// ============================================================
+
+model AuditEvent {
+  id             String   @id @default(uuid())
+  occurredAt     DateTime @default(now()) @map("occurred_at")
+  actorUserId    String   @map("actor_user_id")
+  actingAsUserId String?  @map("acting_as_user_id")
+  action         String   // AuditAction enum values
+  entityType     String?  @map("entity_type")
+  entityId       String?  @map("entity_id")
+  metadata       Json?    @db.JsonB
+  ip             String?
+  userAgent      String?  @map("user_agent")
+  requestId      String?  @map("request_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relations
+  actorUser      User     @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  actingAsUser   User?    @relation("AuditActingAs", fields: [actingAsUserId], references: [id], onDelete: SetNull)
+
+  @@index([occurredAt])
+  @@index([actorUserId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_events")
 }

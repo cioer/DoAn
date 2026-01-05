@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -10,6 +10,7 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { RbacModule } from '../rbac/rbac.module';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { RbacModule } from '../rbac/rbac.module';
     PassportModule,
     ThrottlerModule,
     RbacModule,
+    forwardRef(() => AuditModule),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

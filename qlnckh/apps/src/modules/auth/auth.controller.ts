@@ -12,7 +12,7 @@ import {
 import { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
-import { AuthService } from './auth.service';
+import { AuthService, AuditContext } from './auth.service';
 import { LoginDto } from './dto';
 import { JwtRefreshGuard, JwtAuthGuard } from './guards';
 import { ConfigService } from '@nestjs/config';
@@ -47,20 +47,14 @@ export class AuthController {
     // LocalStrategy already validated user, get from req.user
     const user = req.user as Omit<User, 'passwordHash'>;
 
+    // Extract audit context from request
+    const auditContext = this.extractAuditContext(req);
+
     // Generate tokens
     const tokens = await this.authService.generateTokens(user);
 
-    // Store refresh token in database
-    const refreshTokenExpiry = new Date();
-    refreshTokenExpiry.setDate(refreshTokenExpiry.getDate() + 7);
-
-    await this.authService['prisma'].refreshToken.create({
-      data: {
-        token: tokens.refreshToken,
-        userId: user.id,
-        expiresAt: refreshTokenExpiry,
-      },
-    });
+    // Store refresh token and log successful login via service layer
+    await this.authService.recordSuccessfulLogin(user, tokens.refreshToken, auditContext);
 
     // Set HttpOnly cookies
     this.setAuthCookies(res, tokens);
@@ -85,8 +79,14 @@ export class AuthController {
   async logout(@Req() req: AuthRequest, @Res() res: Response): Promise<void> {
     const refreshToken = req.cookies?.refresh_token;
 
+    // Extract audit context
+    const auditContext = this.extractAuditContext(req);
+
     if (refreshToken) {
-      await this.authService.logout(refreshToken);
+      await this.authService.logout(refreshToken, {
+        ...auditContext,
+        userId: req.user?.id,
+      });
     }
 
     // Clear cookies
@@ -199,5 +199,35 @@ export class AuthController {
       sameSite: 'lax',
       path: '/',
     });
+  }
+
+  /**
+   * Helper: Extract audit context from request
+   */
+  private extractAuditContext(req: Request): AuditContext {
+    return {
+      ip: this.extractIp(req),
+      userAgent: req.headers['user-agent'],
+      requestId: req.headers['x-request-id'] as string || this.generateRequestId(),
+    };
+  }
+
+  /**
+   * Helper: Extract IP address from request
+   * Handles proxy headers (X-Forwarded-For)
+   */
+  private extractIp(req: Request): string {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+      return (forwarded as string).split(',')[0].trim();
+    }
+    return req.socket.remoteAddress || req.connection.remoteAddress || 'unknown';
+  }
+
+  /**
+   * Helper: Generate request ID
+   */
+  private generateRequestId(): string {
+    return `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
   }
 }

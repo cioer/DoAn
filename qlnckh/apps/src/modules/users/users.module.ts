@@ -3,6 +3,7 @@ import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { PrismaService } from '../auth/prisma.service';
 import { RbacModule } from '../rbac/rbac.module';
+import { AuditModule } from '../audit/audit.module';
 
 /**
  * Users Module
@@ -15,7 +16,7 @@ import { RbacModule } from '../rbac/rbac.module';
  * Requires USER_MANAGE permission for all operations
  */
 @Module({
-  imports: [RbacModule],
+  imports: [RbacModule, AuditModule],
   controllers: [UsersController],
   providers: [UsersService, PrismaService],
   exports: [UsersService],

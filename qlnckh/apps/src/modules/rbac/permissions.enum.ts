@@ -4,7 +4,7 @@
  * Defines all available permissions in the system for RBAC.
  * Permissions are used with @RequirePermissions() decorator on endpoints.
  *
- * Epic 1 Scope: User management, Demo features, Calendar
+ * Epic 1 Scope: User management, Demo features, Calendar, Audit
  * Additional permissions will be added in later epics (workflow, proposals, evaluations)
  */
 export enum Permission {
@@ -17,6 +17,9 @@ export enum Permission {
 
   // Calendar
   CALENDAR_MANAGE = 'CALENDAR_MANAGE',
+
+  // Audit
+  AUDIT_VIEW = 'AUDIT_VIEW',
 }
 
 /**

@@ -3,6 +3,8 @@ import {
   UnauthorizedException,
   BadRequestException,
   Logger,
+  Inject,
+  Optional,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -11,6 +13,18 @@ import { PrismaService } from './prisma.service';
 import { User, UserRole } from '@prisma/client';
 import { JwtPayload, TokenResponse, Tokens } from './interfaces';
 import { RbacService } from '../rbac/rbac.service';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction } from '../audit/audit-action.enum';
+
+/**
+ * Audit context interface
+ * Passed from controller to service for audit logging
+ */
+export interface AuditContext {
+  ip?: string;
+  userAgent?: string;
+  requestId?: string;
+}
 
 @Injectable()
 export class AuthService {
@@ -21,30 +35,68 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private rbacService: RbacService,
+    @Optional() private auditService?: AuditService,
   ) {}
 
   /**
    * Validate user credentials for LocalStrategy
    * Rejects soft-deleted users (deletedAt != null)
    */
-  async validateUser(email: string, password: string): Promise<Omit<User, 'passwordHash'> | null> {
+  async validateUser(
+    email: string,
+    password: string,
+    auditContext?: AuditContext,
+  ): Promise<Omit<User, 'passwordHash'> | null> {
     try {
       const user = await this.prisma.user.findUnique({
         where: { email },
       });
 
       if (!user) {
+        // Log failed login attempt - user not found
+        if (this.auditService) {
+          await this.auditService.logEvent({
+            action: AuditAction.LOGIN_FAIL,
+            actorUserId: 'anonymous',
+            entityType: 'users',
+            entityId: email,
+            metadata: { email, reason: 'USER_NOT_FOUND' },
+            ...auditContext,
+          });
+        }
         return null;
       }
 
       // Check if user is soft-deleted
       if (user.deletedAt) {
         this.logger.warn(`Login attempt for soft-deleted user: ${email}`);
+        // Log failed login attempt - soft-deleted user
+        if (this.auditService) {
+          await this.auditService.logEvent({
+            action: AuditAction.LOGIN_FAIL,
+            actorUserId: 'anonymous',
+            entityType: 'users',
+            entityId: email,
+            metadata: { email, reason: 'USER_DELETED' },
+            ...auditContext,
+          });
+        }
         return null;
       }
 
       const isPasswordValid = await compare(password, user.passwordHash);
       if (!isPasswordValid) {
+        // Log failed login attempt - invalid password
+        if (this.auditService) {
+          await this.auditService.logEvent({
+            action: AuditAction.LOGIN_FAIL,
+            actorUserId: 'anonymous',
+            entityType: 'users',
+            entityId: email,
+            metadata: { email, userId: user.id, reason: 'INVALID_PASSWORD' },
+            ...auditContext,
+          });
+        }
         return null;
       }
 
@@ -94,13 +146,58 @@ export class AuthService {
   }
 
   /**
+   * Store refresh token and log successful login event.
+   * This method encapsulates the post-login operations to maintain service layer abstraction.
+   *
+   * @param user - Validated user without password
+   * @param refreshToken - Refresh token to store
+   * @param auditContext - Audit context (IP, userAgent, requestId)
+   */
+  async recordSuccessfulLogin(
+    user: Omit<User, 'passwordHash'>,
+    refreshToken: string,
+    auditContext?: AuditContext,
+  ): Promise<void> {
+    // Store refresh token in database
+    const refreshTokenExpiry = new Date();
+    refreshTokenExpiry.setDate(refreshTokenExpiry.getDate() + 7);
+
+    await this.prisma.refreshToken.create({
+      data: {
+        token: refreshToken,
+        userId: user.id,
+        expiresAt: refreshTokenExpiry,
+      },
+    });
+
+    // Log successful login
+    if (this.auditService) {
+      await this.auditService.logEvent({
+        action: AuditAction.LOGIN_SUCCESS,
+        actorUserId: user.id,
+        entityType: 'users',
+        entityId: user.id,
+        metadata: { email: user.email },
+        ...auditContext,
+      });
+    }
+
+    this.logger.log(`User logged in: ${user.email}`);
+  }
+
+  /**
    * Login - Generate access and refresh tokens
    */
-  async login(email: string, password: string): Promise<TokenResponse> {
+  async login(
+    email: string,
+    password: string,
+    auditContext?: AuditContext,
+  ): Promise<TokenResponse> {
     try {
-      const user = await this.validateUser(email, password);
+      const user = await this.validateUser(email, password, auditContext);
 
       if (!user) {
+        // Failed login is already logged in validateUser
         throw new UnauthorizedException({
           success: false,
           error: {
@@ -129,6 +226,18 @@ export class AuthService {
           expiresAt: refreshTokenExpiry,
         },
       });
+
+      // Log successful login
+      if (this.auditService) {
+        await this.auditService.logEvent({
+          action: AuditAction.LOGIN_SUCCESS,
+          actorUserId: user.id,
+          entityType: 'users',
+          entityId: user.id,
+          metadata: { email: user.email },
+          ...auditContext,
+        });
+      }
 
       this.logger.log(`User logged in: ${user.email}`);
 
@@ -224,8 +333,17 @@ export class AuthService {
   /**
    * Logout - Revoke refresh token
    */
-  async logout(refreshToken: string): Promise<boolean> {
+  async logout(
+    refreshToken: string,
+    auditContext?: AuditContext & { userId?: string },
+  ): Promise<boolean> {
     try {
+      // Get the token info to find the user ID
+      const tokenInfo = await this.prisma.refreshToken.findUnique({
+        where: { token: refreshToken },
+        select: { userId: true },
+      });
+
       const result = await this.prisma.refreshToken.updateMany({
         where: { token: refreshToken },
         data: { revokedAt: new Date() },
@@ -234,6 +352,17 @@ export class AuthService {
       if (result.count === 0) {
         this.logger.warn(`Logout attempted with non-existent token`);
         return false;
+      }
+
+      // Log logout event
+      if (this.auditService && tokenInfo?.userId) {
+        await this.auditService.logEvent({
+          action: AuditAction.LOGOUT,
+          actorUserId: tokenInfo.userId,
+          entityType: 'users',
+          entityId: tokenInfo.userId,
+          ...auditContext,
+        });
       }
 
       this.logger.log(`User logged out (token revoked)`);

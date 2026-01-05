@@ -4,11 +4,14 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { UserRole, User } from '@prisma/client';
 import { PrismaService } from '../auth/prisma.service';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import { randomBytes } from 'crypto';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction } from '../audit/audit-action.enum';
 
 /**
  * Temporary password response
@@ -50,7 +53,10 @@ export class UsersService {
   private readonly TEMP_PASSWORD_CHARSET =
     'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Optional() private auditService?: AuditService,
+  ) {}
 
   /**
    * Generate a secure temporary password
@@ -103,26 +109,40 @@ export class UsersService {
 
   /**
    * Create audit event log for user actions
-   * @param action - Action type (e.g., ADMIN_CREATE_USER, ADMIN_UPDATE_USER)
+   * @param action - Action type (e.g., USER_CREATE, USER_UPDATE, USER_DELETE)
    * @param actorUserId - ID of user performing the action
    * @param entityId - ID of the entity being acted upon
    * @param metadata - Additional metadata about the action
    * @param ip - IP address of the request
    * @param userAgent - User agent string
+   * @param requestId - Request ID for tracing
    */
   private async createAuditEvent(
     action: string,
     actorUserId: string,
     entityId: string,
-    metadata: Record<string, any>,
+    metadata: Record<string, unknown>,
     ip?: string,
     userAgent?: string,
+    requestId?: string,
   ): Promise<void> {
-    // Note: audit_events table will be added in Story 1.4
-    // For now, we just log the action
-    this.logger.log(
-      `AUDIT: ${action} by ${actorUserId} on user ${entityId}: ${JSON.stringify(metadata)}`,
-    );
+    if (this.auditService) {
+      await this.auditService.logEvent({
+        action,
+        actorUserId,
+        entityType: 'users',
+        entityId,
+        metadata,
+        ip,
+        userAgent,
+        requestId,
+      });
+    } else {
+      // Fallback to console logging if audit service is not available
+      this.logger.log(
+        `AUDIT: ${action} by ${actorUserId} on user ${entityId}: ${JSON.stringify(metadata)}`,
+      );
+    }
   }
 
   /**
@@ -190,7 +210,7 @@ export class UsersService {
 
       // Create audit event
       await this.createAuditEvent(
-        'ADMIN_CREATE_USER',
+        AuditAction.USER_CREATE,
         actorUserId,
         user.id,
         {
@@ -407,7 +427,7 @@ export class UsersService {
       // Create audit event if there were changes
       if (Object.keys(changes).length > 0) {
         await this.createAuditEvent(
-          'ADMIN_UPDATE_USER',
+          AuditAction.USER_UPDATE,
           actorUserId,
           id,
           { changes },
@@ -493,7 +513,7 @@ export class UsersService {
 
       // Create audit event
       await this.createAuditEvent(
-        'ADMIN_DELETE_USER',
+        AuditAction.USER_DELETE,
         actorUserId,
         id,
         {
