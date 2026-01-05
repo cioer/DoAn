@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RbacService } from '../rbac.service';
-import { ROLES_KEY } from '../../common/decorators/roles.decorator';
+import { ROLES_KEY } from '../../../common/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 
 /**

@@ -1,5 +1,5 @@
 import { UserRole } from '@prisma/client';
-import { Permission } from '../../modules/rbac/permissions.enum';
+import { Permission } from '../../../modules/rbac/permissions.enum';
 
 export interface JwtPayload {
   sub: string;      // User ID

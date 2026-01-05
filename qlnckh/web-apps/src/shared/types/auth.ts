@@ -35,7 +35,7 @@ export interface LoginRequest {
 export interface ApiErrorResponse {
   success: false;
   error: {
-    code: string;
+    error_code: string;
     message: string;
   };
 }

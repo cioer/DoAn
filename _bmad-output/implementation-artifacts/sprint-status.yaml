@@ -45,7 +45,7 @@ development_status:
   epic-1: in-progress
   1-1-authentication-nestjs-first-cookie-based: done
   1-2-authorization-rbac-engine-ui-gating: done
-  1-3-user-management-demo-safe-khong-email: backlog
+  1-3-user-management-demo-safe-khong-email: done
   1-4-audit-log-foundation-auth-admin-actions: backlog
   1-5-demo-mode-persona-switch-impersonation-chuan: backlog
   1-6-deterministic-seed-data-du-cho-demo-flow: backlog

@@ -109,7 +109,10 @@ export class AuthController {
     const result = await this.authService.refresh(req.user!.refreshToken!);
 
     // Generate new access token
-    const tokens = await this.authService.generateTokens(result.user as Omit<User, 'passwordHash'>);
+    // Note: generateTokens only needs id, email, role, facultyId which are all in TokenResponseUser
+    const tokens = await this.authService.generateTokens(
+      result.user as unknown as Omit<User, 'passwordHash'>,
+    );
 
     // Set new access cookie
     const isSecure = this.configService.get<string>('NODE_ENV') === 'production';

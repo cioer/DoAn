@@ -25,6 +25,7 @@ export class AuthService {
 
   /**
    * Validate user credentials for LocalStrategy
+   * Rejects soft-deleted users (deletedAt != null)
    */
   async validateUser(email: string, password: string): Promise<Omit<User, 'passwordHash'> | null> {
     try {
@@ -33,6 +34,12 @@ export class AuthService {
       });
 
       if (!user) {
+        return null;
+      }
+
+      // Check if user is soft-deleted
+      if (user.deletedAt) {
+        this.logger.warn(`Login attempt for soft-deleted user: ${email}`);
         return null;
       }
 
@@ -49,7 +56,7 @@ export class AuthService {
       throw new UnauthorizedException({
         success: false,
         error: {
-          code: 'AUTH_VALIDATION_ERROR',
+          error_code: 'AUTH_VALIDATION_ERROR',
           message: 'Lỗi xác thực người dùng',
         },
       });
@@ -97,7 +104,7 @@ export class AuthService {
         throw new UnauthorizedException({
           success: false,
           error: {
-            code: 'INVALID_CREDENTIALS',
+            error_code: 'INVALID_CREDENTIALS',
             message: 'Email hoặc mật khẩu không đúng',
           },
         });
@@ -143,7 +150,7 @@ export class AuthService {
       throw new UnauthorizedException({
         success: false,
         error: {
-          code: 'LOGIN_ERROR',
+          error_code: 'LOGIN_ERROR',
           message: 'Đăng nhập thất bại',
         },
       });
@@ -165,7 +172,7 @@ export class AuthService {
         throw new UnauthorizedException({
           success: false,
           error: {
-            code: 'REFRESH_TOKEN_REVOKED',
+            error_code: 'REFRESH_TOKEN_REVOKED',
             message: 'Vui lòng đăng nhập lại',
           },
         });
@@ -176,7 +183,7 @@ export class AuthService {
         throw new UnauthorizedException({
           success: false,
           error: {
-            code: 'REFRESH_TOKEN_EXPIRED',
+            error_code: 'REFRESH_TOKEN_EXPIRED',
             message: 'Phiên đăng nhập đã hết hạn',
           },
         });
@@ -207,7 +214,7 @@ export class AuthService {
       throw new UnauthorizedException({
         success: false,
         error: {
-          code: 'REFRESH_ERROR',
+          error_code: 'REFRESH_ERROR',
           message: 'Lỗi làm mới token',
         },
       });
@@ -236,7 +243,7 @@ export class AuthService {
       throw new BadRequestException({
         success: false,
         error: {
-          code: 'LOGOUT_ERROR',
+          error_code: 'LOGOUT_ERROR',
           message: 'Lỗi đăng xuất',
         },
       });
@@ -256,7 +263,7 @@ export class AuthService {
         throw new UnauthorizedException({
           success: false,
           error: {
-            code: 'USER_NOT_FOUND',
+            error_code: 'USER_NOT_FOUND',
             message: 'Không tìm thấy người dùng',
           },
         });
@@ -281,7 +288,7 @@ export class AuthService {
       throw new UnauthorizedException({
         success: false,
         error: {
-          code: 'GET_USER_ERROR',
+          error_code: 'GET_USER_ERROR',
           message: 'Lỗi lấy thông tin người dùng',
         },
       });

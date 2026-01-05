@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RbacService } from '../rbac.service';
-import { PERMISSIONS_KEY } from '../../common/decorators/permissions.decorator';
+import { PERMISSIONS_KEY } from '../../../common/decorators/permissions.decorator';
 import { Permission } from '../permissions.enum';
 
 /**
