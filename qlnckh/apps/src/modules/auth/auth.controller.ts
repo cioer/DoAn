@@ -25,6 +25,7 @@ interface AuthRequest extends Request {
     role: string;
     facultyId?: string | null;
     refreshToken?: string;
+    actingAs?: string; // Demo mode: acting as this user ID
   };
 }
 
@@ -133,11 +134,13 @@ export class AuthController {
   /**
    * GET /api/auth/me
    * Get current user info
+   * In demo mode, includes actingAs user when user is impersonating a persona
    */
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async getMe(@Req() req: AuthRequest, @Res() res: Response): Promise<void> {
     const userId = req.user?.id;
+    const actingAsUserId = req.user?.actingAs;
 
     if (!userId) {
       res.status(HttpStatus.UNAUTHORIZED).json({
@@ -151,6 +154,20 @@ export class AuthController {
     }
 
     const user = await this.authService.getMe(userId);
+
+    // If in demo mode and actingAs is set, get acting as user info
+    if (actingAsUserId) {
+      const actingAsUser = await this.authService.getMe(actingAsUserId);
+
+      res.status(HttpStatus.OK).json({
+        success: true,
+        data: {
+          user,
+          actingAs: actingAsUser,
+        },
+      });
+      return;
+    }
 
     res.status(HttpStatus.OK).json({
       success: true,

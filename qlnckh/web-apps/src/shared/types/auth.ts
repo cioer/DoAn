@@ -25,6 +25,7 @@ export interface User {
 
 export interface AuthResponse {
   user: User;
+  actingAs?: User; // Demo mode: acting as this user
 }
 
 export interface LoginRequest {
@@ -43,4 +44,22 @@ export interface ApiErrorResponse {
 export interface ApiSuccessResponse<T> {
   success: true;
   data: T;
+}
+
+// Demo mode types
+export interface DemoPersona {
+  id: string;
+  name: string;
+  role: UserRole;
+  description: string;
+}
+
+export interface DemoModeConfig {
+  enabled: boolean;
+  personas: DemoPersona[];
+}
+
+export interface SwitchPersonaResponse {
+  user: User;
+  actingAs: User;
 }

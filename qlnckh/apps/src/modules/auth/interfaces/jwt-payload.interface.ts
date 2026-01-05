@@ -6,6 +6,7 @@ export interface JwtPayload {
   email: string;
   role: UserRole;
   facultyId?: string | null;
+  actingAs?: string; // Demo mode: acting as this user ID
   iat?: number;
   exp?: number;
 }
@@ -21,6 +22,7 @@ export interface TokenResponseUser {
 
 export interface TokenResponse {
   user: TokenResponseUser;
+  actingAs?: TokenResponseUser; // Demo mode: acting as user
 }
 
 export interface Tokens {

@@ -427,12 +427,16 @@ export class AuthService {
   /**
    * Generate JWT access and refresh tokens
    */
-  async generateTokens(user: Omit<User, 'passwordHash'>): Promise<Tokens> {
+  async generateTokens(
+    user: Omit<User, 'passwordHash'>,
+    actingAs?: Omit<User, 'passwordHash'>,
+  ): Promise<Tokens> {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
       role: user.role,
       facultyId: user.facultyId,
+      actingAs: actingAs?.id, // Include actingAs in JWT for demo mode
     };
 
     const accessToken = await this.jwtService.signAsync(payload, {

@@ -8,7 +8,17 @@ export const apiClient = axios.create({
 });
 
 // Import shared types
-export type { User, UserRole, LoginRequest, AuthResponse, ApiErrorResponse, ApiSuccessResponse } from '../shared/types/auth';
+export type {
+  User,
+  UserRole,
+  LoginRequest,
+  AuthResponse,
+  ApiErrorResponse,
+  ApiSuccessResponse,
+  DemoModeConfig,
+  DemoPersona,
+  SwitchPersonaResponse,
+} from '../shared/types/auth';
 
 // Handle 401 responses with automatic token refresh
 apiClient.interceptors.response.use(
@@ -38,22 +48,38 @@ apiClient.interceptors.response.use(
 
 // Auth API functions
 export const authApi = {
-  login: async (email: string, password: string): Promise<User> => {
-    const response = await apiClient.post<{ success: true; data: { user: User } }>(
+  login: async (email: string, password: string): Promise<{ user: User; actingAs?: User }> => {
+    const response = await apiClient.post<{ success: true; data: { user: User; actingAs?: User } }>(
       '/auth/login',
       { email, password },
     );
-    return response.data.data.user;
+    return response.data.data;
   },
 
   logout: async (): Promise<void> => {
     await apiClient.post('/auth/logout');
   },
 
-  getMe: async (): Promise<User> => {
-    const response = await apiClient.get<{ success: true; data: { user: User } }>(
+  getMe: async (): Promise<{ user: User; actingAs?: User }> => {
+    const response = await apiClient.get<{ success: true; data: { user: User; actingAs?: User } }>(
       '/auth/me',
     );
-    return response.data.data.user;
+    return response.data.data;
+  },
+
+  // Demo mode API functions
+  getDemoConfig: async (): Promise<DemoModeConfig> => {
+    const response = await apiClient.get<{ success: true; data: DemoModeConfig }>(
+      '/demo/config',
+    );
+    return response.data.data;
+  },
+
+  switchPersona: async (targetUserId: string): Promise<SwitchPersonaResponse> => {
+    const response = await apiClient.post<{ success: true; data: SwitchPersonaResponse }>(
+      '/demo/switch-persona',
+      { targetUserId },
+    );
+    return response.data.data;
   },
 };
