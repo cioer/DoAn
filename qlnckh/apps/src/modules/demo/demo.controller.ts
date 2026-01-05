@@ -15,6 +15,7 @@ import { DemoService, AuditContext } from './demo.service';
 import { AuthService } from '../auth/auth.service';
 import { SwitchPersonaDto, ResetDemoDto } from './dto';
 import { ConfigService } from '@nestjs/config';
+import { UserRole } from '@prisma/client';
 
 interface AuthRequest extends Request {
   user?: {
@@ -103,15 +104,23 @@ export class DemoController {
     const actorUserForToken = {
       id: result.user.id,
       email: result.user.email,
-      role: result.user.role,
+      role: result.user.role as UserRole,
       facultyId: result.user.facultyId,
+      displayName: result.user.displayName || result.user.email,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
     } as const;
 
     const actingAsUserForToken = {
       id: result.actingAs.id,
       email: result.actingAs.email,
-      role: result.actingAs.role,
+      role: result.actingAs.role as UserRole,
       facultyId: result.actingAs.facultyId,
+      displayName: result.actingAs.displayName || result.actingAs.email,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
     } as const;
 
     const tokens = await this.authService.generateTokens(

@@ -380,16 +380,19 @@ export class DemoService {
 
     // Use transaction for atomic reset
     await this.prisma.$transaction(async (tx) => {
-      // 1. Delete workflow logs
+      // 1. Delete audit events (must be first due to foreign key constraints)
+      await tx.auditEvent.deleteMany({});
+
+      // 2. Delete workflow logs
       await tx.workflowLog.deleteMany({});
 
-      // 2. Delete proposals
+      // 3. Delete proposals
       await tx.proposal.deleteMany({});
 
-      // 3. Delete business calendar entries
+      // 4. Delete business calendar entries
       await tx.businessCalendar.deleteMany({});
 
-      // 4. Delete role permissions (for demo roles only)
+      // 5. Delete role permissions (for demo roles only)
       const demoRoles: UserRole[] = [
         UserRole.GIANG_VIEN,
         UserRole.QUAN_LY_KHOA,
@@ -398,19 +401,20 @@ export class DemoService {
         UserRole.THU_KY_HOI_DONG,
         UserRole.THANH_TRUNG,
         UserRole.BAN_GIAM_HOC,
+        UserRole.ADMIN,
       ];
       await tx.rolePermission.deleteMany({
         where: { role: { in: demoRoles } },
       });
 
-      // 5. Delete demo users (DT-USER-XXX)
+      // 6. Delete demo users (DT-USER-XXX)
       await tx.user.deleteMany({
         where: {
           id: { startsWith: 'DT-USER-' },
         },
       });
 
-      // 6. Delete demo faculties (FAC-XXX)
+      // 7. Delete demo faculties (FAC-XXX)
       await tx.faculty.deleteMany({
         where: {
           code: { startsWith: 'FAC-' },
@@ -534,7 +538,7 @@ export class DemoService {
    */
   private async seedUsers(): Promise<number> {
     const bcrypt = require('bcrypt');
-    const hashedPassword = await bcrypt.hash('Demo@123', 10);
+    const hashedPassword = await bcrypt.hash('Demo@123', 12);
 
     // Get faculty IDs for mapping
     const faculties = await this.prisma.faculty.findMany();

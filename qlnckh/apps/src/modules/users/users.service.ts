@@ -12,6 +12,7 @@ import { CreateUserDto, UpdateUserDto } from './dto';
 import { randomBytes } from 'crypto';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-action.enum';
+import { AuthService } from '../auth/auth.service';
 
 /**
  * Temporary password response
@@ -55,6 +56,7 @@ export class UsersService {
 
   constructor(
     private prisma: PrismaService,
+    private authService: AuthService,
     @Optional() private auditService?: AuditService,
   ) {}
 
@@ -118,7 +120,7 @@ export class UsersService {
    * @param requestId - Request ID for tracing
    */
   private async createAuditEvent(
-    action: string,
+    action: AuditAction,
     actorUserId: string,
     entityId: string,
     metadata: Record<string, unknown>,
@@ -195,7 +197,7 @@ export class UsersService {
       const temporaryPassword = this.generateTempPassword();
 
       // Hash the password
-      const passwordHash = await this.hashPassword(temporaryPassword);
+      const passwordHash = await this.authService.hashPassword(temporaryPassword);
 
       // Create user
       const user = await this.prisma.user.create({

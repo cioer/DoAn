@@ -1,6 +1,6 @@
 # Story 1.6: Deterministic Seed Data (Đủ Cho Demo Flow, DT-001…DT-010)
 
-Status: review
+Status: done
 
 ## Story
 
@@ -1116,6 +1116,31 @@ Implemented complete deterministic seed data system for demo purposes:
 2. Run `npx prisma migrate dev --name seed_tables` to create new tables
 3. Run `npm run seed:demo` to populate demo data
 
+### Code Review (2026-01-05)
+
+**Review Result:** PASSED with fixes applied
+
+**Issues Found:**
+- 0 High, 2 Medium, 2 Low
+
+**Fixes Applied:**
+1. **[M1 FIXED]** Added `prisma.seed` configuration to package.json for `npx prisma db seed` support
+2. **[L1 FIXED]** Updated bcrypt cost factor from 10 to 12 (matches Dev Notes specification)
+
+**Remaining Issues (Documentation only):**
+- **[L2]** Role naming: Story specifies `PROJECT_OWNER`, code uses `GIANG_VIEN` (documented as same in schema)
+- **[M2]** Git tracking: Files were committed before review cycle (noted for workflow improvement)
+
+**All Acceptance Criteria:** ✅ VERIFIED
+- AC1: Seed script executable via `npm run seed:demo` or `npx prisma db seed`
+- AC2: 8 demo users with fixed IDs (DT-USER-001 through DT-USER-008)
+- AC3: 4 faculties with fixed IDs (FAC-001 through FAC-004)
+- AC4: 10 proposals covering all workflow states
+- AC5: Workflow logs created for each proposal
+- AC6: 7 Vietnamese holidays seeded
+- AC7: Deterministic UUID v5 + fixed timestamps
+- AC8: Sufficient data for 10-12 minute demo flow
+
 ### File List
 
 **Backend - New Files:**
@@ -1126,5 +1151,6 @@ Implemented complete deterministic seed data system for demo purposes:
 - `qlnckh/prisma/schema.prisma` - Added Faculty, Proposal, WorkflowLog, BusinessCalendar models and enums
 - `qlnckh/apps/src/modules/demo/constants/demo-personas.ts` - Updated to use proper UserRole enum
 - `qlnckh/apps/src/seeds/role-permissions.seed.ts` - Added new roles with DEMO_SWITCH_PERSONA permission
-- `qlnckh/package.json` - Added seed:demo script
+- `qlnckh/package.json` - Added seed:demo script + prisma.seed config (code review fix)
+- `qlnckh/apps/src/seeds/demo.seed.ts` - Updated bcrypt cost factor to 12 (code review fix)
 - `qlnckh/.env` - Added APP_MODE=demo

@@ -10,7 +10,7 @@ import { AuditService } from './audit.service';
 import { AuditQueryDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../rbac/guards/permissions.guard';
-import { RequirePermissions } from '../rbac/decorators/permissions.decorator';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../rbac/permissions.enum';
 import { Request } from 'express';
 

@@ -143,7 +143,7 @@ async function seedFaculties(): Promise<Map<string, string>> {
 async function seedUsers(facultyMap: Map<string, string>): Promise<void> {
   console.log('👥 Seeding users...');
 
-  const hashedPassword = await bcrypt.hash('Demo@123', 10);
+  const hashedPassword = await bcrypt.hash('Demo@123', 12);
 
   for (const userData of DEMO_USERS) {
     const facultyId = userData.facultyCode ? facultyMap.get(userData.facultyCode) : null;

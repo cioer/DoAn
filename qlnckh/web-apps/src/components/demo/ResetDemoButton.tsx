@@ -41,6 +41,11 @@ export function ResetDemoButton() {
         setToast(`✅ ${result.message} (${result.counts.proposals} đề tài, ${result.counts.users} người dùng)`);
         setTimeout(() => setToast(null), 5000);
 
+        // Redirect to worklist after successful reset (AC6)
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1000);
+
         // Note: Current persona is preserved because reset only touches demo data
         // Auth cookies are NOT affected, so actingAs remains intact
       }

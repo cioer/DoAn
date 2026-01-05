@@ -1,4 +1,4 @@
-import { AuditEvent as PrismaAuditEvent } from '@prisma/client';
+import { AuditEvent as PrismaAuditEvent, Prisma } from '@prisma/client';
 import { AuditAction } from '../audit-action.enum';
 
 /**
@@ -15,7 +15,7 @@ export class AuditEvent implements PrismaAuditEvent {
   action: string;
   entityType: string | null;
   entityId: string | null;
-  metadata: unknown;
+  metadata: Prisma.JsonValue;
   ip: string | null;
   userAgent: string | null;
   requestId: string | null;
@@ -64,4 +64,16 @@ export interface CreateAuditEventDto {
   ip?: string;
   userAgent?: string;
   requestId?: string;
+}
+
+/**
+ * Pagination Meta
+ *
+ * Used for paginated responses
+ */
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }

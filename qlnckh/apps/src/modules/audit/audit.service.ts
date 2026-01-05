@@ -3,6 +3,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../auth/prisma.service';
+import { Prisma } from '@prisma/client';
 import { AuditAction } from './audit-action.enum';
 import { AuditEventResponse, PaginationMeta } from './entities/audit-event.entity';
 import { AuditQueryDto } from './dto';
@@ -50,7 +51,7 @@ export class AuditService {
           actingAsUserId: dto.actingAsUserId || null,
           entityType: dto.entityType || null,
           entityId: dto.entityId || null,
-          metadata: dto.metadata || null,
+          metadata: (dto.metadata || null) as unknown as Prisma.NullableJsonNullValueInput,
           ip: dto.ip || null,
           userAgent: dto.userAgent || null,
           requestId: dto.requestId || null,

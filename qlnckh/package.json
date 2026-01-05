@@ -2,6 +2,9 @@
   "name": "@qlnckh/source",
   "version": "0.0.0",
   "license": "MIT",
+  "prisma": {
+    "seed": "ts-node -P tsconfig.base.json apps/src/seeds/demo.seed.ts"
+  },
   "scripts": {
     "nx": "nx",
     "seed:permissions": "ts-node -P tsconfig.base.json apps/src/seeds/permissions.seed.ts",
@@ -28,6 +31,7 @@
     "@swc/core": "~1.5.7",
     "@swc/helpers": "~0.5.11",
     "@types/bcrypt": "^6.0.0",
+    "@types/jest": "^30.0.0",
     "@types/node": "20.19.9",
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
@@ -52,6 +56,7 @@
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/swagger": "^11.2.3",
     "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "^5.22.0",
     "@tanstack/react-query": "^5.90.16",

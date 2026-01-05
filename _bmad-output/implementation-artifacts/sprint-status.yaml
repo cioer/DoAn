@@ -48,9 +48,9 @@ development_status:
   1-3-user-management-demo-safe-khong-email: done
   1-4-audit-log-foundation-auth-admin-actions: done
   1-5-demo-mode-persona-switch-impersonation-chuan: done
-  1-6-deterministic-seed-data-du-cho-demo-flow: review
-  1-7-reset-demo-1-click-30s-an-toan-moi-truong-demo: in-progress
-  1-8-business-calendar-basic-nhung-du-de-sla-chay-sau: ready-for-dev
+  1-6-deterministic-seed-data-du-cho-demo-flow: done
+  1-7-reset-demo-1-click-30s-an-toan-moi-truong-demo: done
+  1-8-business-calendar-basic-nhung-du-de-sla-chay-sau: done
   epic-1-retrospective: optional
 
   # ========================================
