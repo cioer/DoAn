@@ -1,0 +1,82 @@
+{
+  "name": "qlnckh-wireframe",
+  "description": "qlNCKH Wireframe Theme - High contrast with SLA support",
+  "colors": {
+    "background": "#ffffff",
+    "container": "#eeeeee",
+    "border": "#212121",
+    "text": "#000000",
+    "text-muted": "#666666",
+    "accent": "#212121",
+    "button": "#eeeeee",
+    "button-primary": "#212121",
+    "button-primary-text": "#ffffff",
+    "button-neutral": "#eeeeee",
+    "button-danger": "#ffffff",
+    "button-danger-border": "#d32f2f",
+    "input": "#ffffff",
+    "notification-badge": "#d32f2f",
+    "sidebar-active": "#e3f2fd",
+    "rules-box": "#fff9e6",
+    "status": {
+      "nhap": "#9e9e9e",
+      "da-nop": "#2196f3",
+      "dang-duyet": "#ff9800",
+      "yc-chinh-sua": "#f57c00",
+      "tu-choi": "#d32f2f",
+      "duoc-duyet": "#4caf50",
+      "da-rut": "#757575"
+    },
+    "sla": {
+      "normal": "#4caf50",
+      "warning": "#ff9800",
+      "critical": "#d32f2f",
+      "paused": "#9e9e9e",
+      "paused-bg": "#f5f5f5"
+    },
+    "task-type": {
+      "xet-chon": "#2196f3",
+      "nghiem-thu": "#9c27b0",
+      "thay-doi": "#ff5722"
+    }
+  },
+  "sla-labels": {
+    "warning": "Sắp quá hạn",
+    "critical": "Quá hạn",
+    "paused": "Đang pause",
+    "days-left": "còn X ngày",
+    "due-today": "Hôm nay"
+  },
+  "sla-rules": {
+    "xet-chon": {
+      "khoa": "3 ngày làm việc",
+      "ke-hoach": "7 ngày làm việc",
+      "hoidong-truong": "7 ngày làm việc",
+      "tvxc-de-cuong": "3 ngày làm việc",
+      "tvxc-ket-qua": "3 ngày làm việc",
+      "hoan-thien": "5 ngày làm việc"
+    },
+    "nghiem-thu": {
+      "qd-thanh-lap": "2 ngày làm việc",
+      "ban-giao": "2 ngày làm việc",
+      "hop-nghiem-thu": "7 ngày làm việc",
+      "hoan-thien": "5 ngày làm việc"
+    },
+    "thay-doi": {
+      "phan-hoi": "15 ngày làm việc"
+    }
+  },
+  "business-days": "Mon-Fri (exclude Sat & Sun)",
+  "sla-pause-rules": "Pause khi chờ PI/BCN (YC chỉnh sửa, chờ bổ sung), Resume khi BCN nộp lại",
+  "status-labels": {
+    "nhap": "Nháp",
+    "da-nop": "Đã nộp",
+    "dang-duyet-khoa": "Đang duyệt - Khoa",
+    "dang-duyet-phong": "Đang duyệt - Phòng KHCN",
+    "dang-duyet-bgh": "Đang duyệt - BGH",
+    "yc-chinh-sua": "YC chỉnh sửa",
+    "tu-choi": "Từ chối",
+    "duoc-duyet": "Được duyệt",
+    "da-rut": "Đã rút"
+  }
+}

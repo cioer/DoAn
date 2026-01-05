@@ -1,0 +1,73 @@
+# Workflow Status - BMad Method Progress Tracking
+#
+# This tracks progress through BMM methodology Analysis, Planning, and Solutioning phases.
+# Implementation phase is tracked separately in sprint-status.yaml
+#
+# STATUS DEFINITIONS:
+# ==================
+# Initial Status (before completion):
+#   - required: Must be completed to progress
+#   - optional: Can be completed but not required
+#   - recommended: Strongly suggested but not required
+#   - conditional: Required only if certain conditions met (e.g., if_has_ui, if_undocumented)
+#
+# Completion Status:
+#   - {file-path}: File created/found (e.g., "docs/prd.md")
+#   - skipped: Optional/conditional workflow that was skipped
+
+# METADATA
+# ========
+generated: "2026-01-02"
+project: "DoAn"
+project_type: "bmad-method"
+selected_track: "bmad-method"
+field_type: "brownfield"
+workflow_path: "_bmad/bmm/workflows/workflow-status/paths/method-brownfield.yaml"
+
+# WORKFLOW STATUS
+# ===============
+# Track your progress through each workflow
+# Update status to file path upon completion
+
+workflow_status:
+  # Phase 0 - Documentation (Conditional)
+  document-project: conditional
+  # Purpose: Understand existing codebase before planning
+
+  # Phase 1 - Analysis (Optional)
+  brainstorm-project: "_bmad-output/analysis/brainstorming-session-2026-01-02.md"
+  # Status: COMPLETED - User selected during workflow-init
+  research: "_bmad-output/planning-artifacts/research/technical-rbac-workflow-audit-research-2026-01-02.md"
+  # Status: NEXT - User selected during workflow-init
+
+  # Phase 2 - Planning
+  prd: required
+  # Agent: pm
+  # Command: /bmad:bmm:workflows:create-prd
+
+  create-ux-design: conditional
+  # Agent: ux-designer
+  # Condition: if_has_ui - Determined after PRD
+
+  # Phase 3 - Solutioning
+  create-architecture: required
+  # Agent: architect
+  # Command: /bmad:bmm:workflows:create-architecture
+
+  create-epics-and-stories: required
+  # Agent: pm
+  # Command: /bmad:bmm:workflows:create-epics-and-stories
+
+  test-design: optional
+  # Agent: tea
+  # Command: /bmad:bmm:workflows:testarch-test-design
+
+  implementation-readiness: required
+  # Agent: architect
+  # Command: /bmad:bmm:workflows:check-implementation-readiness
+
+  # Phase 4 - Implementation
+  sprint-planning: required
+  # Agent: sm
+  # Command: /bmad:bmm:workflows:sprint-planning
+  # Note: Creates sprint plan - subsequent work tracked there

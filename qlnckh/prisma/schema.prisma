@@ -1,0 +1,85 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  GIANG_VIEN     // Giảng viên / PI
+  QUAN_LY_KHOA   // Quản lý Khoa
+  HOI_DONG       // Thành viên Hội đồng
+  BGH            // Ban Giám hiệu
+  PHONG_KHCN     // Phòng KHCN
+  ADMIN          // Quản trị hệ thống
+}
+
+enum Permission {
+  USER_MANAGE           // Quản lý người dùng
+  DEMO_SWITCH_PERSONA   // Demo: Chuyển persona
+  DEMO_RESET            // Demo: Reset dữ liệu
+  CALENDAR_MANAGE       // Quản lý lịch làm việc
+}
+
+// ============================================================
+// CORE: Users
+// ============================================================
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  displayName  String    @map("display_name")
+  role         UserRole
+  facultyId    String?   @map("faculty_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+  @@index([email])
+}
+
+// ============================================================
+// AUTH: Refresh Tokens
+// ============================================================
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  revokedAt DateTime? @map("revoked_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+// ============================================================
+// RBAC: Role Permissions
+// ============================================================
+
+model RolePermission {
+  id         String     @id @default(uuid())
+  role       UserRole
+  permission Permission
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  @@unique([role, permission])
+  @@map("role_permissions")
+}

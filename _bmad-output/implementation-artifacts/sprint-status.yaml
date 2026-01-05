@@ -1,0 +1,165 @@
+# Sprint Status - Hệ thống Quản lý Nghiên cứu Khoa học
+# Generated: 2026-01-04
+# Project: DoAn
+# User: Coc
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-01-04
+project: DoAn
+project_key: NCKH-2026
+tracking_system: file-system
+story_location: "_bmad-output/implementation-artifacts/stories"
+
+development_status:
+  # ========================================
+  # EPIC 1: Foundation + Demo Operator (8 stories)
+  # ========================================
+  epic-1: in-progress
+  1-1-authentication-nestjs-first-cookie-based: done
+  1-2-authorization-rbac-engine-ui-gating: review
+  1-3-user-management-demo-safe-khong-email: backlog
+  1-4-audit-log-foundation-auth-admin-actions: backlog
+  1-5-demo-mode-persona-switch-impersonation-chuan: backlog
+  1-6-deterministic-seed-data-du-cho-demo-flow: backlog
+  1-7-reset-demo-1-click-30s-an-toan-moi-truong-demo: backlog
+  1-8-business-calendar-basic-nhung-du-de-sla-chay-sau: backlog
+  epic-1-retrospective: optional
+
+  # ========================================
+  # EPIC 2: Proposal Draft + Attachments + Form Registry (6 stories)
+  # ========================================
+  epic-2: backlog
+  2-1-form-registry-canonical-section-ids: backlog
+  2-2-create-proposal-draft: backlog
+  2-3-auto-save-draft: backlog
+  2-4-upload-attachments-demo-cap-5mb-per-file: backlog
+  2-5-attachment-crud-replace-delete: backlog
+  2-6-proposal-master-record-structure: backlog
+  epic-2-retrospective: optional
+
+  # ========================================
+  # EPIC 3: Workflow Core + Queue + SLA (9 stories)
+  # ========================================
+  epic-3: backlog
+  3-1-16-canonical-states-plus-transitions: backlog
+  3-2-holder-rules-holder-unit-plus-holder-user: backlog
+  3-3-submit-proposal-draft-right-arrow-faculty-review: backlog
+  3-4-workflow-logs-timeline-thread-view: backlog
+  3-5-queue-filters-dang-cho-toi-cua-toi-etc: backlog
+  3-6-sla-calculator-business-days-plus-cutoff-17-00: backlog
+  3-7-sla-badge-component-icon-plus-text: backlog
+  3-8-idempotency-keys-anti-double-submit-all-state-changing-actions: backlog
+  3-9-project-detail-pdf-export-wysiwyg-sla-10s-pre-generated-seeds: backlog
+  epic-3-retrospective: optional
+
+  # ========================================
+  # EPIC 4: Faculty Review + Changes Requested + Resubmit (6 stories)
+  # ========================================
+  epic-4: backlog
+  4-1-faculty-approve-action: backlog
+  4-2-faculty-return-dialog-reason-code-plus-sections: backlog
+  4-3-execute-return-changes-requested-plus-return-target: backlog
+  4-4-revision-panel-checkbox-da-sua-mvp: backlog
+  4-5-resubmit-action-doc-return-target-tu-log: backlog
+  4-6-revision-pdf-export: backlog
+  epic-4-retrospective: optional
+
+  # ========================================
+  # EPIC 5: School Ops + Council Review (6 stories)
+  # ========================================
+  epic-5: backlog
+  5-1-school-selection-queue: backlog
+  5-2-council-assignment: backlog
+  5-3-evaluation-form-draft-plus-auto-save: backlog
+  5-4-preview-pdf-plus-confirm-gate-submit-once: backlog
+  5-5-finalize-right-arrow-read-only-submit-once-lock: backlog
+  5-6-evaluation-pdf-export: backlog
+  epic-5-retrospective: optional
+
+  # ========================================
+  # EPIC 6: Acceptance & Handover + Dossier Pack (6 stories)
+  # ========================================
+  epic-6: backlog
+  6-1-start-project-approved-right-arrow-in-progress: backlog
+  6-2-submit-faculty-acceptance-review: backlog
+  6-3-faculty-acceptance-vote: backlog
+  6-4-school-acceptance-vote: backlog
+  6-5-handover-plus-dossier-pack-checklist: backlog
+  6-6-zip-dossier-pack-export-sla-30s-progress-pre-generated-seeds: backlog
+  epic-6-retrospective: optional
+
+  # ========================================
+  # EPIC 7: Document Export (Milestone Completion) (3 stories)
+  # ========================================
+  epic-7: backlog
+  7-1-document-export-completion-refinement: backlog
+  7-2-template-upload-plus-registry: backlog
+  7-3-docx-generation-plus-sha-256-plus-manifest-plus-retention-plus-rbac-download-plus-verify: backlog
+  epic-7-retrospective: optional
+
+  # ========================================
+  # EPIC 8: Bulk Actions & Reports (4 stories)
+  # ========================================
+  epic-8: backlog
+  8-1-bulk-assign-gan-holder-user-hang-loat: backlog
+  8-2-bulk-remind-preview-plus-dry-run-plus-execute: backlog
+  8-3-export-excel-per-filter: backlog
+  8-4-morning-check-dashboard-kpi-plus-overdue-list: backlog
+  epic-8-retrospective: optional
+
+  # ========================================
+  # EPIC 9: Exceptions (Pause/Cancel/Withdraw/Reject) (3 stories)
+  # ========================================
+  epic-9: backlog
+  9-1-cancel-withdraw-actions: backlog
+  9-2-reject-action: backlog
+  9-3-pause-resume-pkhcn-only: backlog
+  epic-9-retrospective: optional
+
+  # ========================================
+  # EPIC 10: Admin & System Configuration (6 stories)
+  # ========================================
+  epic-10: backlog
+  10-1-import-excel-users-proposals: backlog
+  10-2-export-excel-full-dump: backlog
+  10-3-system-health-dashboard: backlog
+  10-4-full-audit-log-viewer: backlog
+  10-5-holiday-management-full-crud: backlog
+  10-6-db-restore-plus-recompute-verify-state: backlog
+  epic-10-retrospective: optional
+
+# ========================================
+# STATISTICS
+# ========================================
+# Total Epics: 10
+# Total Stories: 57
+# Stories Done: 0
+# Epics In Progress: 0
