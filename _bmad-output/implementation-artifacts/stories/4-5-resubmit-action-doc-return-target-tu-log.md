@@ -1,6 +1,6 @@
 # Story 4.5: Resubmit Action (Đọc Return Target từ Log)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
