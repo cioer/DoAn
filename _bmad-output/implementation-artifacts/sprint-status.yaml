@@ -59,8 +59,8 @@ development_status:
   epic-2: in-progress
   2-1-form-registry-canonical-section-ids: done
   2-2-create-proposal-draft: done
-  2-3-auto-save-draft: review
-  2-4-upload-attachments-demo-cap-5mb-per-file: backlog
+  2-3-auto-save-draft: done
+  2-4-upload-attachments-demo-cap-5mb-per-file: done
   2-5-attachment-crud-replace-delete: backlog
   2-6-proposal-master-record-structure: backlog
   epic-2-retrospective: optional

@@ -9,6 +9,7 @@ import { DemoModule } from '../modules/demo/demo.module';
 import { BusinessCalendarModule } from '../modules/calendar/calendar.module';
 import { FormTemplatesModule } from '../modules/form-templates/form-templates.module';
 import { ProposalsModule } from '../modules/proposals/proposals.module';
+import { AttachmentsModule } from '../modules/attachments/attachments.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { ProposalsModule } from '../modules/proposals/proposals.module';
     BusinessCalendarModule,
     FormTemplatesModule,
     ProposalsModule,
+    AttachmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

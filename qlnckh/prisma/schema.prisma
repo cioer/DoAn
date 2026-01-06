@@ -186,6 +186,7 @@ model Proposal {
   faculty         Faculty       @relation(fields: [facultyId], references: [id])
   template        FormTemplate? @relation(fields: [templateId], references: [id])
   workflowLogs    WorkflowLog[]
+  attachments     Attachment[]
 
   @@map("proposals")
   @@index([state])
@@ -330,4 +331,27 @@ model BusinessCalendar {
   @@unique([date])
   @@map("business_calendar")
   @@index([date])
+}
+
+// ============================================================
+// ATTACHMENTS: Proposal Attachments (Story 2.4)
+// ============================================================
+
+model Attachment {
+  id          String    @id @default(uuid())
+  proposalId  String    @map("proposal_id")
+  fileName    String    @map("file_name")
+  fileUrl     String    @map("file_url")
+  fileSize    Int       @map("file_size")     // in bytes
+  mimeType    String    @map("mime_type")
+  uploadedBy  String    @map("uploaded_by")
+  uploadedAt  DateTime  @default(now()) @map("uploaded_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  proposal    Proposal  @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@map("attachments")
+  @@index([proposalId])
+  @@index([uploadedBy])
+  @@index([deletedAt])
 }

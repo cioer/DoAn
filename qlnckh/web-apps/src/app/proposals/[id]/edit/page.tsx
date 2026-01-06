@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAutoSave, AutoSaveState } from '../../../../hooks/useAutoSave';
-import { SaveIndicator } from '../../../../components/forms/SaveIndicator';
+import { SaveIndicator, FileUpload, AttachmentList } from '../../../../components/forms';
 import { proposalsApi, Proposal } from '../../../../lib/api/proposals';
+import { attachmentsApi, Attachment } from '../../../../lib/api/attachments';
 
 /**
  * Proposal Edit Page (Story 2.3 - Integration)
@@ -23,6 +24,11 @@ export default function ProposalEditPage() {
 
   // Form data state - structured by sections
   const [formData, setFormData] = useState<Record<string, unknown>>({});
+
+  // Attachments state (Story 2.4)
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
+  const [totalSize, setTotalSize] = useState(0);
 
   /**
    * Load proposal data on mount
@@ -116,6 +122,36 @@ export default function ProposalEditPage() {
   }, [triggerSave]);
 
   /**
+   * Load attachments for proposal (Story 2.4 - Task 6.3)
+   */
+  useEffect(() => {
+    const loadAttachments = async () => {
+      if (!id) return;
+
+      try {
+        setAttachmentsLoading(true);
+        const result = await attachmentsApi.getByProposalId(id);
+        setAttachments(result.data);
+        setTotalSize(result.totalSize);
+      } catch (error) {
+        console.error('Failed to load attachments:', error);
+      } finally {
+        setAttachmentsLoading(false);
+      }
+    };
+
+    void loadAttachments();
+  }, [id]);
+
+  /**
+   * Handle attachment upload success (Story 2.4 - Task 6.2)
+   */
+  const handleUploadSuccess = useCallback((attachment: Attachment) => {
+    setAttachments((prev) => [...prev, attachment]);
+    setTotalSize((prev) => prev + attachment.fileSize);
+  }, []);
+
+  /**
    * Handle form submit (explicit save button)
    * Forces immediate save before navigation
    */
@@ -202,6 +238,30 @@ export default function ProposalEditPage() {
 
       {/* Demo Proposal Form */}
       <div className="space-y-6">
+        {/* Attachments Section (Story 2.4 - Task 6.1) */}
+        <section className="border rounded-lg p-4" data-section="SEC_ATTACHMENTS">
+          <h2 className="text-lg font-semibold mb-4">Tài liệu đính kèm</h2>
+
+          {/* Upload component (Task 6.2) - disabled when not in DRAFT (Task 6.4) */}
+          <div className="mb-4">
+            <FileUpload
+              proposalId={id || ''}
+              onUploadSuccess={handleUploadSuccess}
+              disabled={proposal?.state !== 'DRAFT'}
+              currentTotalSize={totalSize}
+            />
+          </div>
+
+          {/* Attachments list (Task 6.2, 6.3) */}
+          {!attachmentsLoading && (
+            <AttachmentList
+              proposalId={id || ''}
+              attachments={attachments}
+              totalSize={totalSize}
+            />
+          )}
+        </section>
+
         {/* Section: SEC_INFO_GENERAL */}
         <section className="border rounded-lg p-4" data-section="SEC_INFO_GENERAL">
           <h2 className="text-lg font-semibold mb-4">Thông tin chung</h2>
