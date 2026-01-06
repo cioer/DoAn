@@ -95,8 +95,8 @@ development_status:
   # ========================================
   # EPIC 5: School Ops + Council Review (6 stories)
   # ========================================
-  epic-5: backlog
-  5-1-school-selection-queue: backlog
+  epic-5: in-progress
+  5-1-school-selection-queue: in-progress
   5-2-council-assignment: backlog
   5-3-evaluation-form-draft-plus-auto-save: backlog
   5-4-preview-pdf-plus-confirm-gate-submit-once: backlog
