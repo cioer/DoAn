@@ -53,6 +53,7 @@ import { UserRole } from '@prisma/client';
 import {
   ApproveFacultyReviewDto,
   ReturnFacultyReviewDto,
+  ResubmitProposalDto,
   TransitionResponseDto,
 } from './dto/transition.dto';
 
@@ -738,6 +739,165 @@ export class WorkflowController {
         previousState: result.previousState,
         currentState: result.currentState,
         action: 'RETURN',
+        holderUnit: result.holderUnit,
+        holderUser: result.holderUser,
+        workflowLogId: result.workflowLog.id,
+      },
+    };
+  }
+
+  /**
+   * POST /api/workflow/:proposalId/resubmit
+   * Story 4.5: Resubmit Action (Read Return Target from Log)
+   *
+   * Resubmits a proposal after changes, transitioning from CHANGES_REQUESTED
+   * back to the return_target_state (e.g., FACULTY_REVIEW). NOT to DRAFT.
+   * Only proposal owners (GIANG_VIEN) can perform this action.
+   *
+   * AC1: Reads return_target from workflow log
+   * AC2: State transitions to return_target_state (FACULTY_REVIEW)
+   * AC3: Workflow log entry with RESUBMIT action
+   */
+  @Post(':proposalId/resubmit')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.GIANG_VIEN, UserRole.QUAN_LY_KHOA)
+  @ApiOperation({
+    summary: 'Nộp lại hồ sơ sau khi sửa',
+    description:
+      'Chuyển đề tài từ trạng thái CHANGES_REQUESTED về return_target_state (FACULTY_REVIEW) - KHÔNG quay về DRAFT. Chỉ chủ nhiệm đề tài mới có thể nộp lại.',
+  })
+  @ApiParam({
+    name: 'proposalId',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Đề tài được nộp lại thành công',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          proposalId: 'proposal-uuid',
+          previousState: 'CHANGES_REQUESTED',
+          currentState: 'FACULTY_REVIEW',
+          action: 'RESUBMIT',
+          holderUnit: 'faculty-uuid',
+          holderUser: 'reviewer-uuid',
+          workflowLogId: 'log-uuid',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - proposal not in CHANGES_REQUESTED state',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_CHANGES_REQUESTED',
+          message: 'Chỉ có thể nộp lại đề tài ở trạng thái CHANGES_REQUESTED',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user not owner of proposal',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Chỉ chủ nhiệm đề tài mới có thể nộp lại hồ sơ',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found or no return log found',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Không tìm thấy đề tài hoặc thông tin yêu cầu sửa',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflict - duplicate idempotency key',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'ALREADY_PROCESSED',
+          message: 'Yêu cầu đã được xử lý',
+        },
+      },
+    },
+  })
+  async resubmitProposal(
+    @Param('proposalId') proposalId: string,
+    @Body() dto: ResubmitProposalDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<TransitionResponseDto> {
+    // Verify proposal exists
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: { id: true, state: true, ownerId: true },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Không tìm thấy đề tài',
+        },
+      });
+    }
+
+    // Validate state: must be CHANGES_REQUESTED
+    if (proposal.state !== ProjectState.CHANGES_REQUESTED) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_CHANGES_REQUESTED',
+          message: `Chỉ có thể nộp lại đề tài ở trạng thái CHANGES_REQUESTED. Hiện tại: ${proposal.state}`,
+        },
+      });
+    }
+
+    // Execute transition via workflow service
+    const result = await this.workflowService.resubmitProposal(
+      proposalId,
+      dto.checkedSections,
+      {
+        userId: user.id,
+        userRole: user.role,
+        userFacultyId: user.facultyId,
+        idempotencyKey: dto.idempotencyKey,
+        ip,
+        userAgent,
+        requestId,
+      },
+    );
+
+    return {
+      success: true,
+      data: {
+        proposalId: result.proposal.id,
+        previousState: result.previousState,
+        currentState: result.currentState,
+        action: 'RESUBMIT',
         holderUnit: result.holderUnit,
         holderUser: result.holderUser,
         workflowLogId: result.workflowLog.id,

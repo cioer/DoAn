@@ -1,5 +1,5 @@
 /**
- * Revision Panel Component (Story 4.4)
+ * Revision Panel Component (Story 4.4 + Story 4.5)
  *
  * Displays sections needing revision with checkboxes for tracking completion.
  * Shows at top of proposal form when state = CHANGES_REQUESTED.
@@ -10,17 +10,20 @@
  * - Click section label to scroll and highlight form section
  * - Warning message about history preservation
  * - "Nộp lại" button enabled when ≥1 checkbox ticked (Story 4.5)
+ * - Resubmit functionality with confirmation and error handling (Story 4.5)
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
-import { workflowApi, CANONICAL_SECTIONS, WorkflowLog } from '@/lib/api/workflow';
+import { CheckCircle, AlertTriangle, Loader2, Send } from 'lucide-react';
+import { workflowApi, CANONICAL_SECTIONS, WorkflowLog, generateIdempotencyKey } from '@/lib/api/workflow';
 
 export interface RevisionPanelProps {
   proposalId: string;
   proposalState: string;
   onResubmit?: (checkedSections: string[]) => void;
   checkedSections?: string[];
+  /** Callback when resubmit succeeds - parent should refresh proposal state */
+  onResubmitSuccess?: () => void;
 }
 
 /**
@@ -111,6 +114,7 @@ export function RevisionPanel({
   proposalState,
   onResubmit,
   checkedSections: propCheckedSections,
+  onResubmitSuccess,
 }: RevisionPanelProps) {
   const [returnLog, setReturnLog] = useState<WorkflowLog | null>(null);
   const [loading, setLoading] = useState(false);
@@ -120,6 +124,11 @@ export function RevisionPanel({
   const [internalChecked, setInternalChecked] = useState<string[]>([]);
   const isControlled = propCheckedSections !== undefined;
   const checkedSections = isControlled ? propCheckedSections : internalChecked;
+
+  // Story 4.5: Resubmit state
+  const [resubmitting, setResubmitting] = useState(false);
+  const [resubmitError, setResubmitError] = useState<string | null>(null);
+  const [resubmitSuccess, setResubmitSuccess] = useState(false);
 
   // Load checked sections from localStorage on mount
   useEffect(() => {
@@ -220,6 +229,63 @@ export function RevisionPanel({
     [],
   );
 
+  // Story 4.5: Handle resubmit action
+  const handleResubmit = useCallback(async () => {
+    if (checkedSections.length === 0) {
+      setResubmitError('Vui lòng đánh dấu ít nhất một phần đã sửa');
+      return;
+    }
+
+    // Confirmation dialog
+    const confirmed = window.confirm(
+      `Bạn có chắc muốn nộp lại hồ sơ?\n\n` +
+      `- ${checkedSections.length} phần đã sửa được đánh dấu\n` +
+      `- Hồ sơ sẽ được gửi về lại cho người reviewing\n` +
+      `- Lịch sử thay đổi sẽ được giữ nguyên`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setResubmitting(true);
+    setResubmitError(null);
+
+    try {
+      const idempotencyKey = generateIdempotencyKey();
+      await workflowApi.resubmitProposal(
+        proposalId,
+        idempotencyKey,
+        checkedSections,
+      );
+
+      // Success!
+      setResubmitSuccess(true);
+
+      // Clear localStorage
+      try {
+        localStorage.removeItem(getStorageKey(proposalId));
+      } catch {
+        // Ignore localStorage errors
+      }
+
+      // Notify parent to refresh proposal state
+      if (onResubmitSuccess) {
+        onResubmitSuccess();
+      }
+
+      // Auto-hide success message after 3 seconds
+      setTimeout(() => {
+        setResubmitSuccess(false);
+      }, 3000);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Không thể nộp lại hồ sơ';
+      setResubmitError(errorMessage);
+    } finally {
+      setResubmitting(false);
+    }
+  }, [checkedSections, proposalId, onResubmitSuccess]);
+
   // AC1: Only render when proposal state = CHANGES_REQUESTED
   if (proposalState !== 'CHANGES_REQUESTED') {
     return null;
@@ -292,8 +358,43 @@ export function RevisionPanel({
         </p>
       </div>
 
-      {/* AC5: Resubmit Button Placeholder - Story 4.5 will implement */}
-      {/* Parent component should add the "Nộp lại" button based on checkedSections.length */}
+      {/* Story 4.5: Resubmit Button */}
+      {resubmitSuccess && (
+        <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
+          <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-green-800">
+            Đã nộp lại hồ sơ thành công! Đang chuyển về lại cho người reviewing...
+          </p>
+        </div>
+      )}
+
+      {resubmitError && (
+        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-red-800">{resubmitError}</p>
+        </div>
+      )}
+
+      <div className="mt-4 flex justify-end">
+        <button
+          type="button"
+          onClick={handleResubmit}
+          disabled={checkedSections.length === 0 || resubmitting}
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
+        >
+          {resubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Đang nộp...
+            </>
+          ) : (
+            <>
+              <Send className="w-4 h-4" />
+              Nộp lại ({checkedSections.length}/{sectionItems.length} đã sửa)
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 }

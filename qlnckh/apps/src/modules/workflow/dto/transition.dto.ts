@@ -175,6 +175,37 @@ export class ReturnFacultyReviewDto {
 }
 
 /**
+ * Resubmit Proposal DTO (Story 4.5)
+ * Specific DTO for resubmitting a proposal after changes (CHANGES_REQUESTED → return_target_state)
+ */
+export class ResubmitProposalDto {
+  @ApiProperty({
+    description: 'ID của đề tài cần nộp lại',
+    example: 'uuid-v4',
+  })
+  @IsUUID()
+  proposalId: string;
+
+  @ApiProperty({
+    description: 'Danh sách sections đã được sửa',
+    example: ['SEC_METHOD', 'SEC_BUDGET'],
+    type: [String],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayNotEmpty({ message: 'Phải có ít nhất một section đã được sửa' })
+  checkedSections: string[];
+
+  @ApiPropertyOptional({
+    description: 'Idempotency key để tránh double-submit',
+    example: 'uuid-v4',
+  })
+  @IsOptional()
+  @IsUUID()
+  idempotencyKey?: string;
+}
+
+/**
  * Transition Response DTO
  * Response format for successful state transitions
  */

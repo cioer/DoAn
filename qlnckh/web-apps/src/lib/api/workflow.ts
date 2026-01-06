@@ -78,6 +78,17 @@ export interface ReturnFacultyReviewResponse {
   data: TransitionResult;
 }
 
+export interface ResubmitProposalRequest {
+  proposalId: string;
+  idempotencyKey?: string;
+  checkedSections: string[];
+}
+
+export interface ResubmitProposalResponse {
+  success: true;
+  data: TransitionResult;
+}
+
 export interface WorkflowErrorResponse {
   success: false;
   error: {
@@ -201,6 +212,40 @@ export const workflowApi = {
         reason,
         reasonCode,
         reasonSections,
+        idempotencyKey,
+      },
+      {
+        headers: {
+          'X-Idempotency-Key': idempotencyKey,
+        },
+      },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Resubmit Proposal (CHANGES_REQUESTED → return_target_state)
+   * Story 4.5: Resubmit after revisions - returns to reviewer, NOT to DRAFT
+   *
+   * @param proposalId - Proposal ID to resubmit
+   * @param idempotencyKey - UUID v4 idempotency key
+   * @param checkedSections - Array of section IDs marked as fixed
+   * @returns Transition result with proposal state and workflow log
+   * @throws 400 if proposal not in CHANGES_REQUESTED state
+   * @throws 403 if user not owner of proposal
+   * @throws 404 if proposal or return log not found
+   * @throws 409 if idempotency key was already used
+   */
+  resubmitProposal: async (
+    proposalId: string,
+    idempotencyKey: string,
+    checkedSections: string[],
+  ): Promise<TransitionResult> => {
+    const response = await apiClient.post<ResubmitProposalResponse>(
+      `/workflow/${proposalId}/resubmit`,
+      {
+        proposalId,
+        checkedSections,
         idempotencyKey,
       },
       {

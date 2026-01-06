@@ -557,6 +557,172 @@ export class WorkflowService {
   }
 
   /**
+   * Resubmit Proposal (CHANGES_REQUESTED → return_target_state)
+   * Story 4.5: Resubmit after revisions - returns to reviewer, NOT to DRAFT
+   *
+   * AC1: Read return_target from workflow log
+   * AC2: State transitions to return_target_state (FACULTY_REVIEW)
+   * AC3: Workflow log entry with RESUBMIT action
+   *
+   * @param proposalId - Proposal ID
+   * @param checkedSections - Sections marked as fixed
+   * @param context - Transition context
+   * @returns Transition result
+   */
+  async resubmitProposal(
+    proposalId: string,
+    checkedSections: string[],
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    // Check idempotency
+    if (context.idempotencyKey) {
+      const cached = this.idempotencyStore.get(context.idempotencyKey);
+      if (cached) {
+        this.logger.log(
+          `Idempotent request: ${context.idempotencyKey} - returning cached result`,
+        );
+        return cached;
+      }
+    }
+
+    // Get proposal
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: { owner: true, faculty: true },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException('Đề tài không tồn tại');
+    }
+
+    // Validate: Must be in CHANGES_REQUESTED state
+    if (proposal.state !== ProjectState.CHANGES_REQUESTED) {
+      throw new BadRequestException(
+        `Chỉ có thể nộp lại đề tài ở trạng thái CHANGES_REQUESTED. Hiện tại: ${proposal.state}`,
+      );
+    }
+
+    // Validate: Only owner can resubmit
+    if (proposal.ownerId !== context.userId) {
+      throw new BadRequestException(
+        'Chỉ chủ nhiệm đề tài mới có thể nộp lại hồ sơ',
+      );
+    }
+
+    // RBAC validation: Owner must have GIANG_VIEN role (or allow QUAN_LY_KHOA for admin override)
+    this.validateActionPermission(WorkflowAction.RESUBMIT, context.userRole);
+
+    // AC1: Fetch latest RETURN log to get return_target
+    const lastReturnLog = await this.prisma.workflowLog.findFirst({
+      where: {
+        proposalId,
+        toState: ProjectState.CHANGES_REQUESTED,
+        action: WorkflowAction.RETURN,
+      },
+      orderBy: { timestamp: 'desc' },
+    });
+
+    if (!lastReturnLog) {
+      throw new BadRequestException(
+        'Không tìm thấy thông tin yêu cầu sửa. Vui lòng liên hệ quản trị viên.',
+      );
+    }
+
+    // AC1: Extract return target from the RETURN log
+    const targetState = lastReturnLog.returnTargetState;
+    const targetHolder = lastReturnLog.returnTargetHolderUnit;
+
+    if (!targetState || !targetHolder) {
+      throw new BadRequestException(
+        'Thông tin return_target không đầy đủ trong log yêu cầu sửa. Vui lòng liên hệ quản trị viên.',
+      );
+    }
+
+    // Get user display name for audit log
+    const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+    // AC2: Calculate SLA dates (reset timer)
+    const slaStartDate = new Date();
+    const slaDeadline = await this.slaService.calculateDeadlineWithCutoff(
+      slaStartDate,
+      3, // 3 business days for re-review
+      17, // 17:00 cutoff hour (5 PM)
+    );
+
+    // Execute transition
+    const result = await this.prisma.$transaction(async (tx) => {
+      // AC2: Update proposal state to return_target_state (NOT to DRAFT!)
+      const updated = await tx.proposal.update({
+        where: { id: proposalId },
+        data: {
+          state: targetState,
+          holderUnit: targetHolder,
+          holderUser: lastReturnLog.actorId, // Back to the original reviewer
+          slaStartDate,
+          slaDeadline,
+        },
+      });
+
+      // AC3: Create workflow log entry with RESUBMIT action
+      const workflowLog = await tx.workflowLog.create({
+        data: {
+          proposalId,
+          action: WorkflowAction.RESUBMIT,
+          fromState: proposal.state,
+          toState: targetState,
+          actorId: context.userId,
+          actorName: actorDisplayName,
+          comment: JSON.stringify({
+            returnLogId: lastReturnLog.id,
+            checkedSections,
+          }),
+        },
+      });
+
+      // Log audit
+      await this.auditService.logEvent({
+        action: 'PROPOSAL_RESUBMIT',
+        actorUserId: context.userId,
+        entityType: 'Proposal',
+        entityId: proposalId,
+        metadata: {
+          proposalCode: proposal.code,
+          fromState: proposal.state,
+          toState: targetState,
+          returnTargetState: targetState,
+          returnTargetHolderUnit: targetHolder,
+          checkedSections,
+        },
+        ip: context.ip,
+        userAgent: context.userAgent,
+        requestId: context.requestId,
+      });
+
+      return { proposal: updated, workflowLog };
+    });
+
+    const transitionResult: TransitionResult = {
+      proposal: result.proposal,
+      workflowLog: result.workflowLog,
+      previousState: proposal.state,
+      currentState: targetState,
+      holderUnit: targetHolder,
+      holderUser: lastReturnLog.actorId,
+    };
+
+    // Store in idempotency cache
+    if (context.idempotencyKey) {
+      this.idempotencyStore.set(context.idempotencyKey, transitionResult);
+    }
+
+    this.logger.log(
+      `Proposal ${proposal.code} resubmitted: ${proposal.state} → ${targetState} (returning to ${targetHolder})`,
+    );
+
+    return transitionResult;
+  }
+
+  /**
    * General State Transition Method
    * AC6: Service method to handle any state transition
    *
