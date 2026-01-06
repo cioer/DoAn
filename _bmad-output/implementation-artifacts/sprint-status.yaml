@@ -75,10 +75,10 @@ development_status:
   3-4-workflow-logs-timeline-thread-view: done
   3-5-queue-filters-dang-cho-toi-cua-toi-etc: done
   3-6-sla-calculator-business-days-plus-cutoff-17-00: done
-  3-7-sla-badge-component-icon-plus-text: backlog
+  3-7-sla-badge-component-icon-plus-text: done
   3-8-idempotency-keys-anti-double-submit-all-state-changing-actions: done
   3-9-project-detail-pdf-export-wysiwyg-sla-10s-pre-generated-seeds: done
-  epic-3-retrospective: optional
+  epic-3-retrospective: done
 
   # ========================================
   # EPIC 4: Faculty Review + Changes Requested + Resubmit (6 stories)
