@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  UseInterceptors,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -43,6 +44,7 @@ import { ProjectState, Prisma } from '@prisma/client';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../rbac/guards/roles.guard';
+import { IdempotencyInterceptor } from '../../common/interceptors';
 
 /**
  * User object attached to request by JWT guard
@@ -57,6 +59,7 @@ interface RequestUser {
 @ApiTags('workflow')
 @Controller('workflow')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@UseInterceptors(IdempotencyInterceptor)
 @ApiBearerAuth()
 export class WorkflowController {
   constructor(

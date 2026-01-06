@@ -4,6 +4,7 @@ import { WorkflowController } from './workflow.controller';
 import { PrismaService } from '../auth/prisma.service';
 import { AuditModule } from '../audit/audit.module';
 import { BusinessCalendarModule } from '../calendar/calendar.module';
+import { IdempotencyModule } from '../../common/interceptors';
 
 /**
  * Workflow Module
@@ -14,9 +15,10 @@ import { BusinessCalendarModule } from '../calendar/calendar.module';
  * Story 3.3: Added BusinessCalendarModule import for SLA calculation
  * Story 3.4: Added WorkflowController for workflow logs endpoint
  * Story 3.5: Added queue filter endpoint with SlaService integration
+ * Story 3.8: Added IdempotencyModule for idempotency on state-changing actions
  */
 @Module({
-  imports: [AuditModule, BusinessCalendarModule],
+  imports: [AuditModule, BusinessCalendarModule, IdempotencyModule],
   controllers: [WorkflowController],
   providers: [WorkflowService, PrismaService],
   exports: [WorkflowService],

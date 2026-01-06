@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  UseInterceptors,
   ValidationPipe,
   ParseArrayPipe,
 } from '@nestjs/common';
@@ -36,6 +37,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UserRole, ProjectState, SectionId } from '@prisma/client';
 import { AuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../rbac/guards/roles.guard';
+import { IdempotencyInterceptor } from '../../common/interceptors';
 
 /**
  * User object attached to request by JWT guard
@@ -50,6 +52,7 @@ interface RequestUser {
 @ApiTags('proposals')
 @Controller('proposals')
 @UseGuards(AuthGuard, RolesGuard)
+@UseInterceptors(IdempotencyInterceptor)
 @ApiBearerAuth()
 export class ProposalsController {
   constructor(private readonly proposalsService: ProposalsService) {}

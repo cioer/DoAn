@@ -7,9 +7,16 @@ import { AuthModule } from '../auth/auth.module';
 import { RbacModule } from '../rbac/rbac.module';
 import { AuditModule } from '../audit/audit.module';
 import { FormTemplatesModule } from '../form-templates/form-templates.module';
+import { IdempotencyModule } from '../../common/interceptors';
 
 @Module({
-  imports: [AuthModule, RbacModule, AuditModule, FormTemplatesModule],
+  imports: [
+    AuthModule,
+    RbacModule,
+    AuditModule,
+    FormTemplatesModule,
+    IdempotencyModule,
+  ],
   controllers: [ProposalsController],
   providers: [
     ProposalsService,
