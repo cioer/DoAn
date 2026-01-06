@@ -90,6 +90,7 @@ describe('WorkflowController', () => {
     // Create mock service
     mockService = {
       getWorkflowLogs: jest.fn(),
+      approveFacultyReview: jest.fn(),
     };
 
     // Create mock PrismaService
@@ -800,6 +801,176 @@ describe('WorkflowController', () => {
           slaStartDate: expect.any(Date),
           createdAt: expect.any(Date),
           ownerId: 'user-1',
+        });
+      });
+    });
+  });
+
+  /**
+   * Story 4.1: Faculty Approve Action Tests
+   * Tests for POST /api/workflow/:proposalId/approve-faculty endpoint
+   */
+  describe('approveFacultyReview (Story 4.1)', () => {
+    const mockProposalId = 'test-proposal-id';
+    const mockIdempotencyKey = '123e4567-e89b-12d3-a456-426614174000';
+
+    const mockFacultyReviewProposal = {
+      id: mockProposalId,
+      state: ProjectState.FACULTY_REVIEW,
+    };
+
+    const mockSchoolSelectionProposal = {
+      id: mockProposalId,
+      code: 'DT-001',
+      title: 'Test Proposal',
+      state: ProjectState.SCHOOL_SELECTION_REVIEW,
+      ownerId: 'user-1',
+      facultyId: 'faculty-1',
+      holderUnit: 'PHONG_KHCN',
+      holderUser: null,
+      slaStartDate: new Date('2026-01-06'),
+      slaDeadline: new Date('2026-01-10'),
+      templateId: null,
+      templateVersion: null,
+      formData: null,
+      createdAt: new Date('2026-01-06'),
+      updatedAt: new Date('2026-01-06'),
+      deletedAt: null,
+    };
+
+    const mockWorkflowLog = {
+      id: 'test-log-id',
+      proposalId: mockProposalId,
+      action: 'APPROVE' as const,
+      fromState: ProjectState.FACULTY_REVIEW,
+      toState: ProjectState.SCHOOL_SELECTION_REVIEW,
+      actorId: 'user-2',
+      actorName: 'Test User',
+      returnTargetState: null,
+      returnTargetHolderUnit: null,
+      reasonCode: null,
+      comment: null,
+      timestamp: new Date(),
+    };
+
+    const mockTransitionResult = {
+      proposal: mockSchoolSelectionProposal,
+      workflowLog: mockWorkflowLog,
+      previousState: ProjectState.FACULTY_REVIEW,
+      currentState: ProjectState.SCHOOL_SELECTION_REVIEW,
+      holderUnit: 'PHONG_KHCN',
+      holderUser: null,
+    };
+
+    beforeEach(() => {
+      mockPrisma.proposal.findUnique.mockImplementation((args: any) => {
+        if (args.where.id === mockProposalId) {
+          return Promise.resolve(mockFacultyReviewProposal);
+        }
+        return Promise.resolve(null);
+      });
+    });
+
+    describe('AC3 & AC4: State transition & workflow log', () => {
+      it('should transition FACULTY_REVIEW → SCHOOL_SELECTION_REVIEW', async () => {
+        mockService.approveFacultyReview.mockResolvedValue(mockTransitionResult);
+
+        const result = await controller.approveFacultyReview(
+          mockProposalId,
+          { proposalId: mockProposalId, idempotencyKey: mockIdempotencyKey },
+          mockUser,
+        );
+
+        expect(result.success).toBe(true);
+        expect(result.data.previousState).toBe('FACULTY_REVIEW');
+        expect(result.data.currentState).toBe('SCHOOL_SELECTION_REVIEW');
+      });
+
+      it('should set holder_unit to PHONG_KHCN', async () => {
+        mockService.approveFacultyReview.mockResolvedValue(mockTransitionResult);
+
+        const result = await controller.approveFacultyReview(
+          mockProposalId,
+          { proposalId: mockProposalId, idempotencyKey: mockIdempotencyKey },
+          mockUser,
+        );
+
+        expect(result.data.holderUnit).toBe('PHONG_KHCN');
+      });
+
+      it('should create workflow log entry', async () => {
+        mockService.approveFacultyReview.mockResolvedValue(mockTransitionResult);
+
+        await controller.approveFacultyReview(
+          mockProposalId,
+          { proposalId: mockProposalId, idempotencyKey: mockIdempotencyKey },
+          mockUser,
+        );
+
+        expect(mockService.approveFacultyReview).toHaveBeenCalledWith(
+          mockProposalId,
+          expect.objectContaining({
+            userId: mockUser.id,
+            userRole: mockUser.role,
+            idempotencyKey: mockIdempotencyKey,
+          }),
+        );
+      });
+
+      it('should return workflow log ID in response', async () => {
+        mockService.approveFacultyReview.mockResolvedValue(mockTransitionResult);
+
+        const result = await controller.approveFacultyReview(
+          mockProposalId,
+          { proposalId: mockProposalId, idempotencyKey: mockIdempotencyKey },
+          mockUser,
+        );
+
+        expect(result.data.workflowLogId).toBe('test-log-id');
+      });
+    });
+
+    describe('AC6: Error handling - wrong state', () => {
+      it('should return 400 when proposal is not in FACULTY_REVIEW state', async () => {
+        mockPrisma.proposal.findUnique.mockResolvedValue({
+          id: mockProposalId,
+          state: ProjectState.DRAFT,
+        });
+
+        await expect(
+          controller.approveFacultyReview(
+            mockProposalId,
+            { proposalId: mockProposalId, idempotencyKey: mockIdempotencyKey },
+            mockUser,
+          ),
+        ).rejects.toMatchObject({
+          response: {
+            success: false,
+            error: {
+              code: 'PROPOSAL_NOT_FACULTY_REVIEW',
+            },
+          },
+        });
+      });
+    });
+
+    describe('Error handling - proposal not found', () => {
+      it('should return 404 when proposal does not exist', async () => {
+        mockPrisma.proposal.findUnique.mockResolvedValue(null);
+
+        await expect(
+          controller.approveFacultyReview(
+            'non-existent-id',
+            { proposalId: 'non-existent-id', idempotencyKey: mockIdempotencyKey },
+            mockUser,
+          ),
+        ).rejects.toMatchObject({
+          response: {
+            success: false,
+            error: {
+              code: 'PROPOSAL_NOT_FOUND',
+            },
+          },
         });
       });
     });
