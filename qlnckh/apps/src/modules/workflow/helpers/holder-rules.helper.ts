@@ -221,7 +221,7 @@ export function getHolderDisplayName(
  * Terminal states that should NOT appear in queue filters
  * These states are complete/cancelled and don't need action
  */
-const TERMINAL_QUEUE_STATES: ProjectState[] = [
+export const TERMINAL_QUEUE_STATES: ProjectState[] = [
   ProjectState.COMPLETED,
   ProjectState.CANCELLED,
   ProjectState.REJECTED,
@@ -308,6 +308,35 @@ export function getOverdueProposalsFilter(
       notIn: [
         ...TERMINAL_QUEUE_STATES,
         ProjectState.PAUSED, // PAUSED also excluded from overdue
+      ],
+    },
+  };
+}
+
+/**
+ * Get Prisma where input for "Sắp đến hạn" (Upcoming) queue filter
+ *
+ * Story 3.5: Returns proposals where SLA deadline is within 2 working days
+ * - sla_deadline >= startDate AND <= endDate
+ * - state is NOT terminal (COMPLETED, CANCELLED, PAUSED)
+ *
+ * @param startDate - Start date for range (typically now())
+ * @param endDate - End date for range (typically now + 2 working days)
+ * @returns Prisma.WhereInput for querying upcoming proposals
+ */
+export function getUpcomingProposalsFilter(
+  startDate: Date,
+  endDate: Date,
+): Prisma.ProposalWhereInput {
+  return {
+    slaDeadline: {
+      gte: startDate,
+      lte: endDate,
+    },
+    state: {
+      notIn: [
+        ...TERMINAL_QUEUE_STATES,
+        ProjectState.PAUSED, // PAUSED excluded from upcoming
       ],
     },
   };

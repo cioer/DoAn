@@ -1,9 +1,11 @@
 import { WorkflowController } from './workflow.controller';
 import { WorkflowAction, ProjectState, WorkflowLog } from '@prisma/client';
 import { NotFoundException } from '@nestjs/common';
+import { QueueFilterType } from './dto/queue-filter.dto';
 
 /**
  * Story 3.4: Tests for workflow logs endpoint
+ * Story 3.5: Tests for queue filter endpoint
  */
 
 const mockUser = {
@@ -11,6 +13,13 @@ const mockUser = {
   email: 'test@example.com',
   role: 'GIANG_VIEN',
   facultyId: 'faculty-1',
+};
+
+const mockPhongKHCNUser = {
+  id: 'user-pkhcn',
+  email: 'pkhcn@example.com',
+  role: 'PHONG_KHCN',
+  facultyId: null,
 };
 
 const mockWorkflowLogs: WorkflowLog[] = [
@@ -44,10 +53,38 @@ const mockWorkflowLogs: WorkflowLog[] = [
   },
 ];
 
+const mockProposals = [
+  {
+    id: 'proposal-1',
+    code: 'DT-2024-001',
+    title: 'Nghiên cứu ứng dụng AI',
+    state: ProjectState.FACULTY_REVIEW,
+    holderUnit: 'faculty-1',
+    holderUser: null,
+    slaDeadline: new Date('2026-01-10T17:00:00.000Z'),
+    slaStartDate: new Date('2026-01-06T10:00:00.000Z'),
+    createdAt: new Date('2026-01-01T10:00:00.000Z'),
+    ownerId: 'user-1',
+  },
+  {
+    id: 'proposal-2',
+    code: 'DT-2024-002',
+    title: 'Nghiên cứu Blockchain',
+    state: ProjectState.APPROVED,
+    holderUnit: 'faculty-1',
+    holderUser: 'user-1',
+    slaDeadline: new Date('2026-01-15T17:00:00.000Z'),
+    slaStartDate: new Date('2026-01-07T10:00:00.000Z'),
+    createdAt: new Date('2026-01-02T10:00:00.000Z'),
+    ownerId: 'user-1',
+  },
+];
+
 describe('WorkflowController', () => {
   let controller: WorkflowController;
   let mockService: any;
   let mockPrisma: any;
+  let mockSlaService: any;
 
   beforeEach(() => {
     // Create mock service
@@ -59,11 +96,18 @@ describe('WorkflowController', () => {
     mockPrisma = {
       proposal: {
         findUnique: jest.fn(),
+        findMany: jest.fn(),
+        count: jest.fn(),
       },
     };
 
+    // Create mock SlaService
+    mockSlaService = {
+      addBusinessDays: jest.fn(),
+    };
+
     // Manually create controller with mock services - bypass DI
-    controller = new WorkflowController(mockService, mockPrisma);
+    controller = new WorkflowController(mockService, mockPrisma, mockSlaService);
     jest.clearAllMocks();
   });
 
@@ -192,6 +236,572 @@ describe('WorkflowController', () => {
       expect(log.returnTargetHolderUnit).toBe('KHOA.CNTT');
       expect(log.reasonCode).toBe('MISSING_DOCUMENTS');
       expect(log.comment).toBe('Cần bổ sung tài liệu');
+    });
+  });
+
+  /**
+   * Story 3.5: Queue Filter Endpoint Tests
+   */
+  describe('getQueue', () => {
+    describe('MY_QUEUE filter', () => {
+      it('AC2.1: should return proposals where holderUnit matches user faculty', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(1);
+        mockPrisma.proposal.findMany.mockResolvedValue([mockProposals[0]]);
+
+        const result = await controller.getQueue(
+          QueueFilterType.MY_QUEUE,
+          undefined,
+          undefined,
+          undefined,
+          mockUser,
+        );
+
+        expect(result.success).toBe(true);
+        expect(result.data).toHaveLength(1);
+        expect(result.meta.filter).toBe(QueueFilterType.MY_QUEUE);
+        expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              OR: expect.arrayContaining([
+                { holderUnit: 'faculty-1' },
+                { holderUser: 'user-1' },
+              ]),
+            }),
+          }),
+        );
+      });
+
+      it('AC2.2: should work for PHONG_KHCN role with PHONG_KHCN holderUnit', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(0);
+        mockPrisma.proposal.findMany.mockResolvedValue([]);
+
+        await controller.getQueue(
+          QueueFilterType.MY_QUEUE,
+          undefined,
+          undefined,
+          undefined,
+          mockPhongKHCNUser,
+        );
+
+        expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              OR: expect.arrayContaining([
+                { holderUser: 'user-pkhcn' },
+                { holderUnit: 'PHONG_KHCN' },
+              ]),
+            }),
+          }),
+        );
+      });
+
+      it('AC2.3: should exclude terminal states from my-queue', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(0);
+        mockPrisma.proposal.findMany.mockResolvedValue([]);
+
+        await controller.getQueue(
+          QueueFilterType.MY_QUEUE,
+          undefined,
+          undefined,
+          undefined,
+          mockUser,
+        );
+
+        expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              state: {
+                notIn: [
+                  ProjectState.COMPLETED,
+                  ProjectState.CANCELLED,
+                  ProjectState.REJECTED,
+                  ProjectState.WITHDRAWN,
+                ],
+              },
+            }),
+          }),
+        );
+      });
+    });
+
+    describe('MY_PROPOSALS filter', () => {
+      it('AC3.1: should return proposals where ownerId matches user ID', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(2);
+        mockPrisma.proposal.findMany.mockResolvedValue(mockProposals);
+
+        const result = await controller.getQueue(
+          QueueFilterType.MY_PROPOSALS,
+          undefined,
+          undefined,
+          undefined,
+          mockUser,
+        );
+
+        expect(result.success).toBe(true);
+        expect(result.data).toHaveLength(2);
+        expect(result.meta.filter).toBe(QueueFilterType.MY_PROPOSALS);
+        expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { ownerId: 'user-1' },
+          }),
+        );
+      });
+    });
+
+    describe('ALL filter', () => {
+      it('should return all non-terminal proposals', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(2);
+        mockPrisma.proposal.findMany.mockResolvedValue(mockProposals);
+
+        const result = await controller.getQueue(
+          QueueFilterType.ALL,
+          undefined,
+          undefined,
+          undefined,
+          mockUser,
+        );
+
+        expect(result.success).toBe(true);
+        expect(result.meta.filter).toBe(QueueFilterType.ALL);
+        expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              state: {
+                notIn: [
+                  ProjectState.COMPLETED,
+                  ProjectState.CANCELLED,
+                  ProjectState.REJECTED,
+                  ProjectState.WITHDRAWN,
+                ],
+              },
+            }),
+          }),
+        );
+      });
+    });
+
+    describe('OVERDUE filter', () => {
+      it('AC4.1: should return proposals with sla_deadline < now()', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(0);
+        mockPrisma.proposal.findMany.mockResolvedValue([]);
+
+        await controller.getQueue(
+          QueueFilterType.OVERDUE,
+          undefined,
+          undefined,
+          undefined,
+          mockUser,
+        );
+
+        expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              slaDeadline: { lt: expect.any(Date) },
+            }),
+          }),
+        );
+      });
+
+      it('AC4.2: should exclude PAUSED state from overdue', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(0);
+        mockPrisma.proposal.findMany.mockResolvedValue([]);
+
+        await controller.getQueue(
+          QueueFilterType.OVERDUE,
+          undefined,
+          undefined,
+          undefined,
+          mockUser,
+        );
+
+        const callArgs = mockPrisma.proposal.findMany.mock.calls[0][0];
+        const stateNotIn = callArgs.where.state.notIn;
+        expect(stateNotIn).toContain(ProjectState.PAUSED);
+      });
+    });
+
+    describe('UPCOMING filter', () => {
+      it('AC5.1: should calculate +2 working days using SlaService', async () => {
+        const futureDate = new Date('2026-01-08T17:00:00.000Z');
+        mockSlaService.addBusinessDays.mockReturnValue(futureDate);
+        mockPrisma.proposal.count.mockResolvedValue(0);
+        mockPrisma.proposal.findMany.mockResolvedValue([]);
+
+        await controller.getQueue(
+          QueueFilterType.UPCOMING,
+          undefined,
+          undefined,
+          undefined,
+          mockUser,
+        );
+
+        expect(mockSlaService.addBusinessDays).toHaveBeenCalledWith(
+          expect.any(Date),
+          2,
+        );
+      });
+
+      it('AC5.2: should filter proposals with sla_deadline in range [now, now+2]', async () => {
+        mockSlaService.addBusinessDays.mockReturnValue(
+          new Date('2026-01-08T17:00:00.000Z'),
+        );
+        mockPrisma.proposal.count.mockResolvedValue(0);
+        mockPrisma.proposal.findMany.mockResolvedValue([]);
+
+        await controller.getQueue(
+          QueueFilterType.UPCOMING,
+          undefined,
+          undefined,
+          undefined,
+          mockUser,
+        );
+
+        expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              slaDeadline: {
+                gte: expect.any(Date),
+                lte: expect.any(Date),
+              },
+            }),
+          }),
+        );
+      });
+
+      it('AC5.3: should exclude PAUSED and terminal states from upcoming', async () => {
+        mockSlaService.addBusinessDays.mockReturnValue(
+          new Date('2026-01-08T17:00:00.000Z'),
+        );
+        mockPrisma.proposal.count.mockResolvedValue(0);
+        mockPrisma.proposal.findMany.mockResolvedValue([]);
+
+        await controller.getQueue(
+          QueueFilterType.UPCOMING,
+          undefined,
+          undefined,
+          undefined,
+          mockUser,
+        );
+
+        const callArgs = mockPrisma.proposal.findMany.mock.calls[0][0];
+        const stateNotIn = callArgs.where.state.notIn;
+        expect(stateNotIn).toContain(ProjectState.PAUSED);
+        expect(stateNotIn).toContain(ProjectState.COMPLETED);
+        expect(stateNotIn).toContain(ProjectState.CANCELLED);
+      });
+    });
+
+    describe('Pagination', () => {
+      it('should use default pagination values when not provided', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(5);
+        mockPrisma.proposal.findMany.mockResolvedValue([]);
+
+        await controller.getQueue(
+          QueueFilterType.ALL,
+          undefined,
+          undefined,
+          undefined,
+          mockUser,
+        );
+
+        expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            skip: 0,
+            take: 20,
+          }),
+        );
+      });
+
+      it('should use custom pagination values when provided', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(50);
+        mockPrisma.proposal.findMany.mockResolvedValue([]);
+
+        await controller.getQueue(
+          QueueFilterType.ALL,
+          '2',
+          '10',
+          undefined,
+          mockUser,
+        );
+
+        expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            skip: 10,
+            take: 10,
+          }),
+        );
+      });
+
+      it('should calculate total pages correctly', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(25);
+        mockPrisma.proposal.findMany.mockResolvedValue([]);
+
+        const result = await controller.getQueue(
+          QueueFilterType.ALL,
+          undefined,
+          '10',
+          undefined,
+          mockUser,
+        );
+
+        expect(result.meta.totalPages).toBe(3);
+      });
+
+      it('should return meta with filter, total, page, pageSize, totalPages', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(15);
+        mockPrisma.proposal.findMany.mockResolvedValue(mockProposals);
+
+        const result = await controller.getQueue(
+          QueueFilterType.MY_QUEUE,
+          '1',
+          '20',
+          undefined,
+          mockUser,
+        );
+
+        expect(result.meta).toEqual({
+          filter: QueueFilterType.MY_QUEUE,
+          total: 15,
+          page: 1,
+          pageSize: 20,
+          totalPages: 1,
+        });
+      });
+
+      // Story 3.5 code review fix: pagination validation tests
+      it('CR_FIX: should handle invalid page number (NaN) by defaulting to 1', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(10);
+        mockPrisma.proposal.findMany.mockResolvedValue([]);
+
+        const result = await controller.getQueue(
+          QueueFilterType.ALL,
+          'abc', // Invalid - should default to 1
+          undefined,
+          undefined,
+          mockUser,
+        );
+
+        expect(result.meta.page).toBe(1);
+        expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            skip: 0, // (1 - 1) * 20 = 0
+          }),
+        );
+      });
+
+      it('CR_FIX: should handle negative page number by defaulting to 1', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(10);
+        mockPrisma.proposal.findMany.mockResolvedValue([]);
+
+        const result = await controller.getQueue(
+          QueueFilterType.ALL,
+          '-5', // Invalid - should default to 1
+          undefined,
+          undefined,
+          mockUser,
+        );
+
+        expect(result.meta.page).toBe(1);
+        expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            skip: 0,
+          }),
+        );
+      });
+
+      it('CR_FIX: should handle invalid pageSize (NaN) by defaulting to 20', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(10);
+        mockPrisma.proposal.findMany.mockResolvedValue([]);
+
+        const result = await controller.getQueue(
+          QueueFilterType.ALL,
+          undefined,
+          'xyz', // Invalid - should default to 20
+          undefined,
+          mockUser,
+        );
+
+        expect(result.meta.pageSize).toBe(20);
+        expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            take: 20,
+          }),
+        );
+      });
+
+      it('CR_FIX: should handle negative pageSize by defaulting to 20', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(10);
+        mockPrisma.proposal.findMany.mockResolvedValue([]);
+
+        const result = await controller.getQueue(
+          QueueFilterType.ALL,
+          undefined,
+          '-10', // Invalid - should default to 20
+          undefined,
+          mockUser,
+        );
+
+        expect(result.meta.pageSize).toBe(20);
+      });
+
+      it('CR_FIX: should cap pageSize at 100 to prevent excessive queries', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(200);
+        mockPrisma.proposal.findMany.mockResolvedValue([]);
+
+        const result = await controller.getQueue(
+          QueueFilterType.ALL,
+          undefined,
+          '999', // Should be capped at 100
+          undefined,
+          mockUser,
+        );
+
+        expect(result.meta.pageSize).toBe(100);
+        expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            take: 100,
+          }),
+        );
+      });
+    });
+
+    describe('Search functionality', () => {
+      it('should filter by title when search term is provided', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(1);
+        mockPrisma.proposal.findMany.mockResolvedValue([mockProposals[0]]);
+
+        await controller.getQueue(
+          QueueFilterType.ALL,
+          undefined,
+          undefined,
+          'AI',
+          mockUser,
+        );
+
+        expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              AND: [
+                expect.anything(),
+                {
+                  OR: [
+                    { title: { contains: 'AI', mode: 'insensitive' } },
+                    { code: { contains: 'AI', mode: 'insensitive' } },
+                  ],
+                },
+              ],
+            }),
+          }),
+        );
+      });
+
+      it('should filter by code when search term matches code', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(1);
+        mockPrisma.proposal.findMany.mockResolvedValue([mockProposals[0]]);
+
+        await controller.getQueue(
+          QueueFilterType.ALL,
+          undefined,
+          undefined,
+          'DT-2024-001',
+          mockUser,
+        );
+
+        expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              AND: [
+                expect.anything(),
+                {
+                  OR: [
+                    { title: { contains: 'DT-2024-001', mode: 'insensitive' } },
+                    { code: { contains: 'DT-2024-001', mode: 'insensitive' } },
+                  ],
+                },
+              ],
+            }),
+          }),
+        );
+      });
+
+      it('should trim whitespace from search term', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(0);
+        mockPrisma.proposal.findMany.mockResolvedValue([]);
+
+        await controller.getQueue(
+          QueueFilterType.ALL,
+          undefined,
+          undefined,
+          '  AI  ',
+          mockUser,
+        );
+
+        expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              AND: [
+                expect.anything(),
+                {
+                  OR: [
+                    { title: { contains: 'AI', mode: 'insensitive' } },
+                    { code: { contains: 'AI', mode: 'insensitive' } },
+                  ],
+                },
+              ],
+            }),
+          }),
+        );
+      });
+
+      it('should not apply search filter when search term is empty', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(2);
+        mockPrisma.proposal.findMany.mockResolvedValue(mockProposals);
+
+        await controller.getQueue(
+          QueueFilterType.ALL,
+          undefined,
+          undefined,
+          '',
+          mockUser,
+        );
+
+        expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.not.objectContaining({
+              AND: expect.any(Array),
+            }),
+          }),
+        );
+      });
+    });
+
+    describe('Response structure', () => {
+      it('should return proposals with correct structure', async () => {
+        mockPrisma.proposal.count.mockResolvedValue(1);
+        mockPrisma.proposal.findMany.mockResolvedValue([mockProposals[0]]);
+
+        const result = await controller.getQueue(
+          QueueFilterType.MY_QUEUE,
+          undefined,
+          undefined,
+          undefined,
+          mockUser,
+        );
+
+        expect(result.success).toBe(true);
+        expect(result.data).toHaveLength(1);
+        expect(result.data[0]).toMatchObject({
+          id: 'proposal-1',
+          code: 'DT-2024-001',
+          title: 'Nghiên cứu ứng dụng AI',
+          state: ProjectState.FACULTY_REVIEW,
+          holderUnit: 'faculty-1',
+          slaDeadline: expect.any(Date),
+          slaStartDate: expect.any(Date),
+          createdAt: expect.any(Date),
+          ownerId: 'user-1',
+        });
+      });
     });
   });
 });

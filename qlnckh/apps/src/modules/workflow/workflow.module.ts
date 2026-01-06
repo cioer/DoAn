@@ -13,6 +13,7 @@ import { BusinessCalendarModule } from '../calendar/calendar.module';
  *
  * Story 3.3: Added BusinessCalendarModule import for SLA calculation
  * Story 3.4: Added WorkflowController for workflow logs endpoint
+ * Story 3.5: Added queue filter endpoint with SlaService integration
  */
 @Module({
   imports: [AuditModule, BusinessCalendarModule],
