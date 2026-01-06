@@ -176,11 +176,15 @@ model Proposal {
   holderUser      String?       @map("holder_user")  // User ID (optional)
   slaStartDate    DateTime?     @map("sla_start_date")
   slaDeadline     DateTime?     @map("sla_deadline")
+  templateId      String?       @map("template_id")   // FK to form_templates (Story 2.2)
+  templateVersion String?       @map("template_version") // e.g., "v1.0" (Story 2.2)
+  formData        Json?         @map("form_data")     // JSON with section data (Story 2.2)
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
   owner           User          @relation("ProposalOwner", fields: [ownerId], references: [id])
   faculty         Faculty       @relation(fields: [facultyId], references: [id])
+  template        FormTemplate? @relation(fields: [templateId], references: [id])
   workflowLogs    WorkflowLog[]
 
   @@map("proposals")
@@ -189,6 +193,7 @@ model Proposal {
   @@index([facultyId])
   @@index([holderUnit])
   @@index([code])
+  @@index([templateId])
 }
 
 model WorkflowLog {
@@ -234,6 +239,78 @@ model Faculty {
 
   @@map("faculties")
   @@index([code])
+}
+
+// ============================================================
+// FORMS: Form Templates
+// ============================================================
+
+enum SectionId {
+  // Phase A: Proposal Forms (MAU_01B - MAU_07B)
+  SEC_INFO_GENERAL          // Thông tin chung
+  SEC_CONTENT_METHOD        // Nội dung nghiên cứu
+  SEC_RESEARCH_METHOD       // Phương pháp nghiên cứu
+  SEC_EXPECTED_RESULTS      // Kết quả mong đợi
+  SEC_BUDGET                // Kinh phí
+  SEC_ATTACHMENTS           // Tài liệu đính kèm
+  SEC_RESEARCHERS           // Đội ngũ nghiên cứu
+  SEC_FACILITIES            // Cơ sở vật chất
+  SEC_TIMELINE              // Kế hoạch thời gian
+  SEC_REFERENCES            // Tài liệu tham khảo
+
+  // Phase C: Faculty Acceptance (MAU_08B - MAU_11B)
+  SEC_FACULTY_ACCEPTANCE_RESULTS   // Kết quả nghiên cứu
+  SEC_FACULTY_ACCEPTANCE_PRODUCTS  // Sản phẩm nghiên cứu
+
+  // Phase D: School Acceptance (MAU_12B - MAU_16B)
+  SEC_SCHOOL_ACCEPTANCE_RESULTS   // Kết quả nghiên cứu
+  SEC_SCHOOL_ACCEPTANCE_PRODUCTS  // Sản phẩm nghiên cứu
+
+  // Phase E: Handover (MAU_17B)
+  SEC_HANDOVER_CHECKLIST   // Checklist bàn giao
+
+  // Phase B: Extension (MAU_18B)
+  SEC_EXTENSION_REASON     // Lý do gia hạn
+  SEC_EXTENSION_DURATION   // Thời gian gia hạn
+
+  // Add new sections here, never modify existing IDs
+}
+
+model FormTemplate {
+  id          String        @id @default(uuid())
+  code        String        @unique // MAU_01B, MAU_02B, etc.
+  name        String        // Vietnamese name
+  version     String        @default("v1.0")
+  description String?       @db.Text
+  isActive    Boolean       @default(true) @map("is_active")
+  projectType String        @default("CAP_TRUONG") @map("project_type") // MVP: hardcoded
+  sections    FormSection[]
+  proposals   Proposal[]    // Reverse relation from Proposal (Story 2.2)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  @@map("form_templates")
+  @@index([code])
+  @@index([isActive])
+}
+
+model FormSection {
+  id           String    @id @default(uuid())
+  templateId   String    @map("template_id")
+  sectionId    SectionId @map("section_id")
+  label        String    // Vietnamese display label
+  component    String    // React component name
+  displayOrder Int       @map("display_order")
+  isRequired   Boolean   @default(false) @map("is_required")
+  config       Json?     @db.JsonB // Additional config (options, validation rules, etc.)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  template     FormTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, sectionId])
+  @@index([templateId])
+  @@map("form_sections")
 }
 
 // ============================================================

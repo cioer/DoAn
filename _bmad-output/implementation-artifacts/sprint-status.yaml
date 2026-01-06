@@ -32,7 +32,7 @@
 # - SM typically creates next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
-generated: 2026-01-04
+generated: 2026-01-05
 project: DoAn
 project_key: NCKH-2026
 tracking_system: file-system
@@ -42,7 +42,7 @@ development_status:
   # ========================================
   # EPIC 1: Foundation + Demo Operator (8 stories)
   # ========================================
-  epic-1: in-progress
+  epic-1: done
   1-1-authentication-nestjs-first-cookie-based: done
   1-2-authorization-rbac-engine-ui-gating: done
   1-3-user-management-demo-safe-khong-email: done
@@ -51,14 +51,14 @@ development_status:
   1-6-deterministic-seed-data-du-cho-demo-flow: done
   1-7-reset-demo-1-click-30s-an-toan-moi-truong-demo: done
   1-8-business-calendar-basic-nhung-du-de-sla-chay-sau: done
-  epic-1-retrospective: optional
+  epic-1-retrospective: done
 
   # ========================================
   # EPIC 2: Proposal Draft + Attachments + Form Registry (6 stories)
   # ========================================
-  epic-2: backlog
-  2-1-form-registry-canonical-section-ids: backlog
-  2-2-create-proposal-draft: backlog
+  epic-2: in-progress
+  2-1-form-registry-canonical-section-ids: done
+  2-2-create-proposal-draft: ready-for-dev
   2-3-auto-save-draft: backlog
   2-4-upload-attachments-demo-cap-5mb-per-file: backlog
   2-5-attachment-crud-replace-delete: backlog
@@ -161,5 +161,6 @@ development_status:
 # ========================================
 # Total Epics: 10
 # Total Stories: 57
-# Stories Done: 0
+# Stories Done: 8
 # Epics In Progress: 0
+# Epics Done: 1
