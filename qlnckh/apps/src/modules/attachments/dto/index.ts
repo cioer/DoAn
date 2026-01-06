@@ -4,3 +4,9 @@ export {
   UploadAttachmentResponseDto,
   AttachmentsListResponseDto,
 } from './upload-attachment.dto';
+
+export {
+  ReplaceAttachmentDto,
+  ReplaceAttachmentResponseDto,
+  DeleteAttachmentResponseDto,
+} from './replace-attachment.dto';

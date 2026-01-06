@@ -61,7 +61,7 @@ development_status:
   2-2-create-proposal-draft: done
   2-3-auto-save-draft: done
   2-4-upload-attachments-demo-cap-5mb-per-file: done
-  2-5-attachment-crud-replace-delete: backlog
+  2-5-attachment-crud-replace-delete: done
   2-6-proposal-master-record-structure: backlog
   epic-2-retrospective: optional
 

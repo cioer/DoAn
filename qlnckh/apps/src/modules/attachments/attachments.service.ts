@@ -70,10 +70,11 @@ const DEFAULT_UPLOAD_DIR = '/app/uploads';
 /**
  * Attachments Service
  *
- * Handles file uploads for DRAFT proposals.
- * Only proposal owners can upload to their own DRAFT proposals.
+ * Handles file uploads, replacements, and deletion for DRAFT proposals.
+ * Only proposal owners can modify attachments in their own DRAFT proposals.
  *
  * Story 2.4: Upload Attachments (Demo Cap 5MB/File)
+ * Story 2.5: Attachment CRUD (Replace, Delete)
  */
 @Injectable()
 export class AttachmentsService {
@@ -397,6 +398,374 @@ export class AttachmentsService {
           message: 'Không thể lưu file. Vui lòng thử lại.',
         },
       });
+    }
+  }
+
+  /**
+   * Replace an attachment with a new file
+   *
+   * Story 2.5: Attachment CRUD - Replace
+   *
+   * Features:
+   * - Validates proposal is DRAFT
+   * - Validates ownership
+   * - Validates new file size and type
+   * - Deletes old file from storage
+   * - Uploads new file
+   * - Updates attachment record
+   * - Logs audit event
+   *
+   * @param proposalId - Proposal ID
+   * @param attachmentId - Attachment ID to replace
+   * @param newFile - New file to upload
+   * @param userId - Current user ID
+   * @param options - Upload options
+   * @returns Updated attachment record
+   */
+  async replaceAttachment(
+    proposalId: string,
+    attachmentId: string,
+    newFile: MulterFile,
+    userId: string,
+    options: FileUploadOptions = {},
+  ): Promise<{
+    id: string;
+    proposalId: string;
+    fileName: string;
+    fileUrl: string;
+    fileSize: number;
+    mimeType: string;
+    uploadedBy: string;
+    uploadedAt: Date;
+  }> {
+    const {
+      uploadDir = DEFAULT_UPLOAD_DIR,
+      maxFileSize = DEFAULT_MAX_FILE_SIZE,
+      uploadTimeout = 30000,
+    } = options;
+
+    // Get proposal to validate state and ownership
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: {
+        id: true,
+        code: true,
+        state: true,
+        ownerId: true,
+      },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Đề tài với ID không tồn tại',
+        },
+      });
+    }
+
+    // Check state: only DRAFT can have attachments replaced
+    if (proposal.state !== ProjectState.DRAFT) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_DRAFT',
+          message: 'Không thể sửa sau khi nộp. Vui lòng liên hệ admin nếu cần sửa.',
+        },
+      });
+    }
+
+    // Check ownership
+    if (proposal.ownerId !== userId) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Bạn không có quyền thay thế tài liệu của đề tài này.',
+        },
+      });
+    }
+
+    // Find existing attachment
+    const attachment = await this.prisma.attachment.findUnique({
+      where: { id: attachmentId },
+    });
+
+    if (!attachment || attachment.deletedAt) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'ATTACHMENT_NOT_FOUND',
+          message: 'Tài liệu không tồn tại hoặc đã bị xóa.',
+        },
+      });
+    }
+
+    // Verify attachment belongs to the proposal
+    if (attachment.proposalId !== proposalId) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Tài liệu không thuộc về đề tài này.',
+        },
+      });
+    }
+
+    // Validate new file size
+    if (newFile.size > maxFileSize) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'FILE_TOO_LARGE',
+          message: 'File quá 5MB. Vui lòng nén hoặc chia nhỏ.',
+        },
+      });
+    }
+
+    // Validate MIME type
+    if (!ALLOWED_MIME_TYPES.has(newFile.mimetype)) {
+      const ext = this.getFileExtension(newFile.originalname);
+      if (!ALLOWED_EXTENSIONS.has(ext)) {
+        throw new BadRequestException({
+          success: false,
+          error: {
+            code: 'INVALID_FILE_TYPE',
+            message: 'Định dạng file không được hỗ trợ.',
+          },
+        });
+      }
+    }
+
+    // Delete old file from storage
+    await this.deleteFileFromStorage(attachment.fileUrl, uploadDir);
+
+    // Generate unique filename for new file
+    const fileExtension = this.getFileExtension(newFile.originalname);
+    const baseFileName = this.removeFileExtension(newFile.originalname);
+    const uniqueFileName = `${randomUUID()}-${baseFileName}${fileExtension}`;
+
+    // Save new file to disk
+    const filePath = join(uploadDir, uniqueFileName);
+    await this.saveFileToDisk(filePath, newFile.buffer, uploadTimeout);
+
+    // Update attachment record
+    const updated = await this.prisma.attachment.update({
+      where: { id: attachmentId },
+      data: {
+        fileName: uniqueFileName,
+        fileUrl: `/uploads/${uniqueFileName}`,
+        fileSize: newFile.size,
+        mimeType: newFile.mimetype,
+        uploadedBy: userId,
+        uploadedAt: new Date(),
+      },
+    });
+
+    // Log audit event
+    await this.auditService.logEvent({
+      action: AuditAction.ATTACHMENT_REPLACE,
+      actorUserId: userId,
+      entityType: 'attachment',
+      entityId: attachment.id,
+      metadata: {
+        proposalId,
+        proposalCode: proposal.code,
+        attachmentId,
+        oldFileName: attachment.fileName,
+        newFileName: uniqueFileName,
+        oldFileSize: attachment.fileSize,
+        newFileSize: newFile.size,
+      },
+    });
+
+    this.logger.log(
+      `Replaced attachment ${attachment.id} (${attachment.fileName} -> ${uniqueFileName}) in proposal ${proposal.code}`,
+    );
+
+    return {
+      id: updated.id,
+      proposalId: updated.proposalId,
+      fileName: updated.fileName,
+      fileUrl: updated.fileUrl,
+      fileSize: updated.fileSize,
+      mimeType: updated.mimeType,
+      uploadedBy: updated.uploadedBy,
+      uploadedAt: updated.uploadedAt,
+    };
+  }
+
+  /**
+   * Delete an attachment (soft delete)
+   *
+   * Story 2.5: Attachment CRUD - Delete
+   *
+   * Features:
+   * - Validates proposal is DRAFT
+   * - Validates ownership
+   * - Soft deletes attachment record (sets deletedAt)
+   * - Deletes physical file from storage
+   * - Logs audit event
+   *
+   * @param proposalId - Proposal ID
+   * @param attachmentId - Attachment ID to delete
+   * @param userId - Current user ID
+   * @param options - Options including uploadDir for file deletion
+   * @returns Deleted attachment record with deletion timestamp
+   */
+  async deleteAttachment(
+    proposalId: string,
+    attachmentId: string,
+    userId: string,
+    options: FileUploadOptions = {},
+  ): Promise<{
+    id: string;
+    deletedAt: Date;
+  }> {
+    const { uploadDir = DEFAULT_UPLOAD_DIR } = options;
+
+    // Get proposal to validate state and ownership
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: {
+        id: true,
+        code: true,
+        state: true,
+        ownerId: true,
+      },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Đề tài với ID không tồn tại',
+        },
+      });
+    }
+
+    // Check state: only DRAFT can have attachments deleted
+    if (proposal.state !== ProjectState.DRAFT) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_DRAFT',
+          message: 'Không thể sửa sau khi nộp. Vui lòng liên hệ admin nếu cần sửa.',
+        },
+      });
+    }
+
+    // Check ownership
+    if (proposal.ownerId !== userId) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Bạn không có quyền xóa tài liệu của đề tài này.',
+        },
+      });
+    }
+
+    // Find attachment
+    const attachment = await this.prisma.attachment.findUnique({
+      where: { id: attachmentId },
+    });
+
+    if (!attachment || attachment.deletedAt) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'ATTACHMENT_NOT_FOUND',
+          message: 'Tài liệu không tồn tại hoặc đã bị xóa.',
+        },
+      });
+    }
+
+    // Verify attachment belongs to the proposal
+    if (attachment.proposalId !== proposalId) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Tài liệu không thuộc về đề tài này.',
+        },
+      });
+    }
+
+    // Soft delete attachment record
+    const deleted = await this.prisma.attachment.update({
+      where: { id: attachmentId },
+      data: { deletedAt: new Date() },
+    });
+
+    // Delete physical file from storage (best effort, don't throw if fails)
+    try {
+      await this.deleteFileFromStorage(attachment.fileUrl, uploadDir);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to delete physical file ${attachment.fileUrl}: ${error.message}`,
+      );
+    }
+
+    // Log audit event
+    await this.auditService.logEvent({
+      action: AuditAction.ATTACHMENT_DELETE,
+      actorUserId: userId,
+      entityType: 'attachment',
+      entityId: attachment.id,
+      metadata: {
+        proposalId,
+        proposalCode: proposal.code,
+        attachmentId,
+        fileName: attachment.fileName,
+        fileSize: attachment.fileSize,
+      },
+    });
+
+    this.logger.log(
+      `Deleted attachment ${attachment.id} (${attachment.fileName}) from proposal ${proposal.code}`,
+    );
+
+    return {
+      id: deleted.id,
+      deletedAt: deleted.deletedAt!,
+    };
+  }
+
+  /**
+   * Delete a file from storage
+   *
+   * @param fileUrl - File URL (e.g., "/uploads/uuid-filename.pdf")
+   * @param uploadDir - Upload directory path
+   */
+  private async deleteFileFromStorage(
+    fileUrl: string,
+    uploadDir: string = DEFAULT_UPLOAD_DIR,
+  ): Promise<void> {
+    try {
+      // Extract filename from URL
+      const filename = fileUrl.split('/').pop();
+      if (!filename) {
+        throw new Error('Invalid file URL');
+      }
+
+      const filePath = join(uploadDir, filename);
+
+      // Check if file exists before deleting
+      await fs.access(filePath);
+
+      // Delete file
+      await fs.unlink(filePath);
+
+      this.logger.debug(`Deleted file from storage: ${filePath}`);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        this.logger.warn(`File not found for deletion: ${fileUrl}`);
+        return; // Not an error if file doesn't exist
+      }
+      throw error;
     }
   }
 }

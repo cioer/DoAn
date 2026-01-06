@@ -31,8 +31,10 @@ export enum AuditAction {
   PROPOSAL_SUBMIT = 'PROPOSAL_SUBMIT',
   PROPOSAL_AUTO_SAVE = 'PROPOSAL_AUTO_SAVE',
 
-  // Attachment events (Story 2.4)
+  // Attachment events (Story 2.4, 2.5)
   ATTACHMENT_UPLOAD = 'ATTACHMENT_UPLOAD',
+  ATTACHMENT_REPLACE = 'ATTACHMENT_REPLACE',
+  ATTACHMENT_DELETE = 'ATTACHMENT_DELETE',
 }
 
 /**

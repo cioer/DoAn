@@ -499,4 +499,468 @@ describe('AttachmentsService', () => {
       expect((result as typeof result & { totalSize: number }).totalSize).toBe(0);
     });
   });
+
+  // Story 2.5: Attachment CRUD - Replace
+  describe('replaceAttachment', () => {
+    const mockProposal = {
+      id: 'proposal-uuid',
+      code: 'DT-001',
+      title: 'Test Proposal',
+      state: ProjectState.DRAFT,
+      ownerId: 'owner-uuid',
+      facultyId: 'faculty-uuid',
+    };
+
+    const mockExistingAttachment = {
+      id: 'attachment-uuid',
+      proposalId: 'proposal-uuid',
+      fileName: 'old-document.pdf',
+      fileUrl: '/uploads/old-document.pdf',
+      fileSize: 1024 * 1024, // 1MB
+      mimeType: 'application/pdf',
+      uploadedBy: 'owner-uuid',
+      uploadedAt: new Date(),
+      deletedAt: null,
+    };
+
+    const mockNewFile = {
+      originalname: 'new-document.pdf',
+      mimetype: 'application/pdf',
+      size: 1024 * 1024, // 1MB
+      buffer: Buffer.from('new test file content'),
+    } as Express.Multer.File;
+
+    const mockUserId = 'owner-uuid';
+    const mockUploadDir = '/uploads';
+
+    // Spy on deleteFileFromStorage method to avoid actual file I/O
+    let deleteFileFromStorageSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      deleteFileFromStorageSpy = jest
+        .spyOn(service as any, 'deleteFileFromStorage')
+        .mockResolvedValue(undefined);
+    });
+
+    afterEach(() => {
+      deleteFileFromStorageSpy.mockRestore();
+    });
+
+    it('should reject when proposal is not in DRAFT state', async () => {
+      // Arrange
+      const nonDraftProposal = {
+        ...mockProposal,
+        state: ProjectState.FACULTY_REVIEW,
+      };
+
+      mockPrismaService.proposal.findUnique.mockResolvedValue(nonDraftProposal);
+
+      // Act & Assert
+      await expect(
+        service.replaceAttachment(
+          'proposal-uuid',
+          'attachment-uuid',
+          mockNewFile,
+          mockUserId,
+          { uploadDir: mockUploadDir },
+        ),
+      ).rejects.toThrow(
+        new ForbiddenException({
+          success: false,
+          error: {
+            code: 'PROPOSAL_NOT_DRAFT',
+            message: 'Không thể sửa sau khi nộp. Vui lòng liên hệ admin nếu cần sửa.',
+          },
+        }),
+      );
+    });
+
+    it('should reject when attachment not found', async () => {
+      // Arrange
+      mockPrismaService.proposal.findUnique.mockResolvedValue({
+        ...mockProposal,
+        ownerId: mockUserId,
+      });
+      mockPrismaService.attachment.findUnique.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        service.replaceAttachment(
+          'proposal-uuid',
+          'nonexistent-attachment',
+          mockNewFile,
+          mockUserId,
+          { uploadDir: mockUploadDir },
+        ),
+      ).rejects.toThrow(
+        new NotFoundException({
+          success: false,
+          error: {
+            code: 'ATTACHMENT_NOT_FOUND',
+            message: 'Tài liệu không tồn tại hoặc đã bị xóa.',
+          },
+        }),
+      );
+    });
+
+    it('should reject when attachment already soft-deleted', async () => {
+      // Arrange
+      const deletedAttachment = {
+        ...mockExistingAttachment,
+        deletedAt: new Date(),
+      };
+
+      mockPrismaService.proposal.findUnique.mockResolvedValue({
+        ...mockProposal,
+        ownerId: mockUserId,
+      });
+      mockPrismaService.attachment.findUnique.mockResolvedValue(deletedAttachment);
+
+      // Act & Assert
+      await expect(
+        service.replaceAttachment(
+          'proposal-uuid',
+          'attachment-uuid',
+          mockNewFile,
+          mockUserId,
+          { uploadDir: mockUploadDir },
+        ),
+      ).rejects.toThrow(
+        new NotFoundException({
+          success: false,
+          error: {
+            code: 'ATTACHMENT_NOT_FOUND',
+            message: 'Tài liệu không tồn tại hoặc đã bị xóa.',
+          },
+        }),
+      );
+    });
+
+    it('should reject when user is not the owner', async () => {
+      // Arrange
+      const differentUserId = 'different-user-uuid';
+
+      mockPrismaService.proposal.findUnique.mockResolvedValue(mockProposal);
+      mockPrismaService.attachment.findUnique.mockResolvedValue(
+        mockExistingAttachment,
+      );
+
+      // Act & Assert
+      await expect(
+        service.replaceAttachment(
+          'proposal-uuid',
+          'attachment-uuid',
+          mockNewFile,
+          differentUserId,
+          { uploadDir: mockUploadDir },
+        ),
+      ).rejects.toThrow(
+        new ForbiddenException({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Bạn không có quyền thay thế tài liệu của đề tài này.',
+          },
+        }),
+      );
+    });
+
+    it('should reject when new file is too large', async () => {
+      // Arrange
+      const largeFile = {
+        ...mockNewFile,
+        size: 6 * 1024 * 1024, // 6MB - over limit
+      } as Express.Multer.File;
+
+      mockPrismaService.proposal.findUnique.mockResolvedValue({
+        ...mockProposal,
+        ownerId: mockUserId,
+      });
+      mockPrismaService.attachment.findUnique.mockResolvedValue(
+        mockExistingAttachment,
+      );
+
+      // Act & Assert
+      await expect(
+        service.replaceAttachment(
+          'proposal-uuid',
+          'attachment-uuid',
+          largeFile,
+          mockUserId,
+          { uploadDir: mockUploadDir },
+        ),
+      ).rejects.toThrow(
+        new BadRequestException({
+          success: false,
+          error: {
+            code: 'FILE_TOO_LARGE',
+            message: 'File quá 5MB. Vui lòng nén hoặc chia nhỏ.',
+          },
+        }),
+      );
+    });
+
+    it('should replace file and update attachment record', async () => {
+      // Arrange
+      const updatedAttachment = {
+        ...mockExistingAttachment,
+        fileName: expect.stringMatching(/^[a-f0-9-]+-new-document\.pdf$/),
+        fileUrl: expect.stringMatching(/^\/uploads\/[a-f0-9-]+-new-document\.pdf$/),
+        fileSize: mockNewFile.size,
+        mimeType: mockNewFile.mimetype,
+        uploadedBy: mockUserId,
+        uploadedAt: expect.any(Date),
+      };
+
+      mockPrismaService.proposal.findUnique.mockResolvedValue({
+        ...mockProposal,
+        ownerId: mockUserId,
+      });
+      mockPrismaService.attachment.findUnique.mockResolvedValue(
+        mockExistingAttachment,
+      );
+      mockPrismaService.attachment.update.mockResolvedValue(updatedAttachment);
+
+      // Act
+      const result = await service.replaceAttachment(
+        'proposal-uuid',
+        'attachment-uuid',
+        mockNewFile,
+        mockUserId,
+        { uploadDir: mockUploadDir },
+      );
+
+      // Assert
+      expect(result).toEqual(expect.objectContaining({
+        id: mockExistingAttachment.id,
+        proposalId: mockExistingAttachment.proposalId,
+        fileSize: mockNewFile.size,
+        mimeType: mockNewFile.mimetype,
+        uploadedBy: mockUserId,
+      }));
+
+      // Verify old file was deleted
+      expect(deleteFileFromStorageSpy).toHaveBeenCalledWith(
+        mockExistingAttachment.fileUrl,
+        mockUploadDir,
+      );
+
+      // Verify audit event was logged
+      expect(mockAuditService.logEvent).toHaveBeenCalledWith({
+        action: AuditAction.ATTACHMENT_REPLACE,
+        actorUserId: mockUserId,
+        entityType: 'attachment',
+        entityId: mockExistingAttachment.id,
+        metadata: expect.objectContaining({
+          proposalId: 'proposal-uuid',
+          proposalCode: 'DT-001',
+          attachmentId: 'attachment-uuid',
+          oldFileName: 'old-document.pdf',
+          newFileName: expect.stringMatching(/^[a-f0-9-]+-new-document\.pdf$/),
+        }),
+      });
+    });
+  });
+
+  // Story 2.5: Attachment CRUD - Delete
+  describe('deleteAttachment', () => {
+    const mockProposal = {
+      id: 'proposal-uuid',
+      code: 'DT-001',
+      title: 'Test Proposal',
+      state: ProjectState.DRAFT,
+      ownerId: 'owner-uuid',
+      facultyId: 'faculty-uuid',
+    };
+
+    const mockAttachment = {
+      id: 'attachment-uuid',
+      proposalId: 'proposal-uuid',
+      fileName: 'document.pdf',
+      fileUrl: '/uploads/document.pdf',
+      fileSize: 1024 * 1024, // 1MB
+      mimeType: 'application/pdf',
+      uploadedBy: 'owner-uuid',
+      uploadedAt: new Date(),
+      deletedAt: null,
+    };
+
+    const mockUserId = 'owner-uuid';
+    const mockUploadDir = '/uploads';
+
+    // Spy on deleteFileFromStorage method to avoid actual file I/O
+    let deleteFileFromStorageSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      deleteFileFromStorageSpy = jest
+        .spyOn(service as any, 'deleteFileFromStorage')
+        .mockResolvedValue(undefined);
+    });
+
+    afterEach(() => {
+      deleteFileFromStorageSpy.mockRestore();
+    });
+
+    it('should reject when proposal is not in DRAFT state', async () => {
+      // Arrange
+      const nonDraftProposal = {
+        ...mockProposal,
+        state: ProjectState.FACULTY_REVIEW,
+      };
+
+      mockPrismaService.proposal.findUnique.mockResolvedValue(nonDraftProposal);
+
+      // Act & Assert
+      await expect(
+        service.deleteAttachment('proposal-uuid', 'attachment-uuid', mockUserId, {
+          uploadDir: mockUploadDir,
+        }),
+      ).rejects.toThrow(
+        new ForbiddenException({
+          success: false,
+          error: {
+            code: 'PROPOSAL_NOT_DRAFT',
+            message: 'Không thể sửa sau khi nộp. Vui lòng liên hệ admin nếu cần sửa.',
+          },
+        }),
+      );
+    });
+
+    it('should reject when attachment not found', async () => {
+      // Arrange
+      mockPrismaService.proposal.findUnique.mockResolvedValue({
+        ...mockProposal,
+        ownerId: mockUserId,
+      });
+      mockPrismaService.attachment.findUnique.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        service.deleteAttachment('proposal-uuid', 'nonexistent-attachment', mockUserId, {
+          uploadDir: mockUploadDir,
+        }),
+      ).rejects.toThrow(
+        new NotFoundException({
+          success: false,
+          error: {
+            code: 'ATTACHMENT_NOT_FOUND',
+            message: 'Tài liệu không tồn tại hoặc đã bị xóa.',
+          },
+        }),
+      );
+    });
+
+    it('should reject when user is not the owner', async () => {
+      // Arrange
+      const differentUserId = 'different-user-uuid';
+
+      mockPrismaService.proposal.findUnique.mockResolvedValue(mockProposal);
+      mockPrismaService.attachment.findUnique.mockResolvedValue(mockAttachment);
+
+      // Act & Assert
+      await expect(
+        service.deleteAttachment('proposal-uuid', 'attachment-uuid', differentUserId, {
+          uploadDir: mockUploadDir,
+        }),
+      ).rejects.toThrow(
+        new ForbiddenException({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Bạn không có quyền xóa tài liệu của đề tài này.',
+          },
+        }),
+      );
+    });
+
+    it('should soft delete attachment record', async () => {
+      // Arrange
+      const deletedAttachment = {
+        ...mockAttachment,
+        deletedAt: new Date(),
+      };
+
+      mockPrismaService.proposal.findUnique.mockResolvedValue({
+        ...mockProposal,
+        ownerId: mockUserId,
+      });
+      mockPrismaService.attachment.findUnique.mockResolvedValue(mockAttachment);
+      mockPrismaService.attachment.update.mockResolvedValue(deletedAttachment);
+
+      // Act
+      const result = await service.deleteAttachment(
+        'proposal-uuid',
+        'attachment-uuid',
+        mockUserId,
+        { uploadDir: mockUploadDir },
+      );
+
+      // Assert
+      expect(result).toEqual({
+        id: mockAttachment.id,
+        deletedAt: deletedAttachment.deletedAt,
+      });
+
+      // Verify soft delete was called
+      expect(mockPrismaService.attachment.update).toHaveBeenCalledWith({
+        where: { id: 'attachment-uuid' },
+        data: { deletedAt: expect.any(Date) },
+      });
+
+      // Verify physical file was deleted
+      expect(deleteFileFromStorageSpy).toHaveBeenCalledWith(
+        mockAttachment.fileUrl,
+        mockUploadDir,
+      );
+
+      // Verify audit event was logged
+      expect(mockAuditService.logEvent).toHaveBeenCalledWith({
+        action: AuditAction.ATTACHMENT_DELETE,
+        actorUserId: mockUserId,
+        entityType: 'attachment',
+        entityId: mockAttachment.id,
+        metadata: expect.objectContaining({
+          proposalId: 'proposal-uuid',
+          proposalCode: 'DT-001',
+          attachmentId: 'attachment-uuid',
+          fileName: 'document.pdf',
+          fileSize: mockAttachment.fileSize,
+        }),
+      });
+    });
+
+    it('should handle file deletion errors gracefully', async () => {
+      // Arrange - simulate file deletion error
+      deleteFileFromStorageSpy.mockRejectedValue(new Error('File not found'));
+
+      const deletedAttachment = {
+        ...mockAttachment,
+        deletedAt: new Date(),
+      };
+
+      mockPrismaService.proposal.findUnique.mockResolvedValue({
+        ...mockProposal,
+        ownerId: mockUserId,
+      });
+      mockPrismaService.attachment.findUnique.mockResolvedValue(mockAttachment);
+      mockPrismaService.attachment.update.mockResolvedValue(deletedAttachment);
+
+      // Act - should not throw even if file deletion fails
+      const result = await service.deleteAttachment(
+        'proposal-uuid',
+        'attachment-uuid',
+        mockUserId,
+        { uploadDir: mockUploadDir },
+      );
+
+      // Assert - soft delete should still succeed
+      expect(result).toEqual({
+        id: mockAttachment.id,
+        deletedAt: deletedAttachment.deletedAt,
+      });
+
+      // Verify audit event was still logged
+      expect(mockAuditService.logEvent).toHaveBeenCalled();
+    });
+  });
 });
