@@ -91,6 +91,7 @@ describe('WorkflowController', () => {
     mockService = {
       getWorkflowLogs: jest.fn(),
       approveFacultyReview: jest.fn(),
+      returnFacultyReview: jest.fn(),
     };
 
     // Create mock PrismaService
@@ -962,6 +963,215 @@ describe('WorkflowController', () => {
           controller.approveFacultyReview(
             'non-existent-id',
             { proposalId: 'non-existent-id', idempotencyKey: mockIdempotencyKey },
+            mockUser,
+          ),
+        ).rejects.toMatchObject({
+          response: {
+            success: false,
+            error: {
+              code: 'PROPOSAL_NOT_FOUND',
+            },
+          },
+        });
+      });
+    });
+  });
+
+  /**
+   * Story 4.2: Faculty Return Action Tests
+   * Tests for POST /api/workflow/:proposalId/return-faculty endpoint
+   */
+  describe('returnFacultyReview (Story 4.2)', () => {
+    const mockProposalId = 'test-proposal-id';
+    const mockIdempotencyKey = '123e4567-e89b-12d3-a456-426614174000';
+
+    const mockFacultyReviewProposal = {
+      id: mockProposalId,
+      state: ProjectState.FACULTY_REVIEW,
+    };
+
+    const mockChangesRequestedProposal = {
+      id: mockProposalId,
+      code: 'DT-001',
+      title: 'Test Proposal',
+      state: ProjectState.CHANGES_REQUESTED,
+      ownerId: 'user-1',
+      facultyId: 'faculty-1',
+      holderUnit: 'faculty-1',
+      holderUser: 'user-1',
+      slaStartDate: new Date('2026-01-06'),
+      slaDeadline: new Date('2026-01-10'),
+      templateId: null,
+      templateVersion: null,
+      formData: null,
+      createdAt: new Date('2026-01-06'),
+      updatedAt: new Date('2026-01-06'),
+      deletedAt: null,
+    };
+
+    const mockReturnWorkflowLog = {
+      id: 'test-log-id',
+      proposalId: mockProposalId,
+      action: 'RETURN' as const,
+      fromState: ProjectState.FACULTY_REVIEW,
+      toState: ProjectState.CHANGES_REQUESTED,
+      actorId: 'user-2',
+      actorName: 'Test User',
+      returnTargetState: ProjectState.FACULTY_REVIEW,
+      returnTargetHolderUnit: 'faculty-1',
+      reasonCode: 'THIEU_TAI_LIEU',
+      comment: '{"reason":"Cần bổ sung tài liệu","revisionSections":["SEC_BUDGET"]}',
+      timestamp: new Date(),
+    };
+
+    const mockReturnTransitionResult = {
+      proposal: mockChangesRequestedProposal,
+      workflowLog: mockReturnWorkflowLog,
+      previousState: ProjectState.FACULTY_REVIEW,
+      currentState: ProjectState.CHANGES_REQUESTED,
+      holderUnit: 'faculty-1',
+      holderUser: 'user-1',
+    };
+
+    beforeEach(() => {
+      mockPrisma.proposal.findUnique.mockImplementation((args: any) => {
+        if (args.where.id === mockProposalId) {
+          return Promise.resolve(mockFacultyReviewProposal);
+        }
+        return Promise.resolve(null);
+      });
+    });
+
+    describe('AC3 & AC4: State transition & workflow log', () => {
+      it('should transition FACULTY_REVIEW → CHANGES_REQUESTED', async () => {
+        mockService.returnFacultyReview.mockResolvedValue(mockReturnTransitionResult);
+
+        const result = await controller.returnFacultyReview(
+          mockProposalId,
+          {
+            proposalId: mockProposalId,
+            reason: 'Cần bổ sung tài liệu',
+            reasonCode: 'THIEU_TAI_LIEU',
+            reasonSections: ['SEC_BUDGET'],
+            idempotencyKey: mockIdempotencyKey,
+          },
+          mockUser,
+        );
+
+        expect(result.success).toBe(true);
+        expect(result.data.previousState).toBe('FACULTY_REVIEW');
+        expect(result.data.currentState).toBe('CHANGES_REQUESTED');
+        expect(result.data.action).toBe('RETURN');
+      });
+
+      it('should set holder to owner (back to PI)', async () => {
+        mockService.returnFacultyReview.mockResolvedValue(mockReturnTransitionResult);
+
+        const result = await controller.returnFacultyReview(
+          mockProposalId,
+          {
+            proposalId: mockProposalId,
+            reason: 'Cần bổ sung tài liệu',
+            reasonCode: 'THIEU_TAI_LIEU',
+            reasonSections: ['SEC_BUDGET'],
+            idempotencyKey: mockIdempotencyKey,
+          },
+          mockUser,
+        );
+
+        expect(result.data.holderUnit).toBe('faculty-1');
+        expect(result.data.holderUser).toBe('user-1');
+      });
+
+      it('should call workflow service with return data', async () => {
+        mockService.returnFacultyReview.mockResolvedValue(mockReturnTransitionResult);
+
+        await controller.returnFacultyReview(
+          mockProposalId,
+          {
+            proposalId: mockProposalId,
+            reason: 'Cần bổ sung tài liệu',
+            reasonCode: 'THIEU_TAI_LIEU',
+            reasonSections: ['SEC_BUDGET', 'SEC_CONTENT_METHOD'],
+            idempotencyKey: mockIdempotencyKey,
+          },
+          mockUser,
+        );
+
+        expect(mockService.returnFacultyReview).toHaveBeenCalledWith(
+          mockProposalId,
+          'Cần bổ sung tài liệu',
+          'THIEU_TAI_LIEU',
+          ['SEC_BUDGET', 'SEC_CONTENT_METHOD'],
+          expect.objectContaining({
+            userId: mockUser.id,
+            userRole: mockUser.role,
+            idempotencyKey: mockIdempotencyKey,
+          }),
+        );
+      });
+
+      it('should create workflow log with return target fields', async () => {
+        mockService.returnFacultyReview.mockResolvedValue(mockReturnTransitionResult);
+
+        const result = await controller.returnFacultyReview(
+          mockProposalId,
+          {
+            proposalId: mockProposalId,
+            reason: 'Cần bổ sung tài liệu',
+            reasonCode: 'THIEU_TAI_LIEU',
+            reasonSections: ['SEC_BUDGET'],
+            idempotencyKey: mockIdempotencyKey,
+          },
+          mockUser,
+        );
+
+        expect(result.data.workflowLogId).toBe('test-log-id');
+      });
+    });
+
+    describe('AC5 & AC6: Error handling - wrong state', () => {
+      it('should return 400 when proposal is not in FACULTY_REVIEW state', async () => {
+        mockPrisma.proposal.findUnique.mockResolvedValue({
+          id: mockProposalId,
+          state: ProjectState.DRAFT,
+        });
+
+        await expect(
+          controller.returnFacultyReview(
+            mockProposalId,
+            {
+              proposalId: mockProposalId,
+              reason: 'Cần sửa',
+              reasonCode: 'KHAC',
+              idempotencyKey: mockIdempotencyKey,
+            },
+            mockUser,
+          ),
+        ).rejects.toMatchObject({
+          response: {
+            success: false,
+            error: {
+              code: 'PROPOSAL_NOT_FACULTY_REVIEW',
+            },
+          },
+        });
+      });
+    });
+
+    describe('Error handling - proposal not found', () => {
+      it('should return 404 when proposal does not exist', async () => {
+        mockPrisma.proposal.findUnique.mockResolvedValue(null);
+
+        await expect(
+          controller.returnFacultyReview(
+            'non-existent-id',
+            {
+              proposalId: 'non-existent-id',
+              reason: 'Cần sửa',
+              reasonCode: 'KHAC',
+              idempotencyKey: mockIdempotencyKey,
+            },
             mockUser,
           ),
         ).rejects.toMatchObject({

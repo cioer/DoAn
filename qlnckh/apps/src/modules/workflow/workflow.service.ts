@@ -480,6 +480,12 @@ export class WorkflowService {
     const returnTargetState = proposal.state; // Return to FACULTY_REVIEW
     const returnTargetHolderUnit = proposal.facultyId; // Faculty that was reviewing
 
+    // Build comment JSON with reason and revisionSections (Story 4.2)
+    const commentJson = JSON.stringify({
+      reason,
+      revisionSections: reasonSections || [],
+    });
+
     // Execute transition
     const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.proposal.update({
@@ -491,7 +497,7 @@ export class WorkflowService {
         },
       });
 
-      // AC5: Store return_target_state + return_target_holder_unit
+      // AC5: Store return_target_state + return_target_holder_unit + revisionSections
       const workflowLog = await tx.workflowLog.create({
         data: {
           proposalId,
@@ -503,7 +509,7 @@ export class WorkflowService {
           returnTargetState,
           returnTargetHolderUnit,
           reasonCode,
-          comment: reason,
+          comment: commentJson,
         },
       });
 
@@ -644,7 +650,11 @@ export class WorkflowService {
       workflowLogData.returnTargetState = proposal.state;
       workflowLogData.returnTargetHolderUnit = proposal.holderUnit || proposal.facultyId;
       workflowLogData.reasonCode = context.reasonCode || null;
-      workflowLogData.comment = context.reason || null;
+      // Store revisionSections in comment as JSON (Story 4.2)
+      workflowLogData.comment = JSON.stringify({
+        reason: context.reason || null,
+        revisionSections: context.reasonSections || [],
+      });
     }
 
     // Execute transition

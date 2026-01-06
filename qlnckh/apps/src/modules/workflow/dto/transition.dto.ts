@@ -1,6 +1,7 @@
-import { IsEnum, IsString, IsOptional, IsUUID, IsNotEmpty } from 'class-validator';
+import { IsEnum, IsString, IsOptional, IsUUID, IsNotEmpty, IsArray, MinItems, ArrayNotEmpty } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ProjectState, WorkflowAction } from '@prisma/client';
+import { ReturnReasonCode, CanonicalSectionId } from '../enums/return-reason-code.enum';
 
 /**
  * Base Transition DTO
@@ -146,20 +147,23 @@ export class ReturnFacultyReviewDto {
 
   @ApiProperty({
     description: 'Mã lý do',
-    example: 'MISSING_DOCUMENTS',
+    enum: ReturnReasonCode,
+    example: ReturnReasonCode.THIEU_TAI_LIEU,
   })
-  @IsString()
+  @IsEnum(ReturnReasonCode)
   @IsNotEmpty()
-  reasonCode: string;
+  reasonCode: ReturnReasonCode;
 
-  @ApiPropertyOptional({
-    description: 'Danh sách section IDs cần sửa',
-    example: ['SEC_INFO_GENERAL', 'SEC_BUDGET'],
+  @ApiProperty({
+    description: 'Danh sách section IDs cần sửa (bắt buộc, ít nhất 1 phần)',
+    enum: CanonicalSectionId,
+    example: [CanonicalSectionId.INFO_GENERAL, CanonicalSectionId.BUDGET],
     type: [String],
   })
-  @IsOptional()
+  @IsArray()
   @IsString({ each: true })
-  reasonSections?: string[];
+  @MinItems(1)
+  reasonSections: CanonicalSectionId[];
 
   @ApiPropertyOptional({
     description: 'Idempotency key',

@@ -52,6 +52,7 @@ import { IdempotencyInterceptor } from '../../common/interceptors';
 import { UserRole } from '@prisma/client';
 import {
   ApproveFacultyReviewDto,
+  ReturnFacultyReviewDto,
   TransitionResponseDto,
 } from './dto/transition.dto';
 
@@ -573,6 +574,170 @@ export class WorkflowController {
         previousState: result.previousState,
         currentState: result.currentState,
         action: 'APPROVE',
+        holderUnit: result.holderUnit,
+        holderUser: result.holderUser,
+        workflowLogId: result.workflowLog.id,
+      },
+    };
+  }
+
+  /**
+   * POST /api/workflow/:proposalId/return-faculty
+   * Story 4.2: Faculty Return Action (Reason Code + Sections)
+   *
+   * Returns a proposal at FACULTY_REVIEW state with changes requested,
+   * transitioning it to CHANGES_REQUESTED. Only QUAN_LY_KHOA and
+   * THU_KY_KHOA roles can perform this action.
+   *
+   * AC3: When faculty returns:
+   * - State transitions FACULTY_REVIEW → CHANGES_REQUESTED
+   * - holder_unit = owner_faculty_id (back to PI)
+   * - workflow_logs entry with action=RETURN, return_target_state, reason_code
+   */
+  @Post(':proposalId/return-faculty')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.QUAN_LY_KHOA, UserRole.THU_KY_KHOA)
+  @ApiOperation({
+    summary: 'Yêu cầu sửa hồ sơ ở cấp Khoa',
+    description:
+      'Trả về đề tài từ trạng thái FACULTY_REVIEW sang CHANGES_REQUESTED với lý do và phần cần sửa. Chỉ QUAN_LY_KHOA và THU_KY_KHOA mới có thể trả về.',
+  })
+  @ApiParam({
+    name: 'proposalId',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Đề tài được trả về thành công',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          proposalId: 'proposal-uuid',
+          previousState: 'FACULTY_REVIEW',
+          currentState: 'CHANGES_REQUESTED',
+          action: 'RETURN',
+          holderUnit: 'faculty-uuid',
+          holderUser: 'user-uuid',
+          returnTargetState: 'FACULTY_REVIEW',
+          returnTargetHolderUnit: 'faculty-uuid',
+          workflowLogId: 'log-uuid',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - proposal not in FACULTY_REVIEW state or invalid return data',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FACULTY_REVIEW',
+          message: 'Chỉ có thể trả về đề tài ở trạng thái FACULTY_REVIEW',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user lacks required role',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Bạn không có quyền trả về đề tài',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Không tìm thấy đề tài',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflict - duplicate idempotency key',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'ALREADY_PROCESSED',
+          message: 'Yêu cầu đã được xử lý',
+        },
+      },
+    },
+  })
+  async returnFacultyReview(
+    @Param('proposalId') proposalId: string,
+    @Body() dto: ReturnFacultyReviewDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<TransitionResponseDto> {
+    // Verify proposal exists
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: { id: true, state: true },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Không tìm thấy đề tài',
+        },
+      });
+    }
+
+    // Validate state: must be FACULTY_REVIEW
+    if (proposal.state !== ProjectState.FACULTY_REVIEW) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FACULTY_REVIEW',
+          message: `Chỉ có thể trả về đề tài ở trạng thái FACULTY_REVIEW. Hiện tại: ${proposal.state}`,
+        },
+      });
+    }
+
+    // Execute transition via workflow service
+    const result = await this.workflowService.returnFacultyReview(
+      proposalId,
+      dto.reason,
+      dto.reasonCode,
+      dto.reasonSections,
+      {
+        userId: user.id,
+        userRole: user.role,
+        userFacultyId: user.facultyId,
+        idempotencyKey: dto.idempotencyKey,
+        ip,
+        userAgent,
+        requestId,
+      },
+    );
+
+    return {
+      success: true,
+      data: {
+        proposalId: result.proposal.id,
+        previousState: result.previousState,
+        currentState: result.currentState,
+        action: 'RETURN',
         holderUnit: result.holderUnit,
         holderUser: result.holderUser,
         workflowLogId: result.workflowLog.id,

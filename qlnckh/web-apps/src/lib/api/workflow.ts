@@ -3,11 +3,20 @@ import { apiClient } from '../auth/auth';
 /**
  * Workflow State Transitions
  * Story 4.1: Faculty Approve Action
+ * Story 4.2: Faculty Return Action (Reason Code + Sections)
  */
 
 export interface ApproveFacultyReviewRequest {
   proposalId: string;
   idempotencyKey: string;
+}
+
+export interface ReturnFacultyReviewRequest {
+  proposalId: string;
+  idempotencyKey: string;
+  reason: string;
+  reasonCode: string;
+  reasonSections?: string[];
 }
 
 export interface TransitionResult {
@@ -25,6 +34,11 @@ export interface ApproveFacultyReviewResponse {
   data: TransitionResult;
 }
 
+export interface ReturnFacultyReviewResponse {
+  success: true;
+  data: TransitionResult;
+}
+
 export interface WorkflowErrorResponse {
   success: false;
   error: {
@@ -33,6 +47,39 @@ export interface WorkflowErrorResponse {
     details?: string[];
   };
 }
+
+/**
+ * Return Reason Codes (Story 4.2)
+ */
+export const RETURN_REASON_CODES = {
+  THIEU_TAI_LIEU: 'THIEU_TAI_LIEU',
+  NOI_DUNG_KHONG_RO_RANG: 'NOI_DUNG_KHONG_RO_RANG',
+  PHUONG_PHAP_KHONG_KHA_THI: 'PHUONG_PHAP_KHONG_KHA_THI',
+  KINH_PHI_KHONG_HOP_LE: 'KINH_PHI_KHONG_HOP_LE',
+  KHAC: 'KHAC',
+} as const;
+
+export type ReturnReasonCode = (typeof RETURN_REASON_CODES)[keyof typeof RETURN_REASON_CODES];
+
+export const RETURN_REASON_LABELS: Record<ReturnReasonCode, string> = {
+  THIEU_TAI_LIEU: 'Thiếu tài liệu',
+  NOI_DUNG_KHONG_RO_RANG: 'Nội dung không rõ ràng',
+  PHUONG_PHAP_KHONG_KHA_THI: 'Phương pháp không khả thi',
+  KINH_PHI_KHONG_HOP_LE: 'Kinh phí không hợp lý',
+  KHAC: 'Khác',
+};
+
+/**
+ * Canonical Section IDs (Story 4.2)
+ */
+export const CANONICAL_SECTIONS = [
+  { id: 'SEC_INFO_GENERAL', label: 'Thông tin chung' },
+  { id: 'SEC_CONTENT_METHOD', label: 'Nội dung nghiên cứu' },
+  { id: 'SEC_METHOD', label: 'Phương pháp nghiên cứu' },
+  { id: 'SEC_EXPECTED_RESULTS', label: 'Kết quả mong đợi' },
+  { id: 'SEC_BUDGET', label: 'Kinh phí' },
+  { id: 'SEC_ATTACHMENTS', label: 'Tài liệu đính kèm' },
+] as const;
 
 /**
  * Generate UUID v4 for idempotency key
@@ -50,7 +97,7 @@ export function generateIdempotencyKey(): string {
  * Workflow API Client
  *
  * Story 4.1: Faculty Approve Action
- * POST /api/workflow/:proposalId/approve-faculty
+ * Story 4.2: Faculty Return Action
  */
 export const workflowApi = {
   /**
@@ -75,6 +122,46 @@ export const workflowApi = {
         proposalId,
         // Note: idempotencyKey sent in header (X-Idempotency-Key) for IdempotencyInterceptor
         // Body field kept for DTO compatibility but interceptor checks header
+        idempotencyKey,
+      },
+      {
+        headers: {
+          'X-Idempotency-Key': idempotencyKey,
+        },
+      },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Return Faculty Review (FACULTY_REVIEW → CHANGES_REQUESTED)
+   * Story 4.2: Faculty Return Action with reason code and sections
+   *
+   * @param proposalId - Proposal ID to return
+   * @param idempotencyKey - UUID v4 idempotency key
+   * @param reason - Return reason text
+   * @param reasonCode - Reason code enum
+   * @param reasonSections - Array of section IDs needing revision
+   * @returns Transition result with proposal state and workflow log
+   * @throws 400 if proposal not in FACULTY_REVIEW state
+   * @throws 403 if user lacks QUAN_LY_KHOA or THU_KY_KHOA role
+   * @throws 404 if proposal not found
+   * @throws 409 if idempotency key was already used
+   */
+  returnFacultyReview: async (
+    proposalId: string,
+    idempotencyKey: string,
+    reason: string,
+    reasonCode: string,
+    reasonSections?: string[],
+  ): Promise<TransitionResult> => {
+    const response = await apiClient.post<ReturnFacultyReviewResponse>(
+      `/workflow/${proposalId}/return-faculty`,
+      {
+        proposalId,
+        reason,
+        reasonCode,
+        reasonSections,
         idempotencyKey,
       },
       {
