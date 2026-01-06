@@ -58,7 +58,7 @@ So that tôi biết phải sửa gì.
   - [x] Create `RevisionPanel` component
   - [x] Position at top of proposal form
   - [x] Conditionally render when proposal.state = CHANGES_REQUESTED
-  - [x] Header: "Cần sửa các parts:"
+  - [x] Header: "Cần sửa các phần:"
 
 - [x] Task 2: Section Items with Checkboxes (AC: #2)
   - [x] Fetch latest RETURN log from workflowApi.getLatestReturn()
@@ -228,6 +228,17 @@ interface SectionItemProps {
 
 ## Dev Agent Record
 
+### Code Review Fixes (2026-01-07)
+
+**Issues Fixed:**
+1. **[HIGH] localStorage cleanup on unmount** - Added useEffect cleanup to clear localStorage when component unmounts, preventing stale data if user navigates away
+2. **[HIGH] Accessibility fix** - Removed preventDefault() on label onClick to allow native checkbox behavior for screen readers
+3. **[HIGH] Button disabled when no sections** - Added sectionItems.length === 0 check to disable "Nộp lại" button when no sections need revision
+4. **[HIGH] localStorage key namespacing** - Added namespace prefix `qlnckh.revision.` to prevent key collisions
+
+**Files Modified:**
+- `qlnckh/web-apps/src/components/workflow/RevisionPanel.tsx` - Applied fixes #1-4
+
 ### Agent Model Used
 
 claude-opus-4-5-20251101
@@ -268,6 +279,7 @@ Component code is complete and ready for integration.
 
 - 2026-01-07: Story created via create-story workflow. Status: ready-for-dev
 - 2026-01-07: Implementation complete. RevisionPanel component added. Status: review
+- 2026-01-07: Code review fixes applied. Status: review
 
 ## References
 

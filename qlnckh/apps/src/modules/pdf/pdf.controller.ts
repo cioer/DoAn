@@ -196,18 +196,14 @@ export class PdfController {
     @Res() res: Response,
   ): Promise<void> {
     try {
+      // Get proposal code for filename first (Fix #8: Use public method)
+      const proposalCode = await this.pdfService.getProposalCode(id);
+
       // Generate PDF
       const pdfBuffer = await this.pdfService.generateRevisionPdf(id);
 
-      // Get proposal code for filename
-      const proposal = await this.pdfService['prisma'].proposal.findUnique({
-        where: { id },
-        select: { code: true },
-      });
-
       // Generate filename with timestamp: {code}_revision_{timestamp}.pdf
       const timestamp = new Date().getTime();
-      const proposalCode = proposal?.code || 'proposal';
       const filename = `${proposalCode}_revision_${timestamp}.pdf`;
 
       // Set headers for PDF download

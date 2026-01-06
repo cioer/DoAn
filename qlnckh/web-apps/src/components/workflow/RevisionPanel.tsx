@@ -14,7 +14,7 @@
  * - "Xuất PDF yêu cầu sửa" button (Story 4.6)
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { CheckCircle, AlertTriangle, Loader2, Send, Download } from 'lucide-react';
 import { workflowApi, CANONICAL_SECTIONS, WorkflowLog, generateIdempotencyKey, downloadRevisionPdf } from '@/lib/api/workflow';
 
@@ -56,8 +56,9 @@ function getSectionLabels(sectionIds: string[]): Array<{ id: string; label: stri
 
 /**
  * localStorage key for checkbox state
+ * Namespaced to avoid collisions with other localStorage data (Fix #4)
  */
-const getStorageKey = (proposalId: string) => `revision-${proposalId}`;
+const getStorageKey = (proposalId: string) => `qlnckh.revision.${proposalId}`;
 
 /**
  * Section Item Component
@@ -90,10 +91,6 @@ function SectionItem({
         <label
           htmlFor={`section-${sectionId}`}
           className="block font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
-          onClick={(e) => {
-            e.preventDefault();
-            onScrollToSection(sectionId);
-          }}
         >
           {sectionLabel}
         </label>
@@ -137,6 +134,21 @@ export function RevisionPanel({
   // Story 4.6: Download PDF state
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+
+  // Ref to track proposalId for cleanup on unmount (Fix #1)
+  const proposalIdRef = useRef(proposalId);
+
+  // Clear localStorage on component unmount (Fix #1)
+  useEffect(() => {
+    proposalIdRef.current = proposalId;
+    return () => {
+      try {
+        localStorage.removeItem(getStorageKey(proposalIdRef.current));
+      } catch {
+        // Ignore localStorage errors
+      }
+    };
+  }, [proposalId]);
 
   // Load checked sections from localStorage on mount
   useEffect(() => {
@@ -433,8 +445,9 @@ export function RevisionPanel({
         <button
           type="button"
           onClick={handleResubmit}
-          disabled={checkedSections.length === 0 || resubmitting}
+          disabled={checkedSections.length === 0 || resubmitting || sectionItems.length === 0}
           className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
+          title={sectionItems.length === 0 ? 'Không có phần nào cần sửa' : undefined}
         >
           {resubmitting ? (
             <>
@@ -444,7 +457,9 @@ export function RevisionPanel({
           ) : (
             <>
               <Send className="w-4 h-4" />
-              Nộp lại ({checkedSections.length}/{sectionItems.length} đã sửa)
+              {sectionItems.length > 0
+                ? `Nộp lại (${checkedSections.length}/${sectionItems.length} đã sửa)`
+                : 'Nộp lại'}
             </>
           )}
         </button>

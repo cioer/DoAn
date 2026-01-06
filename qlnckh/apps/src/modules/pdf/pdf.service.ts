@@ -685,7 +685,10 @@ export class PdfService {
     // Fetch proposal data
     const proposal = await this.prisma.proposal.findUnique({
       where: { id: proposalId },
-      include: {
+      select: {
+        id: true,
+        code: true,
+        title: true,
         owner: {
           select: { id: true, email: true, name: true },
         },
@@ -693,7 +696,7 @@ export class PdfService {
     });
 
     if (!proposal) {
-      throw new NotFoundException(`Proposal ${proposalId} not found`);
+      throw new NotFoundException(`Không tìm thấy đề tài ${proposalId}`);
     }
 
     // Fetch latest RETURN workflow log
@@ -706,23 +709,23 @@ export class PdfService {
     });
 
     if (!returnLog) {
-      throw new NotFoundException(`No return log found for proposal ${proposalId}`);
+      throw new NotFoundException(`Không tìm thấy thông tin yêu cầu sửa cho đề tài ${proposalId}`);
     }
+
+    // Fix #9: Launch browser and ensure it's closed properly with try/finally
+    const browser = await chromium.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
 
     try {
       // Generate HTML content
       const html = await this.generateRevisionHtml(proposal, returnLog);
 
-      // Launch browser and generate PDF
-      const browser = await chromium.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      });
-
       try {
         const page = await browser.newPage();
 
-        // Set timeout for PDF generation
+        // Set timeout for PDF generation (Fix #15: 10s SLA from Story 3.9)
         const timeout = options.timeout || this.defaultTimeout;
         page.setDefaultTimeout(timeout);
 
@@ -746,22 +749,42 @@ export class PdfService {
           displayHeaderFooter: false,
         });
 
-        await browser.close();
-
         const duration = Date.now() - startTime;
         this.logger.log(`Revision PDF generated for proposal ${proposalId} in ${duration}ms`);
 
         return pdfBuffer;
       } catch (browserError) {
-        await browser.close();
+        this.logger.error(`Failed to generate PDF page for proposal ${proposalId}`, browserError);
         throw browserError;
       }
     } catch (error) {
       this.logger.error(`Failed to generate revision PDF for proposal ${proposalId}`, error);
       throw new InternalServerErrorException(
-        `Failed to generate revision PDF: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Không thể tạo PDF yêu cầu sửa: ${error instanceof Error ? error.message : 'Lỗi không xác định'}`,
       );
+    } finally {
+      // Fix #9: Ensure browser is always closed, even if errors occur
+      try {
+        await browser.close();
+      } catch (closeError) {
+        this.logger.warn(`Failed to close browser for proposal ${proposalId}`, closeError);
+      }
     }
+  }
+
+  /**
+   * Get proposal code for filename (Fix #8: Proper encapsulation)
+   * Provides a public method to get proposal code without accessing private prisma property
+   *
+   * @param proposalId - Proposal UUID
+   * @returns Proposal code or default string
+   */
+  async getProposalCode(proposalId: string): Promise<string> {
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: { code: true },
+    });
+    return proposal?.code || 'proposal';
   }
 
   /**

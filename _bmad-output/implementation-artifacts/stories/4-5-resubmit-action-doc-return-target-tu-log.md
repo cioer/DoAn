@@ -281,6 +281,16 @@ async resubmitProposal(
 
 ## Dev Agent Record
 
+### Code Review Fixes (2026-01-07)
+
+**Issues Fixed:**
+1. **[HIGH] Race condition in idempotency check** - Implemented promise caching pattern to prevent duplicate concurrent requests with same idempotency key
+2. **[HIGH] getUserDisplayName moved outside transaction** - Improved performance and consistency by moving DB query outside transaction
+3. **[HIGH] Validate checkedSections against revisionSections** - Added validation to prevent claiming fixed sections that weren't requested
+
+**Files Modified:**
+- `qlnckh/apps/src/modules/workflow/workflow.service.ts` - Applied fixes #5-7
+
 ### Agent Model Used
 
 claude-opus-4-5-20251101

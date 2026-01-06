@@ -574,10 +574,14 @@ export class WorkflowService {
     checkedSections: string[],
     context: TransitionContext,
   ): Promise<TransitionResult> {
-    // Check idempotency
+    // Fix #5: Use promise cache pattern to prevent race condition in idempotency check
     if (context.idempotencyKey) {
       const cached = this.idempotencyStore.get(context.idempotencyKey);
       if (cached) {
+        // If it's a promise, return it (prevents duplicate in-flight requests)
+        if (cached instanceof Promise) {
+          return cached;
+        }
         this.logger.log(
           `Idempotent request: ${context.idempotencyKey} - returning cached result`,
         );
@@ -638,7 +642,26 @@ export class WorkflowService {
       );
     }
 
-    // Get user display name for audit log
+    // Fix #7: Validate checkedSections against revisionSections from RETURN log
+    let revisionSections: string[] = [];
+    try {
+      const commentParsed = JSON.parse(lastReturnLog.comment || '{}');
+      revisionSections = commentParsed.revisionSections || [];
+    } catch {
+      // If parsing fails, assume no revision sections
+    }
+
+    // Validate that all checked sections are actually in the revision list
+    const invalidSections = checkedSections.filter(
+      (section) => !revisionSections.includes(section),
+    );
+    if (invalidSections.length > 0) {
+      throw new BadRequestException(
+        `Các section không hợp lệ: ${invalidSections.join(', ')}. Chỉ có thể đánh dấu sửa các section đã được yêu cầu.`,
+      );
+    }
+
+    // Fix #6: Move getUserDisplayName outside transaction for better performance
     const actorDisplayName = await this.getUserDisplayName(context.userId);
 
     // AC2: Calculate SLA dates (reset timer)
@@ -649,77 +672,84 @@ export class WorkflowService {
       17, // 17:00 cutoff hour (5 PM)
     );
 
-    // Execute transition
-    const result = await this.prisma.$transaction(async (tx) => {
-      // AC2: Update proposal state to return_target_state (NOT to DRAFT!)
-      const updated = await tx.proposal.update({
-        where: { id: proposalId },
-        data: {
-          state: targetState,
-          holderUnit: targetHolder,
-          holderUser: lastReturnLog.actorId, // Back to the original reviewer
-          slaStartDate,
-          slaDeadline,
-        },
-      });
+    // Fix #5: Store promise in cache before transaction starts (prevents race condition)
+    const executeResubmit = async (): Promise<TransitionResult> => {
+      // Execute transition
+      const result = await this.prisma.$transaction(async (tx) => {
+        // AC2: Update proposal state to return_target_state (NOT to DRAFT!)
+        const updated = await tx.proposal.update({
+          where: { id: proposalId },
+          data: {
+            state: targetState,
+            holderUnit: targetHolder,
+            holderUser: lastReturnLog.actorId, // Back to the original reviewer
+            slaStartDate,
+            slaDeadline,
+          },
+        });
 
-      // AC3: Create workflow log entry with RESUBMIT action
-      const workflowLog = await tx.workflowLog.create({
-        data: {
-          proposalId,
-          action: WorkflowAction.RESUBMIT,
-          fromState: proposal.state,
-          toState: targetState,
-          actorId: context.userId,
-          actorName: actorDisplayName,
-          comment: JSON.stringify({
-            returnLogId: lastReturnLog.id,
+        // AC3: Create workflow log entry with RESUBMIT action
+        const workflowLog = await tx.workflowLog.create({
+          data: {
+            proposalId,
+            action: WorkflowAction.RESUBMIT,
+            fromState: proposal.state,
+            toState: targetState,
+            actorId: context.userId,
+            actorName: actorDisplayName,
+            comment: JSON.stringify({
+              returnLogId: lastReturnLog.id,
+              checkedSections,
+            }),
+          },
+        });
+
+        // Log audit
+        await this.auditService.logEvent({
+          action: 'PROPOSAL_RESUBMIT',
+          actorUserId: context.userId,
+          entityType: 'Proposal',
+          entityId: proposalId,
+          metadata: {
+            proposalCode: proposal.code,
+            fromState: proposal.state,
+            toState: targetState,
+            returnTargetState: targetState,
+            returnTargetHolderUnit: targetHolder,
             checkedSections,
-          }),
-        },
+          },
+          ip: context.ip,
+          userAgent: context.userAgent,
+          requestId: context.requestId,
+        });
+
+        return { proposal: updated, workflowLog };
       });
 
-      // Log audit
-      await this.auditService.logEvent({
-        action: 'PROPOSAL_RESUBMIT',
-        actorUserId: context.userId,
-        entityType: 'Proposal',
-        entityId: proposalId,
-        metadata: {
-          proposalCode: proposal.code,
-          fromState: proposal.state,
-          toState: targetState,
-          returnTargetState: targetState,
-          returnTargetHolderUnit: targetHolder,
-          checkedSections,
-        },
-        ip: context.ip,
-        userAgent: context.userAgent,
-        requestId: context.requestId,
-      });
+      const transitionResult: TransitionResult = {
+        proposal: result.proposal,
+        workflowLog: result.workflowLog,
+        previousState: proposal.state,
+        currentState: targetState,
+        holderUnit: targetHolder,
+        holderUser: lastReturnLog.actorId,
+      };
 
-      return { proposal: updated, workflowLog };
-    });
+      this.logger.log(
+        `Proposal ${proposal.code} resubmitted: ${proposal.state} → ${targetState} (returning to ${targetHolder})`,
+      );
 
-    const transitionResult: TransitionResult = {
-      proposal: result.proposal,
-      workflowLog: result.workflowLog,
-      previousState: proposal.state,
-      currentState: targetState,
-      holderUnit: targetHolder,
-      holderUser: lastReturnLog.actorId,
+      return transitionResult;
     };
 
-    // Store in idempotency cache
+    // Set the promise as a pending value in cache to prevent duplicate requests
     if (context.idempotencyKey) {
-      this.idempotencyStore.set(context.idempotencyKey, transitionResult);
+      const resubmitPromise = executeResubmit();
+      this.idempotencyStore.set(context.idempotencyKey, resubmitPromise);
+      return resubmitPromise;
     }
 
-    this.logger.log(
-      `Proposal ${proposal.code} resubmitted: ${proposal.state} → ${targetState} (returning to ${targetHolder})`,
-    );
-
-    return transitionResult;
+    return executeResubmit();
   }
 
   /**

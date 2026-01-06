@@ -233,6 +233,17 @@ async generateRevisionPdf(proposalId: string): Promise<Buffer> {
 
 ## Dev Agent Record
 
+### Code Review Fixes (2026-01-07)
+
+**Issues Fixed:**
+1. **[HIGH] Private property access violation** - Added `getProposalCode()` public method to PdfService instead of accessing private `prisma` property
+2. **[HIGH] Browser resource leak** - Fixed browser close in finally block to ensure cleanup even on errors
+3. **[HIGH] Vietnamese error messages** - Changed error messages from English to Vietnamese for consistency
+
+**Files Modified:**
+- `qlnckh/apps/src/modules/pdf/pdf.service.ts` - Applied fixes #8-10
+- `qlnckh/apps/src/modules/pdf/pdf.controller.ts` - Updated to use getProposalCode() method
+
 ### Agent Model Used
 
 claude-opus-4-5-20251101
