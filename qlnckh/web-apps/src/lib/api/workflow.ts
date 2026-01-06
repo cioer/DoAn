@@ -89,6 +89,41 @@ export interface ResubmitProposalResponse {
   data: TransitionResult;
 }
 
+/**
+ * Download Revision PDF (Story 4.6)
+ * Downloads the revision PDF for a proposal with changes requested.
+ *
+ * @param proposalId - Proposal ID to download revision PDF for
+ * @returns Promise that resolves when download is complete
+ */
+export const downloadRevisionPdf = async (proposalId: string): Promise<void> => {
+  const response = await apiClient.get(`/proposals/${proposalId}/revision-pdf`, {
+    responseType: 'blob',
+  });
+
+  // Get filename from Content-Disposition header
+  const contentDisposition = response.headers['content-disposition'];
+  let filename = `revision_${proposalId}.pdf`;
+
+  if (contentDisposition) {
+    const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+    if (filenameMatch) {
+      filename = decodeURIComponent(filenameMatch[1]);
+    }
+  }
+
+  // Create blob link and trigger download
+  const blob = new Blob([response.data], { type: 'application/pdf' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};
+
 export interface WorkflowErrorResponse {
   success: false;
   error: {
@@ -306,5 +341,16 @@ export const workflowApi = {
     const logs = await workflowApi.getWorkflowLogs(proposalId);
     // Find first RETURN action log (logs are sorted DESC, newest first)
     return logs.find((log) => log.action === 'RETURN') || null;
+  },
+
+  /**
+   * Download Revision PDF (Story 4.6)
+   * Downloads the revision PDF for a proposal with changes requested.
+   *
+   * @param proposalId - Proposal ID to download revision PDF for
+   * @returns Promise that resolves when download is complete
+   */
+  downloadRevisionPdf: async (proposalId: string): Promise<void> => {
+    await downloadRevisionPdf(proposalId);
   },
 };

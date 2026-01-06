@@ -1,5 +1,5 @@
 /**
- * Revision Panel Component (Story 4.4 + Story 4.5)
+ * Revision Panel Component (Story 4.4 + Story 4.5 + Story 4.6)
  *
  * Displays sections needing revision with checkboxes for tracking completion.
  * Shows at top of proposal form when state = CHANGES_REQUESTED.
@@ -11,11 +11,12 @@
  * - Warning message about history preservation
  * - "Nộp lại" button enabled when ≥1 checkbox ticked (Story 4.5)
  * - Resubmit functionality with confirmation and error handling (Story 4.5)
+ * - "Xuất PDF yêu cầu sửa" button (Story 4.6)
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { CheckCircle, AlertTriangle, Loader2, Send } from 'lucide-react';
-import { workflowApi, CANONICAL_SECTIONS, WorkflowLog, generateIdempotencyKey } from '@/lib/api/workflow';
+import { CheckCircle, AlertTriangle, Loader2, Send, Download } from 'lucide-react';
+import { workflowApi, CANONICAL_SECTIONS, WorkflowLog, generateIdempotencyKey, downloadRevisionPdf } from '@/lib/api/workflow';
 
 export interface RevisionPanelProps {
   proposalId: string;
@@ -24,6 +25,8 @@ export interface RevisionPanelProps {
   checkedSections?: string[];
   /** Callback when resubmit succeeds - parent should refresh proposal state */
   onResubmitSuccess?: () => void;
+  /** Proposal code for PDF filename (Story 4.6) */
+  proposalCode?: string;
 }
 
 /**
@@ -115,6 +118,7 @@ export function RevisionPanel({
   onResubmit,
   checkedSections: propCheckedSections,
   onResubmitSuccess,
+  proposalCode,
 }: RevisionPanelProps) {
   const [returnLog, setReturnLog] = useState<WorkflowLog | null>(null);
   const [loading, setLoading] = useState(false);
@@ -129,6 +133,10 @@ export function RevisionPanel({
   const [resubmitting, setResubmitting] = useState(false);
   const [resubmitError, setResubmitError] = useState<string | null>(null);
   const [resubmitSuccess, setResubmitSuccess] = useState(false);
+
+  // Story 4.6: Download PDF state
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   // Load checked sections from localStorage on mount
   useEffect(() => {
@@ -286,6 +294,22 @@ export function RevisionPanel({
     }
   }, [checkedSections, proposalId, onResubmitSuccess]);
 
+  // Story 4.6: Handle PDF download
+  const handleDownloadPdf = useCallback(async () => {
+    setDownloadingPdf(true);
+    setPdfError(null);
+
+    try {
+      await downloadRevisionPdf(proposalId);
+      // Success - file downloaded automatically
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Không thể tải PDF yêu cầu sửa';
+      setPdfError(errorMessage);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }, [proposalId]);
+
   // AC1: Only render when proposal state = CHANGES_REQUESTED
   if (proposalState !== 'CHANGES_REQUESTED') {
     return null;
@@ -325,11 +349,34 @@ export function RevisionPanel({
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
-        <h3 className="font-semibold text-gray-900">Cần sửa các phần:</h3>
-        <span className="text-sm text-gray-500">
-          ({checkedSections.length}/{sectionItems.length} đã sửa)
-        </span>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <h3 className="font-semibold text-gray-900">Cần sửa các phần:</h3>
+          <span className="text-sm text-gray-500">
+            ({checkedSections.length}/{sectionItems.length} đã sửa)
+          </span>
+        </div>
+
+        {/* Story 4.6: Download PDF Button */}
+        <button
+          type="button"
+          onClick={handleDownloadPdf}
+          disabled={downloadingPdf}
+          className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+          title="Xuất PDF yêu cầu sửa"
+        >
+          {downloadingPdf ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              Đang tải...
+            </>
+          ) : (
+            <>
+              <Download className="w-3.5 h-3.5" />
+              Xuất PDF
+            </>
+          )}
+        </button>
       </div>
 
       {/* Section Items */}
@@ -372,6 +419,13 @@ export function RevisionPanel({
         <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
           <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-red-800">{resubmitError}</p>
+        </div>
+      )}
+
+      {pdfError && (
+        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-red-800">{pdfError}</p>
         </div>
       )}
 

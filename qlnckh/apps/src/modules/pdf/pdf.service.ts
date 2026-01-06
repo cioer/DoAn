@@ -666,4 +666,438 @@ export class PdfService {
       return false;
     }
   }
+
+  /**
+   * Generate PDF for revision request (Story 4.6)
+   *
+   * Creates a PDF document showing revision request details including:
+   * - Proposal information
+   * - Revision reason and sections
+   * - Timeline (who requested, when)
+   *
+   * @param proposalId - Proposal UUID
+   * @param options - PDF generation options
+   * @returns PDF buffer
+   */
+  async generateRevisionPdf(proposalId: string, options: PdfOptions = {}): Promise<Buffer> {
+    const startTime = Date.now();
+
+    // Fetch proposal data
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: {
+        owner: {
+          select: { id: true, email: true, name: true },
+        },
+      },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException(`Proposal ${proposalId} not found`);
+    }
+
+    // Fetch latest RETURN workflow log
+    const returnLog = await this.prisma.workflowLog.findFirst({
+      where: {
+        proposalId,
+        action: 'RETURN',
+      },
+      orderBy: { timestamp: 'desc' },
+    });
+
+    if (!returnLog) {
+      throw new NotFoundException(`No return log found for proposal ${proposalId}`);
+    }
+
+    try {
+      // Generate HTML content
+      const html = await this.generateRevisionHtml(proposal, returnLog);
+
+      // Launch browser and generate PDF
+      const browser = await chromium.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
+
+      try {
+        const page = await browser.newPage();
+
+        // Set timeout for PDF generation
+        const timeout = options.timeout || this.defaultTimeout;
+        page.setDefaultTimeout(timeout);
+
+        // Set content and wait for network idle
+        await page.setContent(html, {
+          waitUntil: 'networkidle',
+          timeout,
+        });
+
+        // Generate PDF
+        const pdfBuffer = await page.pdf({
+          format: options.format || 'A4',
+          printBackground: true,
+          margin: options.margin || {
+            top: '20px',
+            bottom: '20px',
+            left: '20px',
+            right: '20px',
+          },
+          preferCSSPageSize: false,
+          displayHeaderFooter: false,
+        });
+
+        await browser.close();
+
+        const duration = Date.now() - startTime;
+        this.logger.log(`Revision PDF generated for proposal ${proposalId} in ${duration}ms`);
+
+        return pdfBuffer;
+      } catch (browserError) {
+        await browser.close();
+        throw browserError;
+      }
+    } catch (error) {
+      this.logger.error(`Failed to generate revision PDF for proposal ${proposalId}`, error);
+      throw new InternalServerErrorException(
+        `Failed to generate revision PDF: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
+
+  /**
+   * Generate HTML for revision PDF (Story 4.6)
+   *
+   * @param proposal - Proposal data
+   * @param returnLog - RETURN workflow log
+   * @returns HTML string
+   */
+  private async generateRevisionHtml(proposal: any, returnLog: any): Promise<string> {
+    // Parse revision details from log comment
+    let revisionDetails = { reason: '', revisionSections: [] };
+    try {
+      if (returnLog.comment) {
+        revisionDetails = JSON.parse(returnLog.comment);
+      }
+    } catch {
+      // Use empty details if parsing fails
+    }
+
+    // Get reason label
+    const reasonLabels: Record<string, string> = {
+      THIEU_TAI_LIEU: 'Thiếu tài liệu',
+      NOI_DUNG_KHONG_RO_RANG: 'Nội dung không rõ ràng',
+      PHUONG_PHAP_KHONG_KHA_THI: 'Phương pháp không khả thi',
+      KINH_PHI_KHONG_HOP_LE: 'Kinh phí không hợp lý',
+      KHAC: 'Khác',
+    };
+    const reasonLabel = reasonLabels[returnLog.reasonCode] || returnLog.reasonCode || 'Không xác định';
+
+    // Get section labels
+    const sectionLabels: Record<string, string> = {
+      SEC_INFO_GENERAL: 'Thông tin chung',
+      SEC_CONTENT_METHOD: 'Nội dung nghiên cứu',
+      SEC_METHOD: 'Phương pháp nghiên cứu',
+      SEC_EXPECTED_RESULTS: 'Kết quả mong đợi',
+      SEC_BUDGET: 'Kinh phí',
+      SEC_ATTACHMENTS: 'Tài liệu đính kèm',
+    };
+    const revisionSectionLabels = (revisionDetails.revisionSections || [])
+      .map((id: string) => sectionLabels[id] || id);
+
+    // Format dates
+    const requestDate = returnLog.timestamp ? new Date(returnLog.timestamp).toLocaleDateString('vi-VN') : '';
+    const requestTime = returnLog.timestamp ? new Date(returnLog.timestamp).toLocaleString('vi-VN') : '';
+
+    return `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bản Yêu Cầu Sửa Đổi - ${proposal.code}</title>
+  <style>
+    /* Reset and base styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #1a1a1a;
+      background: #ffffff;
+    }
+
+    /* Container */
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    /* Header */
+    .header {
+      border-bottom: 2px solid #dc2626;
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+    }
+
+    .header-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #dc2626;
+      margin-bottom: 8px;
+    }
+
+    .header-subtitle {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    /* Section */
+    .section {
+      margin-bottom: 24px;
+      page-break-inside: avoid;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    /* Info rows */
+    .info-row {
+      display: flex;
+      padding: 8px 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .info-label {
+      flex: 0 0 180px;
+      font-weight: 600;
+      color: #4b5563;
+    }
+
+    .info-value {
+      flex: 1;
+      color: #1f2937;
+    }
+
+    /* Alert box */
+    .alert-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .alert-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #dc2626;
+      margin-bottom: 8px;
+    }
+
+    .alert-content {
+      color: #991b1b;
+    }
+
+    /* Section list */
+    .section-list {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .section-list-item {
+      padding: 10px 16px;
+      margin-bottom: 8px;
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    /* Notes box */
+    .notes-box {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .notes-label {
+      font-weight: 600;
+      color: #4b5563;
+      margin-bottom: 8px;
+    }
+
+    .notes-content {
+      color: #1f2937;
+      white-space: pre-wrap;
+      font-style: italic;
+    }
+
+    /* Timeline */
+    .timeline-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    /* Empty state */
+    .empty-value {
+      color: #9ca3af;
+      font-style: italic;
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 32px;
+      padding-top: 16px;
+      border-top: 1px solid #e5e7eb;
+      font-size: 10px;
+      color: #6b7280;
+      text-align: center;
+    }
+
+    /* Page break control */
+    .page-break-before {
+      page-break-before: always;
+    }
+
+    .no-break {
+      page-break-inside: avoid;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-title">BẢN YÊU CẦU SỬA ĐỔI HỒ SƠ</div>
+      <div class="header-subtitle">Hệ thống Quản lý Nghiên cứu Khoa học</div>
+    </div>
+
+    <!-- Alert Box -->
+    <div class="alert-box">
+      <div class="alert-title">⚠️ YÊU CẦU SỬA ĐỔI</div>
+      <div class="alert-content">
+        Đề tài này cần được sửa đổi trước khi có thể tiếp tục quy trình xét duyệt.
+      </div>
+    </div>
+
+    <!-- Proposal Info Section -->
+    <div class="section">
+      <div class="section-title">Thông tin đề tài</div>
+
+      <div class="info-row">
+        <div class="info-label">Mã đề tài:</div>
+        <div class="info-value">${proposal.code || ''}</div>
+      </div>
+
+      <div class="info-row">
+        <div class="info-label">Tên đề tài:</div>
+        <div class="info-value">${this.escapeHtml(proposal.title || 'Chưa đặt tên')}</div>
+      </div>
+
+      <div class="info-row">
+        <div class="info-label">Chủ nhiệm:</div>
+        <div class="info-value">${this.escapeHtml(proposal.owner?.name || proposal.owner?.email || '')}</div>
+      </div>
+    </div>
+
+    <!-- Revision Info Section -->
+    <div class="section">
+      <div class="section-title">Thông tin yêu cầu sửa</div>
+
+      <div class="info-row">
+        <div class="info-label">Lý do:</div>
+        <div class="info-value">${this.escapeHtml(reasonLabel)}</div>
+      </div>
+
+      <div class="info-row">
+        <div class="info-label">Người yêu cầu:</div>
+        <div class="info-value">${this.escapeHtml(returnLog.actorName || '')}</div>
+      </div>
+
+      <div class="info-row">
+        <div class="info-label">Ngày yêu cầu:</div>
+        <div class="info-value">${requestDate}</div>
+      </div>
+
+      <div class="info-row">
+        <div class="info-label">Thời gian:</div>
+        <div class="info-value">${requestTime}</div>
+      </div>
+    </div>
+
+    <!-- Sections to Revision -->
+    <div class="section">
+      <div class="section-title">Các phần cần sửa</div>
+      ${revisionSectionLabels.length > 0 ? `
+        <ul class="section-list">
+          ${revisionSectionLabels.map((label: string, index: number) => `
+            <li class="section-list-item">${index + 1}. ${this.escapeHtml(label)}</li>
+          `).join('')}
+        </ul>
+      ` : '<div class="empty-value">Không có section cụ thể nào được yêu cầu sửa.</div>'}
+    </div>
+
+    <!-- Notes -->
+    ${revisionDetails.reason ? `
+    <div class="section">
+      <div class="section-title">Ghi chú</div>
+      <div class="notes-box">
+        <div class="notes-content">${this.escapeHtml(revisionDetails.reason)}</div>
+      </div>
+    </div>
+    ` : ''}
+
+    <!-- Timeline -->
+    <div class="section">
+      <div class="section-title">Timeline</div>
+      <div class="timeline-box">
+        <div class="info-row">
+          <div class="info-label">Ngày tạo yêu cầu:</div>
+          <div class="info-value">${requestTime}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Người xử lý:</div>
+          <div class="info-value">${this.escapeHtml(returnLog.actorName || '')}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="section">
+      <div class="section-title">Hướng dẫn</div>
+      <div class="notes-box">
+        <div class="notes-content">
+1. Xem lại các phần được đánh dấu ở trên
+2. Sửa đổi nội dung theo yêu cầu
+3. Đánh dấu "Đã sửa" cho các phần đã hoàn thành
+4. Nhấn "Nộp lại" để gửi hồ sơ xét duyệt lại
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      Hệ thống Quản lý Nghiên cứu Khoa học - Generated on ${new Date().toLocaleString('vi-VN')}<br>
+      Trang này được tạo tự động từ hệ thống.
+    </div>
+  </div>
+</body>
+</html>
+    `;
+  }
 }

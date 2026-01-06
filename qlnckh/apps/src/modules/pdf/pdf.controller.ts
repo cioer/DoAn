@@ -129,4 +129,105 @@ export class PdfController {
       });
     }
   }
+
+  /**
+   * GET /api/proposals/:id/revision-pdf
+   * Story 4.6: Generate PDF export for revision request
+   *
+   * Returns PDF buffer for revision request with proposal info,
+   * revision details, and timeline. Only available for proposals
+   * in CHANGES_REQUESTED state with a RETURN log.
+   *
+   * Authenticated users can access revision PDF export.
+   */
+  @Get(':id/revision-pdf')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Xuất PDF yêu cầu sửa',
+    description:
+      'Xuất PDF cho yêu cầu sửa đổi với đầy đủ thông tin đề tài, lý do, các phần cần sửa và timeline.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'PDF file',
+    content: {
+      'application/pdf': {
+        example: 'Binary PDF content',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal or return log not found',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Không tìm thấy đề tài hoặc thông tin yêu cầu sửa',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'PDF generation failed',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'PDF_GENERATION_FAILED',
+          message: 'Không thể tạo PDF. Vui lòng thử lại.',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - chưa đăng nhập',
+  })
+  async getRevisionPdf(
+    @Param('id') id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      // Generate PDF
+      const pdfBuffer = await this.pdfService.generateRevisionPdf(id);
+
+      // Get proposal code for filename
+      const proposal = await this.pdfService['prisma'].proposal.findUnique({
+        where: { id },
+        select: { code: true },
+      });
+
+      // Generate filename with timestamp: {code}_revision_{timestamp}.pdf
+      const timestamp = new Date().getTime();
+      const proposalCode = proposal?.code || 'proposal';
+      const filename = `${proposalCode}_revision_${timestamp}.pdf`;
+
+      // Set headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', pdfBuffer.length.toString());
+
+      // Send PDF buffer
+      res.send(pdfBuffer);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException({
+        success: false,
+        error: {
+          code: 'PDF_GENERATION_FAILED',
+          message: 'Không thể tạo PDF. Vui lòng thử lại.',
+        },
+      });
+    }
+  }
 }
