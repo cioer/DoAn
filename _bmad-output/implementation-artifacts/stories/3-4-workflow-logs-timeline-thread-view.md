@@ -1,6 +1,6 @@
 # Story 3.4: Workflow Logs (Timeline Thread View)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for dev-story. -->
 
@@ -201,17 +201,24 @@ Story 3.4 created from Epic 3 requirements. Key points:
 
 ### File List
 
-**Files to Modify:**
-- `apps/src/modules/workflow/workflow.controller.ts` - Add GET /workflow-logs/:proposalId endpoint
-- `apps/src/modules/workflow/workflow.service.spec.ts` - Add tests for logs endpoint
+**Files Modified:**
+- `apps/src/modules/workflow/workflow.controller.ts` - Add GET /workflow-logs/:proposalId endpoint with proposal validation
+- `apps/src/modules/workflow/workflow.controller.spec.ts` - Add tests for logs endpoint including 404 validation
+- `apps/src/modules/workflow/workflow.module.ts` - Add WorkflowController to module
+- `apps/src/modules/workflow/index.ts` - Export new DTO
 
-**Files to Create:**
-- `apps/src/modules/workflow/dto/get-workflow-logs.dto.ts` - DTO for logs response
+**Files Created:**
+- `apps/src/modules/workflow/dto/workflow-log.dto.ts` - DTO for logs response
 
-**Files to Verify (No Changes):**
+**Files Verified (No Changes Needed):**
 - `prisma/schema.prisma` - WorkflowLog model already exists
 - `apps/src/modules/workflow/workflow.service.ts` - getWorkflowLogs() already exists
 
 ## Change Log
 
 - 2026-01-06: Story created. Ready for dev.
+- 2026-01-06: Implementation complete. Code review fixes applied:
+  - Added proposal existence validation with 404 NotFoundException
+  - Updated File List to reflect actual changes
+  - Added test for 404 case (7 controller tests passing)
+  - Story status: review → done

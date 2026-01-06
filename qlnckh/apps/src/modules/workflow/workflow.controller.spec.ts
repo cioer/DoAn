@@ -1,5 +1,6 @@
 import { WorkflowController } from './workflow.controller';
 import { WorkflowAction, ProjectState, WorkflowLog } from '@prisma/client';
+import { NotFoundException } from '@nestjs/common';
 
 /**
  * Story 3.4: Tests for workflow logs endpoint
@@ -46,6 +47,7 @@ const mockWorkflowLogs: WorkflowLog[] = [
 describe('WorkflowController', () => {
   let controller: WorkflowController;
   let mockService: any;
+  let mockPrisma: any;
 
   beforeEach(() => {
     // Create mock service
@@ -53,8 +55,15 @@ describe('WorkflowController', () => {
       getWorkflowLogs: jest.fn(),
     };
 
-    // Manually create controller with mock service - bypass DI
-    controller = new WorkflowController(mockService);
+    // Create mock PrismaService
+    mockPrisma = {
+      proposal: {
+        findUnique: jest.fn(),
+      },
+    };
+
+    // Manually create controller with mock services - bypass DI
+    controller = new WorkflowController(mockService, mockPrisma);
     jest.clearAllMocks();
   });
 
@@ -66,6 +75,11 @@ describe('WorkflowController', () => {
    * AC2: getWorkflowLogs() returns entries sorted DESC
    */
   describe('getWorkflowLogs', () => {
+    beforeEach(() => {
+      // Default: proposal exists
+      mockPrisma.proposal.findUnique.mockResolvedValue({ id: 'proposal-1' });
+    });
+
     it('AC2.1: should return workflow logs sorted by timestamp DESC (newest first)', async () => {
       mockService.getWorkflowLogs.mockResolvedValue(mockWorkflowLogs);
 
@@ -103,12 +117,39 @@ describe('WorkflowController', () => {
       expect(result.data).toEqual([]);
       expect(result.meta.total).toBe(0);
     });
+
+    /**
+     * Code Review Fix: Test 404 when proposal doesn't exist
+     */
+    it('CR_FIX: should throw NotFoundException when proposal does not exist', async () => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(null);
+
+      await expect(
+        controller.getWorkflowLogs('non-existent-proposal', mockUser),
+      ).rejects.toThrow(NotFoundException);
+
+      await expect(
+        controller.getWorkflowLogs('non-existent-proposal', mockUser),
+      ).rejects.toMatchObject({
+        response: {
+          success: false,
+          error: {
+            code: 'PROPOSAL_NOT_FOUND',
+            message: 'Không tìm thấy đề tài',
+          },
+        },
+      });
+    });
   });
 
   /**
    * AC3: All state transition log fields are included
    */
   describe('workflow log structure (AC3)', () => {
+    beforeEach(() => {
+      mockPrisma.proposal.findUnique.mockResolvedValue({ id: 'proposal-1' });
+    });
+
     it('AC3.1: should include all required fields in log entry', async () => {
       mockService.getWorkflowLogs.mockResolvedValue(mockWorkflowLogs);
 

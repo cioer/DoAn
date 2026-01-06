@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -14,6 +15,7 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { WorkflowService } from './workflow.service';
+import { PrismaService } from '../auth/prisma.service';
 import {
   WorkflowLogDto,
   WorkflowLogsResponseDto,
@@ -38,7 +40,10 @@ interface RequestUser {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class WorkflowController {
-  constructor(private readonly workflowService: WorkflowService) {}
+  constructor(
+    private readonly workflowService: WorkflowService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   /**
    * GET /api/workflow/workflow-logs/:proposalId
@@ -134,6 +139,22 @@ export class WorkflowController {
     @Param('proposalId') proposalId: string,
     @CurrentUser() _user: RequestUser,
   ): Promise<WorkflowLogsResponseDto> {
+    // Verify proposal exists before fetching logs (Story 3.4 code review fix)
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: { id: true }, // Only check existence, don't load full data
+    });
+
+    if (!proposal) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Không tìm thấy đề tài',
+        },
+      });
+    }
+
     const logs = await this.workflowService.getWorkflowLogs(proposalId);
 
     // Sort by timestamp DESC (newest first) for UI display
