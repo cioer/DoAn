@@ -90,6 +90,25 @@ export interface ResubmitProposalResponse {
 }
 
 /**
+ * Assign Council Request (Story 5.2)
+ */
+export interface AssignCouncilRequest {
+  proposalId: string;
+  councilId: string;
+  secretaryId: string;
+  memberIds?: string[];
+  idempotencyKey: string;
+}
+
+/**
+ * Assign Council Response (Story 5.2)
+ */
+export interface AssignCouncilResponse {
+  success: true;
+  data: TransitionResult;
+}
+
+/**
  * Download Revision PDF (Story 4.6)
  * Downloads the revision PDF for a proposal with changes requested.
  *
@@ -304,6 +323,46 @@ export const workflowApi = {
       `/workflow/${proposalId}/submit`,
       {
         proposalId,
+        idempotencyKey,
+      },
+      {
+        headers: {
+          'X-Idempotency-Key': idempotencyKey,
+        },
+      },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Assign Council (SCHOOL_SELECTION_REVIEW → OUTLINE_COUNCIL_REVIEW)
+   * Story 5.2: Assigns a council to a proposal for review
+   *
+   * @param proposalId - Proposal ID to assign council to
+   * @param councilId - Council ID to assign
+   * @param secretaryId - Secretary user ID
+   * @param memberIds - Optional array of member IDs
+   * @param idempotencyKey - UUID v4 idempotency key
+   * @returns Transition result with proposal state and workflow log
+   * @throws 400 if proposal not in SCHOOL_SELECTION_REVIEW state
+   * @throws 403 if user lacks PHONG_KHCN role
+   * @throws 404 if proposal or council not found
+   * @throws 409 if idempotency key was already used
+   */
+  assignCouncil: async (
+    proposalId: string,
+    councilId: string,
+    secretaryId: string,
+    memberIds: string[] | undefined,
+    idempotencyKey: string,
+  ): Promise<TransitionResult> => {
+    const response = await apiClient.post<AssignCouncilResponse>(
+      `/council/${proposalId}/assign-council`,
+      {
+        proposalId,
+        councilId,
+        secretaryId,
+        memberIds,
         idempotencyKey,
       },
       {

@@ -815,7 +815,15 @@ export class WorkflowService {
     }
 
     // Get holder assignment for target state
-    const holder = getHolderForState(toState, proposal);
+    let holder = getHolderForState(toState, proposal);
+
+    // Story 5.2: For ASSIGN_COUNCIL action, use council_id and secretary_id from context
+    if (action === WorkflowAction.ASSIGN_COUNCIL && context.councilId) {
+      holder = {
+        holderUnit: context.councilId,
+        holderUser: context.councilSecretaryId || null,
+      };
+    }
 
     // Get user display name for audit log (M4 fix)
     const actorDisplayName = await this.getUserDisplayName(context.userId);

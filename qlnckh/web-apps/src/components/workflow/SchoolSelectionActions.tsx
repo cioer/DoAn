@@ -6,6 +6,9 @@
  *
  * Story 5.1: School Selection Queue
  * AC2: UI displays button "Phân bổ hội đồng" (primary) + "Yêu cầu sửa" (secondary)
+ *
+ * Story 5.2: Council Assignment Integration
+ * - "Phân bổ hội đồng" button opens CouncilAssignmentDialog
  */
 
 import { useState } from 'react';
@@ -15,6 +18,7 @@ import {
   Loader2,
   XCircle,
   ChevronDown,
+  CheckCircle,
 } from 'lucide-react';
 import {
   workflowApi,
@@ -22,7 +26,9 @@ import {
   RETURN_REASON_CODES,
   RETURN_REASON_LABELS,
   CANONICAL_SECTIONS,
+  TransitionResult,
 } from '../../lib/api/workflow';
+import { CouncilAssignmentDialog } from './CouncilAssignmentDialog';
 
 /**
  * User role from JWT token
@@ -267,7 +273,10 @@ export function SchoolSelectionActions({
 }: SchoolSelectionActionsProps) {
   const [isReturning, setIsReturning] = useState(false);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
+  const [showCouncilDialog, setShowCouncilDialog] = useState(false);
+  const [isAssigningCouncil, setIsAssigningCouncil] = useState(false);
   const [error, setError] = useState<{ code: string; message: string } | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const showAssignCouncilButton = canAssignCouncil(proposalState, currentUser.role);
   const showReturnButton = canReturnSchoolSelection(proposalState, currentUser.role);
@@ -322,6 +331,59 @@ export function SchoolSelectionActions({
     }
   };
 
+  /**
+   * Execute council assignment action (Story 5.2: AC2)
+   * Transitions SCHOOL_SELECTION_REVIEW → OUTLINE_COUNCIL_REVIEW
+   * Calls assign-council API with idempotency key
+   */
+  const handleAssignCouncil = async (data: {
+    councilId: string;
+    secretaryId: string;
+    memberIds?: string[];
+    idempotencyKey: string;
+  }) => {
+    setIsAssigningCouncil(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      // Call the real API (Story 5.2: AC2)
+      const result: TransitionResult = await workflowApi.assignCouncil(
+        proposalId,
+        data.councilId,
+        data.secretaryId,
+        data.memberIds,
+        data.idempotencyKey,
+      );
+
+      setShowCouncilDialog(false);
+
+      // Show success message (Story 5.2: AC3 - Secretary Notification Mock)
+      setSuccessMessage(`Đã phân bổ hội đồng thành công`);
+
+      if (onActionSuccess) {
+        onActionSuccess();
+      }
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: unknown) {
+      const apiError = err as {
+        response?: { data?: { success: false; error: { code: string; message: string } } };
+      };
+
+      const errorData =
+        apiError.response?.data?.error || { code: 'UNKNOWN_ERROR', message: 'Lỗi không xác định' };
+      setError(errorData);
+
+      if (onActionError) {
+        onActionError(errorData);
+      }
+    } finally {
+      setIsAssigningCouncil(false);
+    }
+  };
+
   // Hide component if user doesn't have permissions
   if (!showAssignCouncilButton && !showReturnButton) {
     return null;
@@ -353,18 +415,25 @@ export function SchoolSelectionActions({
         )}
 
         {/* Story 5.1: AC2 - "Phân bổ hội đồng" button (primary) */}
+        {/* Story 5.2: Opens CouncilAssignmentDialog */}
         {showAssignCouncilButton && (
           <button
-            onClick={() => {
-              // Story 5.2 will implement the council assignment dialog
-              // For now, show a placeholder message
-              setError({ code: 'NOT_IMPLEMENTED', message: 'Tính năng phân bổ hội đồng sẽ được triển khai trong Story 5.2' });
-            }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            onClick={() => setShowCouncilDialog(true)}
+            disabled={isAssigningCouncil}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             aria-label="Phân bổ hội đồng xét duyệt"
           >
-            <Users className="w-4 h-4" />
-            <span>Phân bổ hội đồng</span>
+            {isAssigningCouncil ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Đang xử lý...</span>
+              </>
+            ) : (
+              <>
+                <Users className="w-4 h-4" />
+                <span>Phân bổ hội đồng</span>
+              </>
+            )}
           </button>
         )}
       </div>
@@ -386,6 +455,23 @@ export function SchoolSelectionActions({
         </div>
       )}
 
+      {/* Success message display (Story 5.2: AC3 - Secretary Notification Mock) */}
+      {successMessage && (
+        <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
+          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-green-800">Thành công</p>
+            <p className="text-sm text-green-700">{successMessage}</p>
+          </div>
+          <button
+            onClick={() => setSuccessMessage(null)}
+            className="ml-auto text-green-600 hover:text-green-800"
+          >
+            Đóng
+          </button>
+        </div>
+      )}
+
       {/* Return Dialog (Story 5.1) */}
       <ReturnDialog
         isOpen={showReturnDialog}
@@ -395,6 +481,18 @@ export function SchoolSelectionActions({
         }}
         onSubmit={handleReturn}
         isSubmitting={isReturning}
+      />
+
+      {/* Council Assignment Dialog (Story 5.2) */}
+      <CouncilAssignmentDialog
+        isOpen={showCouncilDialog}
+        onClose={() => {
+          setShowCouncilDialog(false);
+          setError(null);
+        }}
+        onAssign={handleAssignCouncil}
+        isSubmitting={isAssigningCouncil}
+        proposalId={proposalId}
       />
     </>
   );

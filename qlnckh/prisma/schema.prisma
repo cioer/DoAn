@@ -55,6 +55,8 @@ model User {
   auditEventsAsActor  AuditEvent[]    @relation("AuditActor")
   auditEventsAsActing AuditEvent[]    @relation("AuditActingAs")
   ownedProposals    Proposal[]        @relation("ProposalOwner")
+  secretaryCouncils Council[]        @relation("CouncilSecretary")
+  councilMemberships CouncilMember[]
 
   @@map("users")
   @@index([email])
@@ -172,6 +174,7 @@ model Proposal {
   state           ProjectState  @default(DRAFT)
   ownerId         String        @map("owner_id")
   facultyId       String        @map("faculty_id")
+  councilId       String?       @map("council_id")    // FK to councils (Story 5.2)
   holderUnit      String?       @map("holder_unit")  // Faculty ID or "PKHCN" or "COUNCIL-XXX"
   holderUser      String?       @map("holder_user")  // User ID (optional)
   slaStartDate    DateTime?     @map("sla_start_date")
@@ -185,6 +188,7 @@ model Proposal {
 
   owner           User          @relation("ProposalOwner", fields: [ownerId], references: [id])
   faculty         Faculty       @relation(fields: [facultyId], references: [id])
+  council         Council?      @relation(fields: [councilId], references: [id])
   template        FormTemplate? @relation(fields: [templateId], references: [id])
   workflowLogs    WorkflowLog[]
   attachments     Attachment[]
@@ -193,6 +197,7 @@ model Proposal {
   @@index([state])
   @@index([ownerId])
   @@index([facultyId])
+  @@index([councilId])         // Story 5.2: index for council queries
   @@index([holderUnit])
   @@index([holderUser])      // Story 2.6: index for holder_user queries
   @@index([slaDeadline])     // Story 2.6: index for SLA queries
@@ -335,6 +340,52 @@ model BusinessCalendar {
   @@unique([date])
   @@map("business_calendar")
   @@index([date])
+}
+
+// ============================================================
+// COUNCILS: Council Management (Story 5.2)
+// ============================================================
+
+enum CouncilType {
+  OUTLINE           // Hội đồng xét duyệt đề cương
+  ACCEPTANCE        // Hội đồng nghiệm thu
+  EXTENSION         // Hội đồng gia hạn
+}
+
+enum CouncilMemberRole {
+  CHAIR             // Chủ tịch hội đồng
+  SECRETARY         // Thư ký
+  MEMBER            // Thành viên
+}
+
+model Council {
+  id           String        @id @default(uuid())
+  name         String        // "Hội đồng khoa CNTT #1"
+  type         CouncilType   // OUTLINE, ACCEPTANCE, etc.
+  secretaryId  String?       @map("secretary_id")
+  secretary    User?         @relation("CouncilSecretary", fields: [secretaryId], references: [id])
+  members      CouncilMember[]
+  proposals    Proposal[]
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  @@map("councils")
+  @@index([type])
+}
+
+model CouncilMember {
+  id         String        @id @default(uuid())
+  councilId  String        @map("council_id")
+  council    Council       @relation(fields: [councilId], references: [id], onDelete: Cascade)
+  userId     String        @map("user_id")
+  user       User          @relation(fields: [userId], references: [id])
+  role       CouncilMemberRole // CHAIR, SECRETARY, MEMBER
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  @@unique([councilId, userId])
+  @@index([councilId])
+  @@index([userId])
+  @@map("council_members")
 }
 
 // ============================================================

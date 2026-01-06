@@ -11,11 +11,13 @@ import { FormTemplatesModule } from '../modules/form-templates/form-templates.mo
 import { ProposalsModule } from '../modules/proposals/proposals.module';
 import { AttachmentsModule } from '../modules/attachments/attachments.module';
 import { PdfModule } from '../modules/pdf/pdf.module';
+import { CouncilModule } from '../modules/council/council.module';
 
 /**
  * Application Module
  *
  * Story 3.9: Added PdfModule for proposal detail PDF export
+ * Story 5.2: Added CouncilModule for council assignment
  */
 
 @Module({
@@ -33,6 +35,7 @@ import { PdfModule } from '../modules/pdf/pdf.module';
     ProposalsModule,
     AttachmentsModule,
     PdfModule,
+    CouncilModule,
   ],
   controllers: [AppController],
   providers: [AppService],
