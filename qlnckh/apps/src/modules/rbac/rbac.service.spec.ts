@@ -1,33 +1,20 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { RbacService } from './rbac.service';
-import { PrismaService } from '../auth/prisma.service';
 import { Permission } from './permissions.enum';
 import { UserRole } from '@prisma/client';
 
 describe('RbacService', () => {
   let service: RbacService;
-  let prismaService: PrismaService;
 
-  const mockPrismaService = {
+  // Manual mock - bypass DI
+  const mockPrisma = {
     rolePermission: {
       findMany: jest.fn(),
     },
   };
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        RbacService,
-        {
-          provide: PrismaService,
-          useValue: mockPrismaService,
-        },
-      ],
-    }).compile();
-
-    service = module.get<RbacService>(RbacService);
-    prismaService = module.get<PrismaService>(PrismaService);
-
+  beforeEach(() => {
+    // Manually create service with mock prisma - bypass DI
+    service = new RbacService(mockPrisma as any);
     jest.clearAllMocks();
   });
 
@@ -42,19 +29,19 @@ describe('RbacService', () => {
         { permission: Permission.CALENDAR_MANAGE },
       ];
 
-      mockPrismaService.rolePermission.findMany.mockResolvedValue(mockPermissions);
+      mockPrisma.rolePermission.findMany.mockResolvedValue(mockPermissions);
 
       const result = await service.getUserPermissions(UserRole.ADMIN);
 
       expect(result).toEqual([Permission.USER_MANAGE, Permission.CALENDAR_MANAGE]);
-      expect(prismaService.rolePermission.findMany).toHaveBeenCalledWith({
+      expect(mockPrisma.rolePermission.findMany).toHaveBeenCalledWith({
         where: { role: UserRole.ADMIN },
         select: { permission: true },
       });
     });
 
     it('should return empty array if role has no permissions', async () => {
-      mockPrismaService.rolePermission.findMany.mockResolvedValue([]);
+      mockPrisma.rolePermission.findMany.mockResolvedValue([]);
 
       const result = await service.getUserPermissions(UserRole.GIANG_VIEN);
 
@@ -62,7 +49,7 @@ describe('RbacService', () => {
     });
 
     it('should return empty array on error', async () => {
-      mockPrismaService.rolePermission.findMany.mockRejectedValue(new Error('Database error'));
+      mockPrisma.rolePermission.findMany.mockRejectedValue(new Error('Database error'));
 
       const result = await service.getUserPermissions(UserRole.ADMIN);
 
@@ -72,7 +59,7 @@ describe('RbacService', () => {
 
   describe('hasPermission', () => {
     it('should return true if role has the permission', async () => {
-      mockPrismaService.rolePermission.findMany.mockResolvedValue([
+      mockPrisma.rolePermission.findMany.mockResolvedValue([
         { permission: Permission.USER_MANAGE },
       ]);
 
@@ -82,7 +69,7 @@ describe('RbacService', () => {
     });
 
     it('should return false if role does not have the permission', async () => {
-      mockPrismaService.rolePermission.findMany.mockResolvedValue([]);
+      mockPrisma.rolePermission.findMany.mockResolvedValue([]);
 
       const result = await service.hasPermission(UserRole.GIANG_VIEN, Permission.USER_MANAGE);
 
@@ -92,7 +79,7 @@ describe('RbacService', () => {
 
   describe('hasAnyPermission', () => {
     it('should return true if role has at least one of the permissions', async () => {
-      mockPrismaService.rolePermission.findMany.mockResolvedValue([
+      mockPrisma.rolePermission.findMany.mockResolvedValue([
         { permission: Permission.USER_MANAGE },
       ]);
 
@@ -105,7 +92,7 @@ describe('RbacService', () => {
     });
 
     it('should return false if role has none of the permissions', async () => {
-      mockPrismaService.rolePermission.findMany.mockResolvedValue([]);
+      mockPrisma.rolePermission.findMany.mockResolvedValue([]);
 
       const result = await service.hasAnyPermission(UserRole.GIANG_VIEN, [
         Permission.USER_MANAGE,
@@ -118,7 +105,7 @@ describe('RbacService', () => {
 
   describe('hasAllPermissions', () => {
     it('should return true if role has all permissions', async () => {
-      mockPrismaService.rolePermission.findMany.mockResolvedValue([
+      mockPrisma.rolePermission.findMany.mockResolvedValue([
         { permission: Permission.USER_MANAGE },
         { permission: Permission.DEMO_RESET },
       ]);
@@ -132,7 +119,7 @@ describe('RbacService', () => {
     });
 
     it('should return false if role is missing any permission', async () => {
-      mockPrismaService.rolePermission.findMany.mockResolvedValue([
+      mockPrisma.rolePermission.findMany.mockResolvedValue([
         { permission: Permission.USER_MANAGE },
       ]);
 
@@ -161,7 +148,7 @@ describe('RbacService', () => {
 
   describe('getPermissionsForUser', () => {
     it('should return permissions as string array', async () => {
-      mockPrismaService.rolePermission.findMany.mockResolvedValue([
+      mockPrisma.rolePermission.findMany.mockResolvedValue([
         { permission: Permission.USER_MANAGE },
         { permission: Permission.CALENDAR_MANAGE },
       ]);
@@ -173,7 +160,7 @@ describe('RbacService', () => {
     });
 
     it('should return empty array if no permissions', async () => {
-      mockPrismaService.rolePermission.findMany.mockResolvedValue([]);
+      mockPrisma.rolePermission.findMany.mockResolvedValue([]);
 
       const result = await service.getPermissionsForUser(UserRole.GIANG_VIEN);
 

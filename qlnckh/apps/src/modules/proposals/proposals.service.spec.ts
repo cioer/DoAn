@@ -1,0 +1,503 @@
+import { ProposalsService } from './proposals.service';
+import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { ProjectState } from '@prisma/client';
+
+// Manual mock - bypass DI
+const mockPrisma = {
+  proposal: {
+    findUnique: jest.fn(),
+    findMany: jest.fn(),
+    findFirst: jest.fn(),
+    count: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  },
+  formTemplate: {
+    findFirst: jest.fn(),
+  },
+  faculty: {
+    findUnique: jest.fn(),
+  },
+  $queryRaw: jest.fn().mockResolvedValue([{ next_code: 'DT-001' }]),
+};
+
+const mockAuditService = {
+  logEvent: jest.fn().mockResolvedValue(undefined),
+};
+
+describe('ProposalsService', () => {
+  let service: ProposalsService;
+
+  const mockUser = {
+    id: 'user-123',
+    email: 'giangvien@example.com',
+    role: 'GIANG_VIEN',
+  };
+
+  const mockFaculty = {
+    id: 'faculty-123',
+    code: 'FAC-001',
+    name: 'Khoa CNTT',
+  };
+
+  const mockTemplate = {
+    id: 'template-123',
+    code: 'MAU_01B',
+    version: 'v1.0',
+  };
+
+  const mockProposal = {
+    id: 'proposal-123',
+    code: 'DT-001',
+    title: 'Nghiên cứu AI trong giáo dục',
+    state: ProjectState.DRAFT,
+    ownerId: 'user-123',
+    facultyId: 'faculty-123',
+    holderUnit: null,
+    holderUser: null,
+    slaStartDate: null,
+    slaDeadline: null,
+    templateId: 'template-123',
+    templateVersion: 'v1.0',
+    formData: null,
+    createdAt: new Date('2026-01-06'),
+    updatedAt: new Date('2026-01-06'),
+    template: mockTemplate,
+    owner: {
+      id: 'user-123',
+      email: 'giangvien@example.com',
+      displayName: 'Nguyễn Văn A',
+    },
+    faculty: mockFaculty,
+  };
+
+  beforeEach(() => {
+    // Manually create service with mocks
+    service = new ProposalsService(mockPrisma as any, mockAuditService as any);
+    jest.clearAllMocks();
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('create', () => {
+    const createDto = {
+      title: 'Nghiên cứu AI trong giáo dục',
+      facultyId: 'faculty-123',
+      templateId: 'MAU_01B',
+      formData: {
+        SEC_INFO_GENERAL: {
+          title: 'Nghiên cứu AI',
+          objective: 'Phát triển hệ thống',
+        },
+      },
+    };
+
+    it('should create a new proposal in DRAFT state', async () => {
+      mockPrisma.proposal.count.mockResolvedValue(0);
+      mockPrisma.formTemplate.findFirst.mockResolvedValue(mockTemplate);
+      mockPrisma.faculty.findUnique.mockResolvedValue(mockFaculty);
+      mockPrisma.proposal.create.mockResolvedValue(mockProposal);
+
+      const result = await service.create(createDto, { userId: mockUser.id });
+
+      expect(result).toEqual(expect.objectContaining({
+        code: 'DT-001',
+        title: createDto.title,
+        state: ProjectState.DRAFT,
+        ownerId: mockUser.id,
+      }));
+      expect(mockPrisma.proposal.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          code: 'DT-001',
+          state: ProjectState.DRAFT,
+          ownerId: mockUser.id,
+          holderUnit: null,
+          holderUser: null,
+          slaStartDate: null,
+          slaDeadline: null,
+        }),
+        include: expect.anything(),
+      });
+      expect(mockAuditService.logEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'PROPOSAL_CREATE',
+          actorUserId: mockUser.id,
+          entityType: 'proposal',
+        }),
+      );
+    });
+
+    it('should generate sequential proposal codes', async () => {
+      mockPrisma.proposal.count.mockResolvedValue(5);
+      mockPrisma.formTemplate.findFirst.mockResolvedValue(mockTemplate);
+      mockPrisma.faculty.findUnique.mockResolvedValue(mockFaculty);
+      mockPrisma.proposal.create.mockResolvedValue({
+        ...mockProposal,
+        code: 'DT-006',
+      });
+
+      const result = await service.create(createDto, { userId: mockUser.id });
+
+      expect(result.code).toBe('DT-006');
+    });
+
+    it('should throw BadRequestException when template not found', async () => {
+      mockPrisma.proposal.count.mockResolvedValue(0);
+      mockPrisma.formTemplate.findFirst.mockResolvedValue(null);
+
+      await expect(service.create(createDto, { userId: mockUser.id }))
+        .rejects.toThrow(BadRequestException);
+      await expect(service.create(createDto, { userId: mockUser.id }))
+        .rejects.toThrow(expect.objectContaining({
+          response: expect.objectContaining({
+            error: expect.objectContaining({
+              code: 'TEMPLATE_NOT_FOUND',
+            }),
+          }),
+        }));
+    });
+
+    it('should throw BadRequestException when faculty not found', async () => {
+      mockPrisma.proposal.count.mockResolvedValue(0);
+      mockPrisma.formTemplate.findFirst.mockResolvedValue(mockTemplate);
+      mockPrisma.faculty.findUnique.mockResolvedValue(null);
+
+      await expect(service.create(createDto, { userId: mockUser.id }))
+        .rejects.toThrow(BadRequestException);
+      await expect(service.create(createDto, { userId: mockUser.id }))
+        .rejects.toThrow(expect.objectContaining({
+          response: expect.objectContaining({
+            error: expect.objectContaining({
+              code: 'FACULTY_NOT_FOUND',
+            }),
+          }),
+        }));
+    });
+
+    it('should accept template ID instead of code', async () => {
+      mockPrisma.proposal.count.mockResolvedValue(0);
+      mockPrisma.formTemplate.findFirst.mockResolvedValue(mockTemplate);
+      mockPrisma.faculty.findUnique.mockResolvedValue(mockFaculty);
+      mockPrisma.proposal.create.mockResolvedValue(mockProposal);
+
+      const dtoWithTemplateId = { ...createDto, templateId: 'template-123' };
+      await service.create(dtoWithTemplateId, { userId: mockUser.id });
+
+      expect(mockPrisma.formTemplate.findFirst).toHaveBeenCalledWith({
+        where: {
+          OR: [{ id: 'template-123' }, { code: 'template-123' }],
+        },
+        select: expect.anything(),
+      });
+    });
+
+    it('should create proposal without initial formData', async () => {
+      const dtoWithoutFormData = { ...createDto };
+      delete dtoWithoutFormData.formData;
+
+      mockPrisma.proposal.count.mockResolvedValue(0);
+      mockPrisma.formTemplate.findFirst.mockResolvedValue(mockTemplate);
+      mockPrisma.faculty.findUnique.mockResolvedValue(mockFaculty);
+      mockPrisma.proposal.create.mockResolvedValue(mockProposal);
+
+      await service.create(dtoWithoutFormData, { userId: mockUser.id });
+
+      expect(mockPrisma.proposal.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          formData: null,
+        }),
+        include: expect.anything(),
+      });
+    });
+  });
+
+  describe('findOne', () => {
+    it('should return proposal by ID', async () => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
+
+      const result = await service.findOne('proposal-123', mockUser.id);
+
+      expect(result).toEqual(expect.objectContaining({
+        id: 'proposal-123',
+        code: 'DT-001',
+      }));
+      expect(mockPrisma.proposal.findUnique).toHaveBeenCalledWith({
+        where: { id: 'proposal-123' },
+        include: expect.anything(),
+      });
+    });
+
+    it('should throw NotFoundException when proposal not found', async () => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(null);
+
+      await expect(service.findOne('notexist', mockUser.id))
+        .rejects.toThrow(NotFoundException);
+      await expect(service.findOne('notexist', mockUser.id))
+        .rejects.toThrow(expect.objectContaining({
+          response: expect.objectContaining({
+            error: expect.objectContaining({
+              code: 'PROPOSAL_NOT_FOUND',
+            }),
+          }),
+        }));
+    });
+  });
+
+  describe('update', () => {
+    const updateDto = {
+      title: 'Updated title',
+      formData: {
+        SEC_INFO_GENERAL: {
+          title: 'Updated',
+        },
+      },
+    };
+
+    it('should update proposal title', async () => {
+      const updatedProposal = { ...mockProposal, title: 'Updated title' };
+      mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
+      mockPrisma.proposal.update.mockResolvedValue(updatedProposal);
+
+      const result = await service.update('proposal-123', { title: 'Updated title' }, { userId: mockUser.id });
+
+      expect(result.title).toBe('Updated title');
+      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
+        where: { id: 'proposal-123' },
+        data: { title: 'Updated title' },
+        include: expect.anything(),
+      });
+    });
+
+    it('should update proposal formData', async () => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
+      mockPrisma.proposal.update.mockResolvedValue(mockProposal);
+
+      await service.update('proposal-123', { formData: updateDto.formData }, { userId: mockUser.id });
+
+      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
+        where: { id: 'proposal-123' },
+        data: { formData: updateDto.formData },
+        include: expect.anything(),
+      });
+    });
+
+    it('should throw ForbiddenException when user is not owner', async () => {
+      const otherProposal = { ...mockProposal, ownerId: 'other-user' };
+      mockPrisma.proposal.findUnique.mockResolvedValue(otherProposal);
+
+      await expect(service.update('proposal-123', updateDto, { userId: mockUser.id }))
+        .rejects.toThrow(ForbiddenException);
+      await expect(service.update('proposal-123', updateDto, { userId: mockUser.id }))
+        .rejects.toThrow(expect.objectContaining({
+          response: expect.objectContaining({
+            error: expect.objectContaining({
+              code: 'FORBIDDEN',
+            }),
+          }),
+        }));
+    });
+
+    it('should throw BadRequestException when proposal not in DRAFT', async () => {
+      const submittedProposal = { ...mockProposal, state: ProjectState.FACULTY_REVIEW };
+      mockPrisma.proposal.findUnique.mockResolvedValue(submittedProposal);
+
+      await expect(service.update('proposal-123', updateDto, { userId: mockUser.id }))
+        .rejects.toThrow(BadRequestException);
+      await expect(service.update('proposal-123', updateDto, { userId: mockUser.id }))
+        .rejects.toThrow(expect.objectContaining({
+          response: expect.objectContaining({
+            error: expect.objectContaining({
+              code: 'PROPOSAL_NOT_DRAFT',
+            }),
+          }),
+        }));
+    });
+
+    it('should throw NotFoundException when proposal not found', async () => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(null);
+
+      await expect(service.update('notexist', updateDto, { userId: mockUser.id }))
+        .rejects.toThrow(NotFoundException);
+    });
+
+    it('should log audit event after update', async () => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
+      mockPrisma.proposal.update.mockResolvedValue(mockProposal);
+
+      await service.update('proposal-123', updateDto, {
+        userId: mockUser.id,
+        ip: '127.0.0.1',
+        userAgent: 'test-agent',
+      });
+
+      expect(mockAuditService.logEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'PROPOSAL_UPDATE',
+          actorUserId: mockUser.id,
+          metadata: expect.objectContaining({
+            proposalCode: 'DT-001',
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('findAll', () => {
+    it('should return paginated proposals', async () => {
+      mockPrisma.proposal.count.mockResolvedValue(1);
+      mockPrisma.proposal.findMany.mockResolvedValue([mockProposal]);
+
+      const result = await service.findAll({ page: 1, limit: 20 });
+
+      expect(result.data).toHaveLength(1);
+      expect(result.meta).toEqual({
+        total: 1,
+        page: 1,
+        limit: 20,
+        totalPages: 1,
+      });
+    });
+
+    it('should filter by ownerId', async () => {
+      mockPrisma.proposal.count.mockResolvedValue(1);
+      mockPrisma.proposal.findMany.mockResolvedValue([mockProposal]);
+
+      await service.findAll({ ownerId: 'user-123' });
+
+      expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith({
+        where: { ownerId: 'user-123' },
+        skip: 0,
+        take: 20,
+        orderBy: { createdAt: 'desc' },
+        include: expect.anything(),
+      });
+    });
+
+    it('should filter by state', async () => {
+      mockPrisma.proposal.count.mockResolvedValue(1);
+      mockPrisma.proposal.findMany.mockResolvedValue([mockProposal]);
+
+      await service.findAll({ state: ProjectState.DRAFT });
+
+      expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith({
+        where: { state: ProjectState.DRAFT },
+        skip: 0,
+        take: 20,
+        orderBy: { createdAt: 'desc' },
+        include: expect.anything(),
+      });
+    });
+
+    it('should filter by facultyId', async () => {
+      mockPrisma.proposal.count.mockResolvedValue(1);
+      mockPrisma.proposal.findMany.mockResolvedValue([mockProposal]);
+
+      await service.findAll({ facultyId: 'faculty-123' });
+
+      expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith({
+        where: { facultyId: 'faculty-123' },
+        skip: 0,
+        take: 20,
+        orderBy: { createdAt: 'desc' },
+        include: expect.anything(),
+      });
+    });
+
+    it('should handle multiple filters', async () => {
+      mockPrisma.proposal.count.mockResolvedValue(1);
+      mockPrisma.proposal.findMany.mockResolvedValue([mockProposal]);
+
+      await service.findAll({
+        ownerId: 'user-123',
+        state: ProjectState.DRAFT,
+        facultyId: 'faculty-123',
+      });
+
+      expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith({
+        where: {
+          ownerId: 'user-123',
+          state: ProjectState.DRAFT,
+          facultyId: 'faculty-123',
+        },
+        skip: 0,
+        take: 20,
+        orderBy: { createdAt: 'desc' },
+        include: expect.anything(),
+      });
+    });
+
+    it('should return empty array when no proposals found', async () => {
+      mockPrisma.proposal.count.mockResolvedValue(0);
+      mockPrisma.proposal.findMany.mockResolvedValue([]);
+
+      const result = await service.findAll({});
+
+      expect(result.data).toEqual([]);
+      expect(result.meta.totalPages).toBe(0);
+    });
+  });
+
+  describe('remove', () => {
+    it('should delete a draft proposal', async () => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
+      mockPrisma.proposal.delete.mockResolvedValue(mockProposal);
+
+      await service.remove('proposal-123', mockUser.id);
+
+      expect(mockPrisma.proposal.delete).toHaveBeenCalledWith({
+        where: { id: 'proposal-123' },
+      });
+    });
+
+    it('should log audit event on delete', async () => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
+      mockPrisma.proposal.delete.mockResolvedValue(mockProposal);
+
+      await service.remove('proposal-123', mockUser.id);
+
+      expect(mockAuditService.logEvent).toHaveBeenCalledWith({
+        action: 'PROPOSAL_DELETE',
+        actorUserId: mockUser.id,
+        entityType: 'proposal',
+        entityId: 'proposal-123',
+        metadata: expect.objectContaining({
+          proposalCode: 'DT-001',
+        }),
+      });
+    });
+
+    it('should throw ForbiddenException when user is not owner', async () => {
+      const otherProposal = { ...mockProposal, ownerId: 'other-user' };
+      mockPrisma.proposal.findUnique.mockResolvedValue(otherProposal);
+
+      await expect(service.remove('proposal-123', mockUser.id))
+        .rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw BadRequestException when proposal not in DRAFT', async () => {
+      const submittedProposal = { ...mockProposal, state: ProjectState.FACULTY_REVIEW };
+      mockPrisma.proposal.findUnique.mockResolvedValue(submittedProposal);
+
+      await expect(service.remove('proposal-123', mockUser.id))
+        .rejects.toThrow(BadRequestException);
+      await expect(service.remove('proposal-123', mockUser.id))
+        .rejects.toThrow(expect.objectContaining({
+          response: expect.objectContaining({
+            error: expect.objectContaining({
+              code: 'PROPOSAL_NOT_DRAFT',
+            }),
+          }),
+        }));
+    });
+
+    it('should throw NotFoundException when proposal not found', async () => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(null);
+
+      await expect(service.remove('notexist', mockUser.id))
+        .rejects.toThrow(NotFoundException);
+    });
+  });
+});

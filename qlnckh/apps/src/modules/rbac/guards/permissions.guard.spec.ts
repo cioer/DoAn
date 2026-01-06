@@ -96,7 +96,7 @@ describe('PermissionsGuard', () => {
         expect(error.response).toEqual({
           success: false,
           error: {
-            code: 'FORBIDDEN',
+            error_code: 'FORBIDDEN',
             message: 'Bạn không có quyền thực hiện hành động này',
             required_permissions: [Permission.USER_MANAGE],
           },

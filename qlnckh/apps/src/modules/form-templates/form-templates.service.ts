@@ -30,7 +30,7 @@ export class FormTemplatesService {
       orderBy: { code: 'asc' },
     });
 
-    return templates.map(this.mapToDtoWithSections);
+    return templates.map(t => this.mapToDtoWithSections(t));
   }
 
   /**
@@ -77,7 +77,7 @@ export class FormTemplatesService {
       orderBy: { displayOrder: 'asc' },
     });
 
-    return sections.map(this.mapSectionToDto);
+    return sections.map(s => this.mapSectionToDto(s));
   }
 
   /**
@@ -181,7 +181,7 @@ export class FormTemplatesService {
       projectType: template.projectType,
       createdAt: template.createdAt,
       updatedAt: template.updatedAt,
-      sections: template.sections?.map(this.mapSectionToDto) || [],
+      sections: template.sections?.map(s => this.mapSectionToDto(s)) || [],
     };
   }
 

@@ -1,92 +1,64 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { DemoService } from './demo.service';
-import { RbacService } from '../rbac/rbac.service';
-import { AuditService } from '../audit/audit.service';
-import { PrismaService } from '../auth/prisma.service';
 import { AuditAction } from '../audit/audit-action.enum';
 import { Permission } from '../rbac/permissions.enum';
 import { UserRole } from '@prisma/client';
+import { isDemoPersona } from './constants/demo-personas';
 
 describe('DemoService', () => {
   let service: DemoService;
-  let prismaService: PrismaService;
-  let rbacService: RbacService;
-  let auditService: AuditService;
-  let configService: ConfigService;
 
-  const mockPrismaService = {
+  // Manual mocks - bypass DI
+  const mockPrisma = {
     user: {
       findUnique: jest.fn(),
     },
   };
 
-  const mockRbacService = {
+  const mockRbac = {
     getUserPermissions: jest.fn(),
   };
 
-  const mockAuditService = {
+  const mockAudit = {
     logEvent: jest.fn(),
   };
 
-  const mockConfigService = {
+  const mockConfig = {
     get: jest.fn(),
   };
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        DemoService,
-        {
-          provide: PrismaService,
-          useValue: mockPrismaService,
-        },
-        {
-          provide: RbacService,
-          useValue: mockRbacService,
-        },
-        {
-          provide: AuditService,
-          useValue: mockAuditService,
-        },
-        {
-          provide: ConfigService,
-          useValue: mockConfigService,
-        },
-      ],
-    }).compile();
-
-    service = module.get<DemoService>(DemoService);
-    prismaService = module.get<PrismaService>(PrismaService);
-    rbacService = module.get<RbacService>(RbacService);
-    auditService = module.get<AuditService>(AuditService);
-    configService = module.get<ConfigService>(ConfigService);
-
-    // Reset mocks
+  beforeEach(() => {
+    // Manually create service with mocks - bypass DI
+    // Constructor order: prisma, rbacService, configService, auditService (optional)
+    service = new DemoService(
+      mockPrisma as any,
+      mockRbac as any,
+      mockConfig as any,
+      mockAudit as any,
+    );
     jest.clearAllMocks();
   });
 
   describe('isDemoModeEnabled', () => {
     it('should return true when DEMO_MODE is "true"', () => {
-      mockConfigService.get.mockReturnValue('true');
+      mockConfig.get.mockReturnValue('true');
       expect(service.isDemoModeEnabled()).toBe(true);
     });
 
     it('should return false when DEMO_MODE is not "true"', () => {
-      mockConfigService.get.mockReturnValue('false');
+      mockConfig.get.mockReturnValue('false');
       expect(service.isDemoModeEnabled()).toBe(false);
     });
 
     it('should return false when DEMO_MODE is undefined', () => {
-      mockConfigService.get.mockReturnValue(undefined);
+      mockConfig.get.mockReturnValue(undefined);
       expect(service.isDemoModeEnabled()).toBe(false);
     });
   });
 
   describe('getDemoModeConfig', () => {
     it('should return enabled with personas when DEMO_MODE is true', async () => {
-      mockConfigService.get.mockReturnValue('true');
+      mockConfig.get.mockReturnValue('true');
       const config = await service.getDemoModeConfig();
 
       expect(config.enabled).toBe(true);
@@ -99,7 +71,7 @@ describe('DemoService', () => {
     });
 
     it('should return disabled with empty personas when DEMO_MODE is false', async () => {
-      mockConfigService.get.mockReturnValue('false');
+      mockConfig.get.mockReturnValue('false');
       const config = await service.getDemoModeConfig();
 
       expect(config.enabled).toBe(false);
@@ -125,9 +97,9 @@ describe('DemoService', () => {
     };
 
     beforeEach(() => {
-      mockConfigService.get.mockReturnValue('true');
-      mockRbacService.getUserPermissions.mockResolvedValue([Permission.DEMO_SWITCH_PERSONA]);
-      mockPrismaService.user.findUnique.mockImplementation((args: any) => {
+      mockConfig.get.mockReturnValue('true');
+      mockRbac.getUserPermissions.mockResolvedValue([Permission.DEMO_SWITCH_PERSONA]);
+      mockPrisma.user.findUnique.mockImplementation((args: any) => {
         if (args.where.id === 'real-user-id') return mockActorUser;
         if (args.where.id === 'DT-USER-002') return mockTargetUser;
         return null;
@@ -145,7 +117,7 @@ describe('DemoService', () => {
     it('should log audit event with actor and actingAs', async () => {
       await service.switchPersona('real-user-id', 'DT-USER-002');
 
-      expect(auditService.logEvent).toHaveBeenCalledWith({
+      expect(mockAudit.logEvent).toHaveBeenCalledWith({
         action: AuditAction.DEMO_PERSONA_SWITCH,
         actorUserId: 'real-user-id',
         actingAsUserId: 'DT-USER-002',
@@ -159,7 +131,7 @@ describe('DemoService', () => {
     });
 
     it('should throw ForbiddenException when demo mode is disabled', async () => {
-      mockConfigService.get.mockReturnValue('false');
+      mockConfig.get.mockReturnValue('false');
 
       await expect(
         service.switchPersona('real-user-id', 'DT-USER-002'),
@@ -173,7 +145,7 @@ describe('DemoService', () => {
     });
 
     it('should throw NotFoundException when target user not found', async () => {
-      mockPrismaService.user.findUnique.mockImplementation((args: any) => {
+      mockPrisma.user.findUnique.mockImplementation((args: any) => {
         if (args.where.id === 'real-user-id') return mockActorUser;
         return null; // Target not found
       });
@@ -184,7 +156,7 @@ describe('DemoService', () => {
     });
 
     it('should throw NotFoundException when actor user not found', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(null);
+      mockPrisma.user.findUnique.mockResolvedValue(null);
 
       await expect(
         service.switchPersona('real-user-id', 'DT-USER-002'),
@@ -194,7 +166,7 @@ describe('DemoService', () => {
 
   describe('getPersonaById', () => {
     it('should return persona when demo mode is enabled', () => {
-      mockConfigService.get.mockReturnValue('true');
+      mockConfig.get.mockReturnValue('true');
       const persona = service.getPersonaById('DT-USER-001');
 
       expect(persona).not.toBeNull();
@@ -203,14 +175,14 @@ describe('DemoService', () => {
     });
 
     it('should return null when demo mode is disabled', () => {
-      mockConfigService.get.mockReturnValue('false');
+      mockConfig.get.mockReturnValue('false');
       const persona = service.getPersonaById('DT-USER-001');
 
       expect(persona).toBeNull();
     });
 
     it('should return null when persona id not found', () => {
-      mockConfigService.get.mockReturnValue('true');
+      mockConfig.get.mockReturnValue('true');
       const persona = service.getPersonaById('invalid-id');
 
       expect(persona).toBeNull();
@@ -219,7 +191,6 @@ describe('DemoService', () => {
 
   describe('isDemoPersona', () => {
     it('should be exported and available', () => {
-      const { isDemoPersona } = require('./constants/demo-personas');
       expect(isDemoPersona('DT-USER-001')).toBe(true);
       expect(isDemoPersona('DT-USER-008')).toBe(true);
       expect(isDemoPersona('invalid-id')).toBe(false);

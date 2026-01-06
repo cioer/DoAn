@@ -1,13 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { FormTemplatesService } from './form-templates.service';
-import { PrismaService } from '../auth/prisma.service';
 import { NotFoundException } from '@nestjs/common';
 
 describe('FormTemplatesService', () => {
   let service: FormTemplatesService;
-  let prismaService: any;
 
-  const mockPrismaService = {
+  // Manual mock - bypass DI
+  const mockPrisma = {
     formTemplate: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
@@ -59,22 +57,9 @@ describe('FormTemplatesService', () => {
     ],
   };
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        FormTemplatesService,
-        {
-          provide: PrismaService,
-          useValue: mockPrismaService,
-        },
-      ],
-    }).compile();
-
-    service = module.get<FormTemplatesService>(FormTemplatesService);
-    prismaService = module.get<PrismaService>(PrismaService);
-  });
-
-  afterEach(() => {
+  beforeEach(() => {
+    // Manually create service with mock prisma - bypass DI
+    service = new FormTemplatesService(mockPrisma as any);
     jest.clearAllMocks();
   });
 
@@ -84,7 +69,7 @@ describe('FormTemplatesService', () => {
 
   describe('findAll', () => {
     it('should return all active templates with sections', async () => {
-      mockPrismaService.formTemplate.findMany.mockResolvedValue([mockTemplate]);
+      mockPrisma.formTemplate.findMany.mockResolvedValue([mockTemplate]);
 
       const result = await service.findAll();
 
@@ -94,7 +79,7 @@ describe('FormTemplatesService', () => {
         name: 'Đề tài NCKH cấp trường',
         sections: expect.any(Array),
       })]);
-      expect(prismaService.formTemplate.findMany).toHaveBeenCalledWith({
+      expect(mockPrisma.formTemplate.findMany).toHaveBeenCalledWith({
         where: { isActive: true },
         include: {
           sections: {
@@ -106,11 +91,11 @@ describe('FormTemplatesService', () => {
     });
 
     it('should return all templates including inactive when requested', async () => {
-      mockPrismaService.formTemplate.findMany.mockResolvedValue([mockTemplate]);
+      mockPrisma.formTemplate.findMany.mockResolvedValue([mockTemplate]);
 
       await service.findAll(true);
 
-      expect(prismaService.formTemplate.findMany).toHaveBeenCalledWith({
+      expect(mockPrisma.formTemplate.findMany).toHaveBeenCalledWith({
         where: {},
         include: {
           sections: {
@@ -122,7 +107,7 @@ describe('FormTemplatesService', () => {
     });
 
     it('should return empty array when no templates exist', async () => {
-      mockPrismaService.formTemplate.findMany.mockResolvedValue([]);
+      mockPrisma.formTemplate.findMany.mockResolvedValue([]);
 
       const result = await service.findAll();
 
@@ -132,7 +117,7 @@ describe('FormTemplatesService', () => {
 
   describe('findOne', () => {
     it('should return template by ID', async () => {
-      mockPrismaService.formTemplate.findFirst.mockResolvedValue(mockTemplate);
+      mockPrisma.formTemplate.findFirst.mockResolvedValue(mockTemplate);
 
       const result = await service.findOne('uuid-1');
 
@@ -140,7 +125,7 @@ describe('FormTemplatesService', () => {
         id: 'uuid-1',
         code: 'MAU_01B',
       }));
-      expect(prismaService.formTemplate.findFirst).toHaveBeenCalledWith({
+      expect(mockPrisma.formTemplate.findFirst).toHaveBeenCalledWith({
         where: {
           OR: [{ id: 'uuid-1' }, { code: 'uuid-1' }],
         },
@@ -153,7 +138,7 @@ describe('FormTemplatesService', () => {
     });
 
     it('should return template by code', async () => {
-      mockPrismaService.formTemplate.findFirst.mockResolvedValue(mockTemplate);
+      mockPrisma.formTemplate.findFirst.mockResolvedValue(mockTemplate);
 
       const result = await service.findOne('MAU_01B');
 
@@ -163,7 +148,7 @@ describe('FormTemplatesService', () => {
     });
 
     it('should throw NotFoundException when template not found', async () => {
-      mockPrismaService.formTemplate.findFirst.mockResolvedValue(null);
+      mockPrisma.formTemplate.findFirst.mockResolvedValue(null);
 
       await expect(service.findOne('NOTEXIST')).rejects.toThrow(NotFoundException);
       await expect(service.findOne('NOTEXIST')).rejects.toThrow("Form template 'NOTEXIST' not found");
@@ -172,10 +157,10 @@ describe('FormTemplatesService', () => {
 
   describe('findSections', () => {
     it('should return sections for a template by ID', async () => {
-      mockPrismaService.formTemplate.findFirst.mockResolvedValue({
+      mockPrisma.formTemplate.findFirst.mockResolvedValue({
         id: 'uuid-1',
       });
-      mockPrismaService.formSection.findMany.mockResolvedValue(mockTemplate.sections);
+      mockPrisma.formSection.findMany.mockResolvedValue(mockTemplate.sections);
 
       const result = await service.findSections('uuid-1');
 
@@ -184,17 +169,17 @@ describe('FormTemplatesService', () => {
         sectionId: 'SEC_INFO_GENERAL',
         label: 'Thông tin chung',
       }));
-      expect(prismaService.formSection.findMany).toHaveBeenCalledWith({
+      expect(mockPrisma.formSection.findMany).toHaveBeenCalledWith({
         where: { templateId: 'uuid-1' },
         orderBy: { displayOrder: 'asc' },
       });
     });
 
     it('should return sections for a template by code', async () => {
-      mockPrismaService.formTemplate.findFirst.mockResolvedValue({
+      mockPrisma.formTemplate.findFirst.mockResolvedValue({
         id: 'uuid-1',
       });
-      mockPrismaService.formSection.findMany.mockResolvedValue(mockTemplate.sections);
+      mockPrisma.formSection.findMany.mockResolvedValue(mockTemplate.sections);
 
       const result = await service.findSections('MAU_01B');
 
@@ -202,7 +187,7 @@ describe('FormTemplatesService', () => {
     });
 
     it('should throw NotFoundException when template not found', async () => {
-      mockPrismaService.formTemplate.findFirst.mockResolvedValue(null);
+      mockPrisma.formTemplate.findFirst.mockResolvedValue(null);
 
       await expect(service.findSections('NOTEXIST')).rejects.toThrow(NotFoundException);
     });
@@ -225,7 +210,7 @@ describe('FormTemplatesService', () => {
     };
 
     it('should create a new template', async () => {
-      mockPrismaService.formTemplate.create.mockResolvedValue(mockTemplate);
+      mockPrisma.formTemplate.create.mockResolvedValue(mockTemplate);
 
       const result = await service.create(createDto);
 
@@ -233,7 +218,7 @@ describe('FormTemplatesService', () => {
         code: 'MAU_01B',
         name: 'Đề tài NCKH cấp trường',
       }));
-      expect(prismaService.formTemplate.create).toHaveBeenCalledWith({
+      expect(mockPrisma.formTemplate.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           code: 'MAU_01B',
           name: 'Đề tài NCKH cấp trường',
@@ -251,11 +236,11 @@ describe('FormTemplatesService', () => {
 
     it('should create template with custom version', async () => {
       const dtoWithVersion = { ...createDto, version: 'v2.0' };
-      mockPrismaService.formTemplate.create.mockResolvedValue(mockTemplate);
+      mockPrisma.formTemplate.create.mockResolvedValue(mockTemplate);
 
       await service.create(dtoWithVersion);
 
-      expect(prismaService.formTemplate.create).toHaveBeenCalledWith({
+      expect(mockPrisma.formTemplate.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           version: 'v2.0',
         }),
@@ -266,7 +251,7 @@ describe('FormTemplatesService', () => {
     it('should create template with empty sections array', async () => {
       const dtoWithEmptySections = { ...createDto, sections: [] };
       const templateWithEmptySections = { ...mockTemplate, sections: [] };
-      mockPrismaService.formTemplate.create.mockResolvedValue(templateWithEmptySections);
+      mockPrisma.formTemplate.create.mockResolvedValue(templateWithEmptySections);
 
       const result = await service.create(dtoWithEmptySections);
 
@@ -281,11 +266,11 @@ describe('FormTemplatesService', () => {
           config: null,
         }],
       };
-      mockPrismaService.formTemplate.create.mockResolvedValue(mockTemplate);
+      mockPrisma.formTemplate.create.mockResolvedValue(mockTemplate);
 
       await service.create(dtoWithNullConfig);
 
-      expect(prismaService.formTemplate.create).toHaveBeenCalledWith({
+      expect(mockPrisma.formTemplate.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           sections: expect.objectContaining({
             create: expect.arrayContaining([
@@ -300,7 +285,7 @@ describe('FormTemplatesService', () => {
     });
 
     it('should handle concurrent template creation', async () => {
-      mockPrismaService.formTemplate.create
+      mockPrisma.formTemplate.create
         .mockResolvedValueOnce(mockTemplate)
         .mockResolvedValueOnce({ ...mockTemplate, id: 'uuid-2', code: 'MAU_02B' });
 
@@ -324,8 +309,8 @@ describe('FormTemplatesService', () => {
 
     it('should update a template', async () => {
       const updatedTemplate = { ...mockTemplate, ...updateDto };
-      mockPrismaService.formTemplate.findUnique.mockResolvedValue(mockTemplate);
-      mockPrismaService.formTemplate.update.mockResolvedValue(updatedTemplate);
+      mockPrisma.formTemplate.findUnique.mockResolvedValue(mockTemplate);
+      mockPrisma.formTemplate.update.mockResolvedValue(updatedTemplate);
 
       const result = await service.update('uuid-1', updateDto);
 
@@ -334,7 +319,7 @@ describe('FormTemplatesService', () => {
         description: 'Updated description',
         isActive: false,
       }));
-      expect(prismaService.formTemplate.update).toHaveBeenCalledWith({
+      expect(mockPrisma.formTemplate.update).toHaveBeenCalledWith({
         where: { id: 'uuid-1' },
         data: updateDto,
         include: {
@@ -346,7 +331,7 @@ describe('FormTemplatesService', () => {
     });
 
     it('should throw NotFoundException when updating non-existent template', async () => {
-      mockPrismaService.formTemplate.findUnique.mockResolvedValue(null);
+      mockPrisma.formTemplate.findUnique.mockResolvedValue(null);
 
       await expect(service.update('notexist', updateDto)).rejects.toThrow(NotFoundException);
     });
@@ -354,18 +339,18 @@ describe('FormTemplatesService', () => {
 
   describe('remove', () => {
     it('should delete a template', async () => {
-      mockPrismaService.formTemplate.findUnique.mockResolvedValue(mockTemplate);
-      mockPrismaService.formTemplate.delete.mockResolvedValue(mockTemplate);
+      mockPrisma.formTemplate.findUnique.mockResolvedValue(mockTemplate);
+      mockPrisma.formTemplate.delete.mockResolvedValue(mockTemplate);
 
       await service.remove('uuid-1');
 
-      expect(prismaService.formTemplate.delete).toHaveBeenCalledWith({
+      expect(mockPrisma.formTemplate.delete).toHaveBeenCalledWith({
         where: { id: 'uuid-1' },
       });
     });
 
     it('should throw NotFoundException when deleting non-existent template', async () => {
-      mockPrismaService.formTemplate.findUnique.mockResolvedValue(null);
+      mockPrisma.formTemplate.findUnique.mockResolvedValue(null);
 
       await expect(service.remove('notexist')).rejects.toThrow(NotFoundException);
     });

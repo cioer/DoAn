@@ -1,13 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { AuditService } from './audit.service';
-import { PrismaService } from '../auth/prisma.service';
 import { AuditAction } from './audit-action.enum';
 
 describe('AuditService', () => {
   let service: AuditService;
-  let prismaService: PrismaService;
 
-  const mockPrismaService = {
+  // Manual mock - bypass DI
+  const mockPrisma = {
     auditEvent: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -15,22 +13,9 @@ describe('AuditService', () => {
     },
   };
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        AuditService,
-        {
-          provide: PrismaService,
-          useValue: mockPrismaService,
-        },
-      ],
-    }).compile();
-
-    service = module.get<AuditService>(AuditService);
-    prismaService = module.get<PrismaService>(PrismaService);
-  });
-
-  afterEach(() => {
+  beforeEach(() => {
+    // Manually create service with mock prisma - bypass DI
+    service = new AuditService(mockPrisma as any);
     jest.clearAllMocks();
   });
 
@@ -51,7 +36,7 @@ describe('AuditService', () => {
         requestId: 'req-123',
       };
 
-      mockPrismaService.auditEvent.create.mockResolvedValue({
+      mockPrisma.auditEvent.create.mockResolvedValue({
         id: 'audit-1',
         ...createDto,
         occurredAt: new Date(),
@@ -60,7 +45,7 @@ describe('AuditService', () => {
 
       await service.logEvent(createDto);
 
-      expect(mockPrismaService.auditEvent.create).toHaveBeenCalledWith({
+      expect(mockPrisma.auditEvent.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           action: AuditAction.USER_CREATE,
           actorUserId: 'user-123',
@@ -80,7 +65,7 @@ describe('AuditService', () => {
         actorUserId: 'user-123',
       };
 
-      mockPrismaService.auditEvent.create.mockResolvedValue({
+      mockPrisma.auditEvent.create.mockResolvedValue({
         id: 'audit-1',
         ...createDto,
         occurredAt: new Date(),
@@ -95,7 +80,7 @@ describe('AuditService', () => {
 
       await service.logEvent(createDto);
 
-      expect(mockPrismaService.auditEvent.create).toHaveBeenCalledWith({
+      expect(mockPrisma.auditEvent.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           action: AuditAction.LOGOUT,
           actorUserId: 'user-123',
@@ -112,7 +97,7 @@ describe('AuditService', () => {
         actorUserId: 'user-123',
       };
 
-      mockPrismaService.auditEvent.create.mockRejectedValue(
+      mockPrisma.auditEvent.create.mockRejectedValue(
         new Error('Database error'),
       );
 
@@ -143,8 +128,8 @@ describe('AuditService', () => {
         },
       ];
 
-      mockPrismaService.auditEvent.findMany.mockResolvedValue(mockEvents);
-      mockPrismaService.auditEvent.count.mockResolvedValue(1);
+      mockPrisma.auditEvent.findMany.mockResolvedValue(mockEvents);
+      mockPrisma.auditEvent.count.mockResolvedValue(1);
 
       const result = await service.getAuditEvents({
         page: 1,
@@ -165,8 +150,8 @@ describe('AuditService', () => {
     });
 
     it('should apply filters correctly', async () => {
-      mockPrismaService.auditEvent.findMany.mockResolvedValue([]);
-      mockPrismaService.auditEvent.count.mockResolvedValue(0);
+      mockPrisma.auditEvent.findMany.mockResolvedValue([]);
+      mockPrisma.auditEvent.count.mockResolvedValue(0);
 
       await service.getAuditEvents({
         entity_type: 'users',
@@ -177,7 +162,7 @@ describe('AuditService', () => {
         limit: 50,
       });
 
-      expect(mockPrismaService.auditEvent.findMany).toHaveBeenCalledWith({
+      expect(mockPrisma.auditEvent.findMany).toHaveBeenCalledWith({
         where: expect.objectContaining({
           entityType: 'users',
           entityId: 'user-123',
@@ -192,8 +177,8 @@ describe('AuditService', () => {
     });
 
     it('should apply date range filters', async () => {
-      mockPrismaService.auditEvent.findMany.mockResolvedValue([]);
-      mockPrismaService.auditEvent.count.mockResolvedValue(0);
+      mockPrisma.auditEvent.findMany.mockResolvedValue([]);
+      mockPrisma.auditEvent.count.mockResolvedValue(0);
 
       await service.getAuditEvents({
         from_date: '2026-01-01T00:00:00Z',
@@ -202,7 +187,7 @@ describe('AuditService', () => {
         limit: 50,
       });
 
-      expect(mockPrismaService.auditEvent.findMany).toHaveBeenCalledWith({
+      expect(mockPrisma.auditEvent.findMany).toHaveBeenCalledWith({
         where: expect.objectContaining({
           occurredAt: {
             gte: new Date('2026-01-01T00:00:00Z'),
@@ -236,12 +221,12 @@ describe('AuditService', () => {
         },
       ];
 
-      mockPrismaService.auditEvent.findMany.mockResolvedValue(mockEvents);
+      mockPrisma.auditEvent.findMany.mockResolvedValue(mockEvents);
 
       const result = await service.getEntityHistory('users', 'user-123');
 
       expect(result).toHaveLength(2);
-      expect(mockPrismaService.auditEvent.findMany).toHaveBeenCalledWith({
+      expect(mockPrisma.auditEvent.findMany).toHaveBeenCalledWith({
         where: {
           entityType: 'users',
           entityId: 'user-123',

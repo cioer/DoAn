@@ -24,14 +24,14 @@ import {
   UpdateFormTemplateDto,
   FormSectionDto,
 } from './dto';
-import { Roles } from '../../common/decorators/roles.decorator';
+import { RequireRoles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
-import { AuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../rbac/guards/roles.guard';
 
 @ApiTags('form-templates')
 @Controller('form-templates')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class FormTemplatesController {
   constructor(private readonly formTemplatesService: FormTemplatesService) {}
 
@@ -119,7 +119,7 @@ export class FormTemplatesController {
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @Roles(UserRole.ADMIN)
+  @RequireRoles(UserRole.ADMIN)
   @ApiOperation({
     summary: 'Create form template',
     description: 'Creates a new form template (admin only)',
@@ -151,7 +151,7 @@ export class FormTemplatesController {
    */
   @Put(':id')
   @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.ADMIN)
+  @RequireRoles(UserRole.ADMIN)
   @ApiOperation({
     summary: 'Update form template',
     description: 'Updates a form template (admin only)',
@@ -190,7 +190,7 @@ export class FormTemplatesController {
    */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @Roles(UserRole.ADMIN)
+  @RequireRoles(UserRole.ADMIN)
   @ApiOperation({
     summary: 'Delete form template',
     description: 'Deletes a form template (admin only)',

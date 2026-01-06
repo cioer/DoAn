@@ -7,6 +7,8 @@ import { UsersModule } from '../modules/users/users.module';
 import { AuditModule } from '../modules/audit/audit.module';
 import { DemoModule } from '../modules/demo/demo.module';
 import { BusinessCalendarModule } from '../modules/calendar/calendar.module';
+import { FormTemplatesModule } from '../modules/form-templates/form-templates.module';
+import { ProposalsModule } from '../modules/proposals/proposals.module';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { BusinessCalendarModule } from '../modules/calendar/calendar.module';
     AuditModule,
     DemoModule,
     BusinessCalendarModule,
+    FormTemplatesModule,
+    ProposalsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

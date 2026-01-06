@@ -1,11 +1,9 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { FormTemplatesController } from './form-templates.controller';
-import { FormTemplatesService } from './form-templates.service';
 import { NotFoundException } from '@nestjs/common';
 
 describe('FormTemplatesController', () => {
   let controller: FormTemplatesController;
-  let service: FormTemplatesService;
+  let mockService: any;
 
   const mockTemplate = {
     id: 'uuid-1',
@@ -33,29 +31,19 @@ describe('FormTemplatesController', () => {
     ],
   };
 
-  const mockFormTemplatesService = {
-    findAll: jest.fn(),
-    findOne: jest.fn(),
-    findSections: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    remove: jest.fn(),
-  };
+  beforeEach(() => {
+    // Create mock service
+    mockService = {
+      findAll: jest.fn(),
+      findOne: jest.fn(),
+      findSections: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      remove: jest.fn(),
+    };
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [FormTemplatesController],
-      providers: [
-        {
-          provide: FormTemplatesService,
-          useValue: mockFormTemplatesService,
-        },
-      ],
-    }).compile();
-
-    controller = module.get<FormTemplatesController>(FormTemplatesController);
-    service = module.get<FormTemplatesService>(FormTemplatesService);
-
+    // Manually create controller with mock service - bypass DI
+    controller = new FormTemplatesController(mockService);
     jest.clearAllMocks();
   });
 
@@ -65,16 +53,16 @@ describe('FormTemplatesController', () => {
 
   describe('findAll', () => {
     it('should return an array of templates', async () => {
-      mockFormTemplatesService.findAll.mockResolvedValue([mockTemplate]);
+      mockService.findAll.mockResolvedValue([mockTemplate]);
 
       const result = await controller.findAll();
 
       expect(result).toEqual([mockTemplate]);
-      expect(service.findAll).toHaveBeenCalledWith();
+      expect(mockService.findAll).toHaveBeenCalledWith();
     });
 
     it('should return empty array when no templates', async () => {
-      mockFormTemplatesService.findAll.mockResolvedValue([]);
+      mockService.findAll.mockResolvedValue([]);
 
       const result = await controller.findAll();
 
@@ -84,16 +72,16 @@ describe('FormTemplatesController', () => {
 
   describe('findOne', () => {
     it('should return a single template', async () => {
-      mockFormTemplatesService.findOne.mockResolvedValue(mockTemplate);
+      mockService.findOne.mockResolvedValue(mockTemplate);
 
       const result = await controller.findOne('MAU_01B');
 
       expect(result).toEqual(mockTemplate);
-      expect(service.findOne).toHaveBeenCalledWith('MAU_01B');
+      expect(mockService.findOne).toHaveBeenCalledWith('MAU_01B');
     });
 
     it('should throw NotFoundException when template not found', async () => {
-      mockFormTemplatesService.findOne.mockRejectedValue(
+      mockService.findOne.mockRejectedValue(
         new NotFoundException("Form template 'NOTEXIST' not found")
       );
 
@@ -103,16 +91,16 @@ describe('FormTemplatesController', () => {
 
   describe('findSections', () => {
     it('should return sections of a template', async () => {
-      mockFormTemplatesService.findSections.mockResolvedValue(mockTemplate.sections);
+      mockService.findSections.mockResolvedValue(mockTemplate.sections);
 
       const result = await controller.findSections('MAU_01B');
 
       expect(result).toEqual(mockTemplate.sections);
-      expect(service.findSections).toHaveBeenCalledWith('MAU_01B');
+      expect(mockService.findSections).toHaveBeenCalledWith('MAU_01B');
     });
 
     it('should throw NotFoundException when template not found', async () => {
-      mockFormTemplatesService.findSections.mockRejectedValue(
+      mockService.findSections.mockRejectedValue(
         new NotFoundException("Form template 'NOTEXIST' not found")
       );
 
@@ -128,12 +116,12 @@ describe('FormTemplatesController', () => {
     };
 
     it('should create a new template', async () => {
-      mockFormTemplatesService.create.mockResolvedValue(mockTemplate);
+      mockService.create.mockResolvedValue(mockTemplate);
 
       const result = await controller.create(createDto);
 
       expect(result).toEqual(mockTemplate);
-      expect(service.create).toHaveBeenCalledWith(createDto);
+      expect(mockService.create).toHaveBeenCalledWith(createDto);
     });
   });
 
@@ -145,22 +133,22 @@ describe('FormTemplatesController', () => {
 
     it('should update a template', async () => {
       const updatedTemplate = { ...mockTemplate, ...updateDto };
-      mockFormTemplatesService.update.mockResolvedValue(updatedTemplate);
+      mockService.update.mockResolvedValue(updatedTemplate);
 
       const result = await controller.update('uuid-1', updateDto);
 
       expect(result).toEqual(updatedTemplate);
-      expect(service.update).toHaveBeenCalledWith('uuid-1', updateDto);
+      expect(mockService.update).toHaveBeenCalledWith('uuid-1', updateDto);
     });
   });
 
   describe('remove', () => {
     it('should delete a template', async () => {
-      mockFormTemplatesService.remove.mockResolvedValue(undefined);
+      mockService.remove.mockResolvedValue(undefined);
 
       await controller.remove('uuid-1');
 
-      expect(service.remove).toHaveBeenCalledWith('uuid-1');
+      expect(mockService.remove).toHaveBeenCalledWith('uuid-1');
     });
   });
 });

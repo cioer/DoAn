@@ -1,10 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { UsersController } from './users.controller';
-import { UsersService } from './users.service';
-import { PrismaService } from '../auth/prisma.service';
-import { Permission } from '../rbac/permissions.enum';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../rbac/guards/permissions.guard';
 import { UserRole, User } from '@prisma/client';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 
@@ -16,7 +10,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
  */
 describe('UsersController', () => {
   let controller: UsersController;
-  let service: UsersService;
+  let mockUsersService: any;
 
   // Mock current user (admin)
   const mockCurrentUser = {
@@ -39,40 +33,25 @@ describe('UsersController', () => {
 
   const mockTempPassword = 'Abc123Xyz789';
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [UsersController],
-      providers: [
-        {
-          provide: UsersService,
-          useValue: {
-            createUser: jest.fn().mockResolvedValue({
-              user: mockUser,
-              temporaryPassword: mockTempPassword,
-            }),
-            getUsers: jest.fn().mockResolvedValue({
-              users: [mockUser],
-              meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
-            }),
-            getUserById: jest.fn().mockResolvedValue(mockUser),
-            updateUser: jest.fn().mockResolvedValue(mockUser),
-            softDeleteUser: jest.fn().mockResolvedValue(mockUser),
-          },
-        },
-        {
-          provide: PrismaService,
-          useValue: {},
-        },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue({ canActivate: true })
-      .overrideGuard(PermissionsGuard)
-      .useValue({ canActivate: true })
-      .compile();
+  beforeEach(() => {
+    // Create mock service
+    mockUsersService = {
+      createUser: jest.fn().mockResolvedValue({
+        user: mockUser,
+        temporaryPassword: mockTempPassword,
+      }),
+      getUsers: jest.fn().mockResolvedValue({
+        users: [mockUser],
+        meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+      }),
+      getUserById: jest.fn().mockResolvedValue(mockUser),
+      updateUser: jest.fn().mockResolvedValue(mockUser),
+      softDeleteUser: jest.fn().mockResolvedValue(mockUser),
+    };
 
-    controller = module.get<UsersController>(UsersController);
-    service = module.get<UsersService>(UsersService);
+    // Manually create controller with mock service - bypass DI
+    controller = new UsersController(mockUsersService);
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -101,7 +80,7 @@ describe('UsersController', () => {
         },
       });
 
-      expect(service.createUser).toHaveBeenCalledWith(
+      expect(mockUsersService.createUser).toHaveBeenCalledWith(
         createUserDto,
         mockCurrentUser.id,
         '127.0.0.1',
@@ -110,7 +89,7 @@ describe('UsersController', () => {
     });
 
     it('should throw ConflictException when email exists', async () => {
-      jest.spyOn(service, 'createUser').mockRejectedValue(
+      mockUsersService.createUser.mockRejectedValue(
         new ConflictException({
           success: false,
           error: {
@@ -145,13 +124,13 @@ describe('UsersController', () => {
         meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
       });
 
-      expect(service.getUsers).toHaveBeenCalledWith(1, 20, undefined, undefined, undefined);
+      expect(mockUsersService.getUsers).toHaveBeenCalledWith(1, 20, undefined, undefined, undefined);
     });
 
     it('should filter users by role', async () => {
       await controller.getUsers(1, 20, UserRole.GIANG_VIEN);
 
-      expect(service.getUsers).toHaveBeenCalledWith(
+      expect(mockUsersService.getUsers).toHaveBeenCalledWith(
         1,
         20,
         UserRole.GIANG_VIEN,
@@ -163,7 +142,7 @@ describe('UsersController', () => {
     it('should search users by email/displayName', async () => {
       await controller.getUsers(1, 20, undefined, undefined, 'test');
 
-      expect(service.getUsers).toHaveBeenCalledWith(1, 20, undefined, undefined, 'test');
+      expect(mockUsersService.getUsers).toHaveBeenCalledWith(1, 20, undefined, undefined, 'test');
     });
   });
 
@@ -176,11 +155,11 @@ describe('UsersController', () => {
         data: mockUser,
       });
 
-      expect(service.getUserById).toHaveBeenCalledWith('user-id');
+      expect(mockUsersService.getUserById).toHaveBeenCalledWith('user-id');
     });
 
     it('should throw NotFoundException when user not found', async () => {
-      jest.spyOn(service, 'getUserById').mockRejectedValue(
+      mockUsersService.getUserById.mockRejectedValue(
         new NotFoundException({
           success: false,
           error: {
@@ -215,7 +194,7 @@ describe('UsersController', () => {
         data: mockUser,
       });
 
-      expect(service.updateUser).toHaveBeenCalledWith(
+      expect(mockUsersService.updateUser).toHaveBeenCalledWith(
         'user-id',
         updateUserDto,
         mockCurrentUser.id,
@@ -241,7 +220,7 @@ describe('UsersController', () => {
         },
       });
 
-      expect(service.softDeleteUser).toHaveBeenCalledWith(
+      expect(mockUsersService.softDeleteUser).toHaveBeenCalledWith(
         'user-id',
         mockCurrentUser.id,
         '127.0.0.1',
@@ -250,7 +229,7 @@ describe('UsersController', () => {
     });
 
     it('should prevent self-deletion', async () => {
-      jest.spyOn(service, 'softDeleteUser').mockRejectedValue(
+      mockUsersService.softDeleteUser.mockRejectedValue(
         new ConflictException({
           success: false,
           error: {
@@ -317,7 +296,7 @@ describe('UsersController', () => {
         { ip: '192.168.1.1', headers: { 'user-agent': 'Mozilla' } } as any,
       );
 
-      expect(service.updateUser).toHaveBeenCalledWith(
+      expect(mockUsersService.updateUser).toHaveBeenCalledWith(
         'user-id',
         { role: UserRole.QUAN_LY_KHOA },
         mockCurrentUser.id,
@@ -333,7 +312,7 @@ describe('UsersController', () => {
         { ip: '192.168.1.1', headers: { 'user-agent': 'Mozilla' } } as any,
       );
 
-      expect(service.softDeleteUser).toHaveBeenCalledWith(
+      expect(mockUsersService.softDeleteUser).toHaveBeenCalledWith(
         'user-id',
         mockCurrentUser.id,
         '192.168.1.1',
@@ -348,7 +327,7 @@ describe('UsersController', () => {
    */
   describe('Soft Delete Behavior', () => {
     it('should return NotFoundException for soft-deleted user', async () => {
-      jest.spyOn(service, 'getUserById').mockRejectedValue(
+      mockUsersService.getUserById.mockRejectedValue(
         new NotFoundException({
           success: false,
           error: {
