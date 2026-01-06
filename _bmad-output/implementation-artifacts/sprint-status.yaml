@@ -98,7 +98,7 @@ development_status:
   epic-5: in-progress
   5-1-school-selection-queue: done
   5-2-council-assignment: done
-  5-3-evaluation-form-draft-plus-auto-save: backlog
+  5-3-evaluation-form-draft-plus-auto-save: done
   5-4-preview-pdf-plus-confirm-gate-submit-once: backlog
   5-5-finalize-right-arrow-read-only-submit-once-lock: backlog
   5-6-evaluation-pdf-export: backlog

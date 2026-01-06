@@ -12,12 +12,14 @@ import { ProposalsModule } from '../modules/proposals/proposals.module';
 import { AttachmentsModule } from '../modules/attachments/attachments.module';
 import { PdfModule } from '../modules/pdf/pdf.module';
 import { CouncilModule } from '../modules/council/council.module';
+import { EvaluationModule } from '../modules/evaluations/evaluations.module';
 
 /**
  * Application Module
  *
  * Story 3.9: Added PdfModule for proposal detail PDF export
  * Story 5.2: Added CouncilModule for council assignment
+ * Story 5.3: Added EvaluationModule for evaluation form draft
  */
 
 @Module({
@@ -36,6 +38,7 @@ import { CouncilModule } from '../modules/council/council.module';
     AttachmentsModule,
     PdfModule,
     CouncilModule,
+    EvaluationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

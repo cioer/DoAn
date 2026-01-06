@@ -57,6 +57,7 @@ model User {
   ownedProposals    Proposal[]        @relation("ProposalOwner")
   secretaryCouncils Council[]        @relation("CouncilSecretary")
   councilMemberships CouncilMember[]
+  evaluations       Evaluation[]      @relation("EvaluationEvaluator")
 
   @@map("users")
   @@index([email])
@@ -192,6 +193,7 @@ model Proposal {
   template        FormTemplate? @relation(fields: [templateId], references: [id])
   workflowLogs    WorkflowLog[]
   attachments     Attachment[]
+  evaluations     Evaluation[]
 
   @@map("proposals")
   @@index([state])
@@ -386,6 +388,33 @@ model CouncilMember {
   @@index([councilId])
   @@index([userId])
   @@map("council_members")
+}
+
+// ============================================================
+// EVALUATIONS: Council Evaluation (Story 5.3)
+// ============================================================
+
+enum EvaluationState {
+  DRAFT      // Đang soạn thảo
+  SUBMITTED  // Đã nộp (sau khi finalize)
+}
+
+model Evaluation {
+  id          String         @id @default(uuid())
+  proposalId  String         @map("proposal_id")
+  proposal    Proposal       @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  evaluatorId String         @map("evaluator_id")
+  evaluator   User           @relation("EvaluationEvaluator", fields: [evaluatorId], references: [id])
+  state       EvaluationState @default(DRAFT)
+  formData    Json           @map("form_data")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  @@unique([proposalId, evaluatorId])
+  @@index([proposalId])
+  @@index([evaluatorId])
+  @@index([state])
+  @@map("evaluations")
 }
 
 // ============================================================
