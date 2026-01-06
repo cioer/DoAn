@@ -32,7 +32,7 @@
 # - SM typically creates next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
-generated: 2026-01-05
+generated: 2026-01-06
 project: DoAn
 project_key: NCKH-2026
 tracking_system: file-system
@@ -56,20 +56,20 @@ development_status:
   # ========================================
   # EPIC 2: Proposal Draft + Attachments + Form Registry (6 stories)
   # ========================================
-  epic-2: in-progress
+  epic-2: done
   2-1-form-registry-canonical-section-ids: done
   2-2-create-proposal-draft: done
   2-3-auto-save-draft: done
   2-4-upload-attachments-demo-cap-5mb-per-file: done
   2-5-attachment-crud-replace-delete: done
   2-6-proposal-master-record-structure: done
-  epic-2-retrospective: optional
+  epic-2-retrospective: done
 
   # ========================================
   # EPIC 3: Workflow Core + Queue + SLA (9 stories)
   # ========================================
-  epic-3: backlog
-  3-1-16-canonical-states-plus-transitions: backlog
+  epic-3: in-progress
+  3-1-16-canonical-states-plus-transitions: done
   3-2-holder-rules-holder-unit-plus-holder-user: backlog
   3-3-submit-proposal-draft-right-arrow-faculty-review: backlog
   3-4-workflow-logs-timeline-thread-view: backlog
@@ -161,6 +161,6 @@ development_status:
 # ========================================
 # Total Epics: 10
 # Total Stories: 57
-# Stories Done: 8
+# Stories Done: 14
 # Epics In Progress: 0
-# Epics Done: 1
+# Epics Done: 2
