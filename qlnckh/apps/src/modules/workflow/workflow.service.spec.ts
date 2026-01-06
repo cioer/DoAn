@@ -52,8 +52,10 @@ const mockAuditService = {
 };
 
 // Story 3.3: SlaService mock
+// Story 3.6: Added calculateDeadlineWithCutoff
 const mockSlaService = {
   calculateDeadline: jest.fn(),
+  calculateDeadlineWithCutoff: jest.fn(),
 };
 
 describe('WorkflowService', () => {
@@ -359,6 +361,10 @@ describe('WorkflowService', () => {
     beforeEach(() => {
       // Set up default mock returns for submit tests
       mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
+      // Story 3.6: Mock calculateDeadlineWithCutoff
+      mockSlaService.calculateDeadlineWithCutoff.mockResolvedValue(
+        new Date('2026-01-10T17:00:00'),
+      );
       mockPrisma.$transaction.mockImplementation(async (callback) => {
         // Simulate transaction - mockPrisma methods should return expected values
         mockPrisma.proposal.update.mockResolvedValue({
@@ -1100,8 +1106,8 @@ describe('WorkflowService', () => {
     it('AC3.2: should set slaDeadline to 3 business days + 17:00 cutoff', async () => {
       await service.submitProposal('proposal-1', mockContext);
 
-      // Verify SlaService.calculateDeadline was called with correct parameters
-      expect(mockSlaService.calculateDeadline).toHaveBeenCalledWith(
+      // Story 3.6: Now uses calculateDeadlineWithCutoff
+      expect(mockSlaService.calculateDeadlineWithCutoff).toHaveBeenCalledWith(
         expect.any(Date),
         3, // 3 business days
         17, // 17:00 cutoff
@@ -1137,8 +1143,8 @@ describe('WorkflowService', () => {
     it('AC3.4: should use correct cutoff hour (17:00) for deadline calculation', async () => {
       await service.submitProposal('proposal-1', mockContext);
 
-      // The third parameter to calculateDeadline should be 17 (17:00 cutoff)
-      const callArgs = mockSlaService.calculateDeadline.mock.calls[0];
+      // Story 3.6: The third parameter to calculateDeadlineWithCutoff should be 17 (17:00 cutoff)
+      const callArgs = mockSlaService.calculateDeadlineWithCutoff.mock.calls[0];
       expect(callArgs[2]).toBe(17);
     });
 
@@ -1158,10 +1164,11 @@ describe('WorkflowService', () => {
     it('should calculate deadline with proper parameters for weekend scenario', async () => {
       // Friday submit → deadline should skip weekend (Sat, Sun)
       // This documents the expected behavior: SlaService handles weekend skipping
+      // Story 3.6: Uses calculateDeadlineWithCutoff for proper cutoff time handling
       const friday = new Date('2026-01-03T17:00:00'); // Friday
       const expectedDeadline = new Date('2026-01-08T17:00:00'); // Wednesday after weekend
 
-      mockSlaService.calculateDeadline.mockResolvedValue(expectedDeadline);
+      mockSlaService.calculateDeadlineWithCutoff.mockResolvedValue(expectedDeadline);
       mockPrisma.$transaction.mockImplementation(async (callback) => {
         mockPrisma.proposal.update.mockResolvedValue({
           ...mockProposal,
@@ -1185,7 +1192,7 @@ describe('WorkflowService', () => {
 
       const result = await service.submitProposal('proposal-1', mockContext);
 
-      expect(mockSlaService.calculateDeadline).toHaveBeenCalledWith(
+      expect(mockSlaService.calculateDeadlineWithCutoff).toHaveBeenCalledWith(
         expect.any(Date),
         3, // 3 business days
         17, // 17:00 cutoff
@@ -1230,7 +1237,8 @@ describe('WorkflowService', () => {
       const submitDate = new Date('2026-01-06T10:00:00'); // 10 AM submit
       const expectedDeadline = new Date('2026-01-09T17:00:00'); // 3 business days + 17:00
 
-      mockSlaService.calculateDeadline.mockResolvedValue(expectedDeadline);
+      // Story 3.6: Uses calculateDeadlineWithCutoff for proper cutoff time handling
+      mockSlaService.calculateDeadlineWithCutoff.mockResolvedValue(expectedDeadline);
       mockPrisma.$transaction.mockImplementation(async (callback) => {
         mockPrisma.proposal.update.mockResolvedValue({
           ...mockProposal,
@@ -1254,8 +1262,8 @@ describe('WorkflowService', () => {
 
       const result = await service.submitProposal('proposal-1', mockContext);
 
-      // Verify the cutoff hour parameter
-      const deadlineArg = mockSlaService.calculateDeadline.mock.calls[0];
+      // Story 3.6: Verify the cutoff hour parameter
+      const deadlineArg = mockSlaService.calculateDeadlineWithCutoff.mock.calls[0];
       expect(deadlineArg[2]).toBe(17); // cutoff hour
       // Verify the result has correct time
       expect(result.proposal.slaDeadline?.getHours()).toBe(17);

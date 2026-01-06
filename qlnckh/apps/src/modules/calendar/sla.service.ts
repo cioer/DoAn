@@ -101,6 +101,61 @@ export class SlaService {
   }
 
   /**
+   * Calculate SLA deadline with cutoff time handling
+   * Story 3.6: If submit time is after cutoff hour, start counting from next business day
+   *
+   * Algorithm:
+   * 1. If startDate.getHours() >= cutoffHour → find next business day first
+   * 2. Add business days from the count start date
+   * 3. Set deadline time to cutoffHour
+   *
+   * Examples:
+   * - Friday 16:59 + 3 days = Tuesday 17:00 (Fri counts as day 1)
+   * - Friday 17:01 + 3 days = Wednesday 17:00 (Fri doesn't count, start from Mon)
+   *
+   * @param startDate - Start date for SLA calculation (usually proposal submission time)
+   * @param businessDays - Number of business days for SLA
+   * @param cutoffHour - Hour when business day ends (default 17 = 5 PM)
+   * @returns Deadline as Date with time set to cutoffHour
+   */
+  async calculateDeadlineWithCutoff(
+    startDate: string | Date,
+    businessDays: number,
+    cutoffHour = 17,
+  ): Promise<Date> {
+    const submitDate = new Date(startDate);
+    let countFromDate = new Date(submitDate);
+
+    // Check if submit time is at or after cutoff hour
+    // If submitted at or after cutoff, start counting from NEXT business day
+    if (submitDate.getHours() >= cutoffHour) {
+      // Find next business day to start counting
+      countFromDate = await this.nextBusinessDay(submitDate);
+      // Reset to midnight (start of business day)
+      countFromDate.setHours(0, 0, 0, 0);
+    }
+
+    let deadline: Date;
+    if (businessDays <= 0) {
+      // Special case: 0 business days
+      // Deadline is countFromDate (same day or next business day) at cutoff hour
+      deadline = new Date(countFromDate);
+    } else {
+      // Add (businessDays - 1) because addBusinessDays starts counting from NEXT day
+      // So if we want Monday to be day 1, we call addBusinessDays(Monday, 0)
+      deadline = await this.addBusinessDays(countFromDate, businessDays - 1);
+    }
+    // Set deadline time to cutoff hour
+    deadline.setHours(cutoffHour, 0, 0, 0);
+
+    this.logger.debug(
+      `calculateDeadlineWithCutoff(${startDate}, ${businessDays}bd, ${cutoffHour}h) = ${deadline.toISOString()}`,
+    );
+
+    return deadline;
+  }
+
+  /**
    * Calculate business days between two dates
    * Counts only business days (excludes weekends and holidays)
    *

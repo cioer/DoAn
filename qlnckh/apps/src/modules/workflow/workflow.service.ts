@@ -192,8 +192,9 @@ export class WorkflowService {
     const actorDisplayName = await this.getUserDisplayName(context.userId);
 
     // Story 3.3: Calculate SLA dates
+    // Story 3.6: Use calculateDeadlineWithCutoff for proper cutoff time handling
     const slaStartDate = new Date();
-    const slaDeadline = await this.slaService.calculateDeadline(
+    const slaDeadline = await this.slaService.calculateDeadlineWithCutoff(
       slaStartDate,
       3, // 3 business days for faculty review
       17, // 17:00 cutoff hour (5 PM)
