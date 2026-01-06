@@ -4,7 +4,46 @@ import { apiClient } from '../auth/auth';
  * Workflow State Transitions
  * Story 4.1: Faculty Approve Action
  * Story 4.2: Faculty Return Action (Reason Code + Sections)
+ * Story 4.3: CHANGES_REQUESTED Banner + Return Target Verification
  */
+
+/**
+ * Workflow Log Entry (Story 3.4, 4.2, 4.3)
+ */
+export interface WorkflowLog {
+  id: string;
+  proposalId: string;
+  action: string;
+  fromState: string;
+  toState: string;
+  actorId: string;
+  actorName: string;
+  returnTargetState?: string | null;
+  returnTargetHolderUnit?: string | null;
+  reasonCode?: string | null;
+  comment?: string | null;
+  timestamp: string;
+}
+
+/**
+ * Latest Return Response (Story 4.3)
+ */
+export interface LatestReturnResponse {
+  success: true;
+  data: WorkflowLog | null;
+}
+
+/**
+ * Get Workflow Logs Response (Story 3.4)
+ */
+export interface GetWorkflowLogsResponse {
+  success: true;
+  data: WorkflowLog[];
+  meta: {
+    proposalId: string;
+    total: number;
+  };
+}
 
 export interface ApproveFacultyReviewRequest {
   proposalId: string;
@@ -194,5 +233,33 @@ export const workflowApi = {
       },
     );
     return response.data.data;
+  },
+
+  /**
+   * Get Workflow Logs for a proposal (Story 3.4)
+   * Returns all workflow log entries sorted by timestamp DESC (newest first)
+   *
+   * @param proposalId - Proposal ID to get logs for
+   * @returns Workflow logs with metadata
+   */
+  getWorkflowLogs: async (proposalId: string): Promise<WorkflowLog[]> => {
+    const response = await apiClient.get<GetWorkflowLogsResponse>(
+      `/workflow/${proposalId}/logs`,
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Get Latest RETURN Log Entry (Story 4.3)
+   * Returns the most recent RETURN action workflow log for a proposal.
+   * Used by ChangesRequestedBanner to display return details.
+   *
+   * @param proposalId - Proposal ID to get latest return log for
+   * @returns Latest RETURN log entry or null if no return exists
+   */
+  getLatestReturn: async (proposalId: string): Promise<WorkflowLog | null> => {
+    const logs = await workflowApi.getWorkflowLogs(proposalId);
+    // Find first RETURN action log (logs are sorted DESC, newest first)
+    return logs.find((log) => log.action === 'RETURN') || null;
   },
 };
