@@ -77,7 +77,7 @@ development_status:
   3-6-sla-calculator-business-days-plus-cutoff-17-00: done
   3-7-sla-badge-component-icon-plus-text: backlog
   3-8-idempotency-keys-anti-double-submit-all-state-changing-actions: done
-  3-9-project-detail-pdf-export-wysiwyg-sla-10s-pre-generated-seeds: ready-for-dev
+  3-9-project-detail-pdf-export-wysiwyg-sla-10s-pre-generated-seeds: in-progress
   epic-3-retrospective: optional
 
   # ========================================

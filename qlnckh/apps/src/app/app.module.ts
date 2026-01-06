@@ -10,6 +10,13 @@ import { BusinessCalendarModule } from '../modules/calendar/calendar.module';
 import { FormTemplatesModule } from '../modules/form-templates/form-templates.module';
 import { ProposalsModule } from '../modules/proposals/proposals.module';
 import { AttachmentsModule } from '../modules/attachments/attachments.module';
+import { PdfModule } from '../modules/pdf/pdf.module';
+
+/**
+ * Application Module
+ *
+ * Story 3.9: Added PdfModule for proposal detail PDF export
+ */
 
 @Module({
   imports: [
@@ -25,6 +32,7 @@ import { AttachmentsModule } from '../modules/attachments/attachments.module';
     FormTemplatesModule,
     ProposalsModule,
     AttachmentsModule,
+    PdfModule,
   ],
   controllers: [AppController],
   providers: [AppService],
