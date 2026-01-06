@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { WorkflowService } from './workflow.service';
+import { WorkflowController } from './workflow.controller';
 import { PrismaService } from '../auth/prisma.service';
 import { AuditModule } from '../audit/audit.module';
 import { BusinessCalendarModule } from '../calendar/calendar.module';
@@ -10,14 +11,12 @@ import { BusinessCalendarModule } from '../calendar/calendar.module';
  * Handles state machine transitions for proposals.
  * Provides workflow service to other modules that need to transition states.
  *
- * This module does NOT export a controller - state transitions are triggered
- * through domain-specific endpoints (e.g., proposals/:id/submit) to maintain
- * clear semantic API boundaries.
- *
  * Story 3.3: Added BusinessCalendarModule import for SLA calculation
+ * Story 3.4: Added WorkflowController for workflow logs endpoint
  */
 @Module({
   imports: [AuditModule, BusinessCalendarModule],
+  controllers: [WorkflowController],
   providers: [WorkflowService, PrismaService],
   exports: [WorkflowService],
 })

@@ -5,3 +5,4 @@ export * from './helpers/state-machine.helper';
 export * from './helpers/holder-rules.helper';
 export * from './helpers/workflow.constants';
 export * from './dto/transition.dto';
+export * from './dto/workflow-log.dto';
