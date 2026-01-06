@@ -21,6 +21,7 @@ import {
   SPECIAL_UNIT_CODES,
   canRolePerformAction,
 } from './helpers/workflow.constants';
+import { SlaService } from '../calendar/sla.service';
 
 /**
  * Context for state transitions
@@ -72,6 +73,7 @@ export class WorkflowService {
   constructor(
     private prisma: PrismaService,
     private auditService: AuditService,
+    private slaService: SlaService,
   ) {}
 
   /**
@@ -189,15 +191,25 @@ export class WorkflowService {
     // Get user display name for audit log (M4 fix)
     const actorDisplayName = await this.getUserDisplayName(context.userId);
 
+    // Story 3.3: Calculate SLA dates
+    const slaStartDate = new Date();
+    const slaDeadline = await this.slaService.calculateDeadline(
+      slaStartDate,
+      3, // 3 business days for faculty review
+      17, // 17:00 cutoff hour (5 PM)
+    );
+
     // Execute transition in transaction
     const result = await this.prisma.$transaction(async (tx) => {
-      // Update proposal state and holder
+      // Update proposal state, holder, and SLA dates
       const updated = await tx.proposal.update({
         where: { id: proposalId },
         data: {
           state: toState,
           holderUnit: holder.holderUnit,
           holderUser: holder.holderUser,
+          slaStartDate, // Story 3.3: SLA start date
+          slaDeadline, // Story 3.3: SLA deadline
         },
       });
 
@@ -226,6 +238,8 @@ export class WorkflowService {
           fromState: proposal.state,
           toState,
           holderUnit: holder.holderUnit,
+          slaStartDate: slaStartDate.toISOString(),
+          slaDeadline: slaDeadline.toISOString(),
         },
         ip: context.ip,
         userAgent: context.userAgent,

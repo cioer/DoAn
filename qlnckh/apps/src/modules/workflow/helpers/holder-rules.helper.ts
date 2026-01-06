@@ -1,4 +1,4 @@
-import { ProjectState, Proposal } from '@prisma/client';
+import { ProjectState, Proposal, Prisma } from '@prisma/client';
 import { SPECIAL_UNIT_CODES } from './workflow.constants';
 
 /**
@@ -178,7 +178,7 @@ export function canUserActOnProposal(
   // Faculty/unit assignment
   if (holderUnit) {
     // PHONG_KHCN is a special unit code
-    if (holderUnit === 'PHONG_KHCN') {
+    if (holderUnit === SPECIAL_UNIT_CODES.PHONG_KHCN) {
       return userRole === 'PHONG_KHCN';
     }
 
@@ -215,4 +215,100 @@ export function getHolderDisplayName(
   }
 
   return 'Chưa phân công';
+}
+
+/**
+ * Terminal states that should NOT appear in queue filters
+ * These states are complete/cancelled and don't need action
+ */
+const TERMINAL_QUEUE_STATES: ProjectState[] = [
+  ProjectState.COMPLETED,
+  ProjectState.CANCELLED,
+  ProjectState.REJECTED,
+  ProjectState.WITHDRAWN,
+];
+
+/**
+ * Check if a state is terminal for queue purposes
+ *
+ * @param state - Proposal state to check
+ * @returns true if state is terminal (not in queue)
+ */
+export function isTerminalQueueState(state: ProjectState): boolean {
+  return TERMINAL_QUEUE_STATES.includes(state);
+}
+
+/**
+ * Get Prisma where input for "Đang chờ tôi" (Waiting for me) queue filter
+ *
+ * Returns proposals where:
+ * - holderUnit matches user's faculty_id, OR
+ * - holderUnit = "PHONG_KHCN" and user has PHONG_KHCN role, OR
+ * - holderUser matches user.id
+ * - AND state is NOT terminal (COMPLETED, CANCELLED, REJECTED, WITHDRAWN)
+ *
+ * @param userId - User ID to match against holderUser
+ * @param userFacultyId - User's faculty ID to match against holderUnit
+ * @param userRole - User's role (for PHONG_KHCN special handling)
+ * @returns Prisma.WhereInput for querying proposals in user's queue
+ */
+export function getMyQueueProposalsFilter(
+  userId: string,
+  userFacultyId: string | null,
+  userRole: string,
+): Prisma.ProposalWhereInput {
+  const isPhongKHCN = userRole === 'PHONG_KHCN';
+
+  return {
+    OR: [
+      // Match by holderUser (specific user assignment)
+      { holderUser: userId },
+      // Match by holderUnit = user's faculty
+      { holderUnit: userFacultyId },
+      // Match by PHONG_KHCN special unit (only if user has role)
+      ...(isPhongKHCN
+        ? [{ holderUnit: SPECIAL_UNIT_CODES.PHONG_KHCN }]
+        : []),
+    ],
+    // Exclude terminal states from queue
+    state: { notIn: TERMINAL_QUEUE_STATES },
+  };
+}
+
+/**
+ * Get Prisma where input for "Của tôi" (My Proposals) queue filter
+ *
+ * Returns proposals where:
+ * - ownerId = user.id
+ * - Useful for PROJECT_OWNER to see all their proposals
+ *
+ * @param userId - User ID (owner)
+ * @returns Prisma.WhereInput for querying user's proposals
+ */
+export function getMyProposalsFilter(userId: string): Prisma.ProposalWhereInput {
+  return { ownerId: userId };
+}
+
+/**
+ * Get Prisma where input for "Quá hạn" (Overdue) queue filter
+ *
+ * Returns proposals where:
+ * - sla_deadline < now()
+ * - state is NOT terminal (COMPLETED, CANCELLED, PAUSED)
+ *
+ * @param currentDate - Current date for comparison (defaults to new Date())
+ * @returns Prisma.WhereInput for querying overdue proposals
+ */
+export function getOverdueProposalsFilter(
+  currentDate: Date = new Date(),
+): Prisma.ProposalWhereInput {
+  return {
+    slaDeadline: { lt: currentDate },
+    state: {
+      notIn: [
+        ...TERMINAL_QUEUE_STATES,
+        ProjectState.PAUSED, // PAUSED also excluded from overdue
+      ],
+    },
+  };
 }

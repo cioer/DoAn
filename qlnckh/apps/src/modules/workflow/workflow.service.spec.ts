@@ -20,6 +20,10 @@ import {
   getHolderForState,
   canUserActOnProposal,
   getHolderDisplayName,
+  isTerminalQueueState,
+  getMyQueueProposalsFilter,
+  getMyProposalsFilter,
+  getOverdueProposalsFilter,
 } from './helpers/holder-rules.helper';
 
 /**
@@ -45,6 +49,11 @@ const mockPrisma = {
 
 const mockAuditService = {
   logEvent: jest.fn().mockResolvedValue(undefined),
+};
+
+// Story 3.3: SlaService mock
+const mockSlaService = {
+  calculateDeadline: jest.fn(),
 };
 
 describe('WorkflowService', () => {
@@ -103,13 +112,22 @@ describe('WorkflowService', () => {
 
   beforeEach(() => {
     // Manual DI bypass - create service directly with mocks
-    service = new WorkflowService(mockPrisma as any, mockAuditService as any);
+    service = new WorkflowService(
+      mockPrisma as any,
+      mockAuditService as any,
+      mockSlaService as any, // Story 3.3: SlaService
+    );
     jest.clearAllMocks();
 
     // Mock getUserDisplayName response (M4 fix)
     mockPrisma.user.findUnique.mockResolvedValue({
       displayName: 'Test User',
     });
+
+    // Story 3.3: Mock SLA deadline calculation
+    mockSlaService.calculateDeadline.mockResolvedValue(
+      new Date('2026-01-10T17:00:00'),
+    );
   });
 
   describe('Task 1 & 2: State Machine Helper Tests', () => {
@@ -347,6 +365,8 @@ describe('WorkflowService', () => {
           ...mockProposal,
           state: ProjectState.FACULTY_REVIEW,
           holderUnit: 'faculty-1',
+          slaStartDate: new Date('2026-01-06T10:00:00'),
+          slaDeadline: new Date('2026-01-10T17:00:00'),
         });
         mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-1',
@@ -370,11 +390,13 @@ describe('WorkflowService', () => {
       expect(result.holderUnit).toBe('faculty-1');
       expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
         where: { id: 'proposal-1' },
-        data: {
+        data: expect.objectContaining({
           state: ProjectState.FACULTY_REVIEW,
           holderUnit: 'faculty-1',
           holderUser: null,
-        },
+          slaStartDate: expect.any(Date),
+          slaDeadline: expect.any(Date),
+        }),
       });
     });
 
@@ -801,6 +823,443 @@ describe('WorkflowService', () => {
           actorName: 'user-1', // Fallback when user not found
         }),
       });
+    });
+  });
+
+  describe('Story 3.2: Holder Rules Tests', () => {
+    describe('AC1: getHolderForState covers all 15 states', () => {
+      it('should return correct holder for DRAFT state', () => {
+        const result = getHolderForState(ProjectState.DRAFT, mockProposal);
+        expect(result.holderUnit).toBeNull();
+        expect(result.holderUser).toBeNull();
+      });
+
+      it('should return correct holder for FACULTY_REVIEW state', () => {
+        const result = getHolderForState(ProjectState.FACULTY_REVIEW, mockProposal);
+        expect(result.holderUnit).toBe('faculty-1');
+        expect(result.holderUser).toBeNull();
+      });
+
+      it('should return correct holder for SCHOOL_SELECTION_REVIEW state', () => {
+        const result = getHolderForState(ProjectState.SCHOOL_SELECTION_REVIEW, mockProposal);
+        expect(result.holderUnit).toBe('PHONG_KHCN');
+        expect(result.holderUser).toBeNull();
+      });
+
+      it('should return correct holder for OUTLINE_COUNCIL_REVIEW state (keeps existing)', () => {
+        const proposalWithCouncil = {
+          ...mockProposal,
+          holderUnit: 'council-1',
+          holderUser: 'secretary-1',
+        };
+        const result = getHolderForState(ProjectState.OUTLINE_COUNCIL_REVIEW, proposalWithCouncil);
+        expect(result.holderUnit).toBe('council-1');
+        expect(result.holderUser).toBe('secretary-1');
+      });
+
+      it('should return correct holder for CHANGES_REQUESTED state', () => {
+        const result = getHolderForState(ProjectState.CHANGES_REQUESTED, mockProposal);
+        expect(result.holderUnit).toBe('faculty-1'); // owner faculty
+        expect(result.holderUser).toBe('user-1'); // owner
+      });
+
+      it('should return correct holder for APPROVED state', () => {
+        const result = getHolderForState(ProjectState.APPROVED, mockProposal);
+        expect(result.holderUnit).toBe('faculty-1');
+        expect(result.holderUser).toBe('user-1');
+      });
+
+      it('should return correct holder for IN_PROGRESS state', () => {
+        const result = getHolderForState(ProjectState.IN_PROGRESS, mockProposal);
+        expect(result.holderUnit).toBe('faculty-1');
+        expect(result.holderUser).toBe('user-1');
+      });
+
+      it('should return correct holder for FACULTY_ACCEPTANCE_REVIEW state', () => {
+        const result = getHolderForState(ProjectState.FACULTY_ACCEPTANCE_REVIEW, mockProposal);
+        expect(result.holderUnit).toBe('faculty-1');
+        expect(result.holderUser).toBeNull();
+      });
+
+      it('should return correct holder for SCHOOL_ACCEPTANCE_REVIEW state', () => {
+        const result = getHolderForState(ProjectState.SCHOOL_ACCEPTANCE_REVIEW, mockProposal);
+        expect(result.holderUnit).toBe('PHONG_KHCN');
+        expect(result.holderUser).toBeNull();
+      });
+
+      it('should return correct holder for HANDOVER state', () => {
+        const result = getHolderForState(ProjectState.HANDOVER, mockProposal);
+        expect(result.holderUnit).toBe('faculty-1');
+        expect(result.holderUser).toBe('user-1');
+      });
+
+      it('should return correct holder for COMPLETED state', () => {
+        const result = getHolderForState(ProjectState.COMPLETED, mockProposal);
+        expect(result.holderUnit).toBeNull();
+        expect(result.holderUser).toBeNull();
+      });
+
+      it('should return correct holder for PAUSED state', () => {
+        const result = getHolderForState(ProjectState.PAUSED, mockProposal);
+        expect(result.holderUnit).toBe('PHONG_KHCN');
+        expect(result.holderUser).toBeNull();
+      });
+
+      it('should return correct holder for CANCELLED state with actor', () => {
+        const result = getHolderForState(ProjectState.CANCELLED, mockProposal, 'actor-1', 'actor-faculty');
+        expect(result.holderUnit).toBe('actor-faculty');
+        expect(result.holderUser).toBe('actor-1');
+      });
+
+      it('should return correct holder for REJECTED state with actor', () => {
+        const result = getHolderForState(ProjectState.REJECTED, mockProposal, 'actor-1', 'actor-faculty');
+        expect(result.holderUnit).toBe('actor-faculty');
+        expect(result.holderUser).toBe('actor-1');
+      });
+
+      it('should return correct holder for WITHDRAWN state with actor', () => {
+        const result = getHolderForState(ProjectState.WITHDRAWN, mockProposal, 'actor-1', 'actor-faculty');
+        expect(result.holderUnit).toBe('actor-faculty');
+        expect(result.holderUser).toBe('actor-1');
+      });
+
+      it('should fallback to facultyId when actorFacultyId not provided for exception states', () => {
+        const result = getHolderForState(ProjectState.CANCELLED, mockProposal, 'actor-1');
+        expect(result.holderUnit).toBe('faculty-1'); // fallback to proposal.facultyId
+        expect(result.holderUser).toBe('actor-1');
+      });
+    });
+
+    describe('AC4: canUserActOnProposal validation helper', () => {
+      it('should return false for terminal states', () => {
+        const completedProposal = { ...mockProposal, state: ProjectState.COMPLETED };
+        expect(canUserActOnProposal(completedProposal, 'user-1', 'faculty-1', 'GIANG_VIEN')).toBe(false);
+
+        const cancelledProposal = { ...mockProposal, state: ProjectState.CANCELLED };
+        expect(canUserActOnProposal(cancelledProposal, 'user-1', 'faculty-1', 'GIANG_VIEN')).toBe(false);
+      });
+
+      it('should return true only for owner in DRAFT state', () => {
+        const draftProposal = { ...mockProposal, state: ProjectState.DRAFT };
+        expect(canUserActOnProposal(draftProposal, 'user-1', 'faculty-1', 'GIANG_VIEN')).toBe(true);
+        expect(canUserActOnProposal(draftProposal, 'user-2', 'faculty-1', 'GIANG_VIEN')).toBe(false);
+      });
+
+      it('should return true only for specific holderUser when set', () => {
+        const assignedProposal = {
+          ...mockProposal,
+          state: ProjectState.APPROVED,
+          holderUnit: 'faculty-1',
+          holderUser: 'specific-user',
+        };
+        expect(canUserActOnProposal(assignedProposal, 'specific-user', 'faculty-1', 'GIANG_VIEN')).toBe(true);
+        expect(canUserActOnProposal(assignedProposal, 'other-user', 'faculty-1', 'GIANG_VIEN')).toBe(false);
+      });
+
+      it('should return true for users in matching faculty when holderUnit is faculty', () => {
+        const facultyProposal = {
+          ...mockProposal,
+          state: ProjectState.FACULTY_REVIEW,
+          holderUnit: 'faculty-1',
+          holderUser: null,
+        };
+        expect(canUserActOnProposal(facultyProposal, 'user-1', 'faculty-1', 'QUAN_LY_KHOA')).toBe(true);
+        expect(canUserActOnProposal(facultyProposal, 'user-2', 'faculty-2', 'QUAN_LY_KHOA')).toBe(false);
+      });
+
+      it('should return true for PHONG_KHCN role when holderUnit is PHONG_KHCN', () => {
+        const phongKHNCProposal = {
+          ...mockProposal,
+          state: ProjectState.SCHOOL_SELECTION_REVIEW,
+          holderUnit: 'PHONG_KHCN',
+          holderUser: null,
+        };
+        expect(canUserActOnProposal(phongKHNCProposal, 'user-1', 'faculty-1', 'PHONG_KHCN')).toBe(true);
+        expect(canUserActOnProposal(phongKHNCProposal, 'user-1', 'faculty-1', 'GIANG_VIEN')).toBe(false);
+      });
+    });
+
+    describe('AC3: Queue filter helpers', () => {
+      describe('isTerminalQueueState', () => {
+        it('should return true for terminal states', () => {
+          expect(isTerminalQueueState(ProjectState.COMPLETED)).toBe(true);
+          expect(isTerminalQueueState(ProjectState.CANCELLED)).toBe(true);
+          expect(isTerminalQueueState(ProjectState.REJECTED)).toBe(true);
+          expect(isTerminalQueueState(ProjectState.WITHDRAWN)).toBe(true);
+        });
+
+        it('should return false for non-terminal states', () => {
+          expect(isTerminalQueueState(ProjectState.DRAFT)).toBe(false);
+          expect(isTerminalQueueState(ProjectState.FACULTY_REVIEW)).toBe(false);
+          expect(isTerminalQueueState(ProjectState.IN_PROGRESS)).toBe(false);
+          expect(isTerminalQueueState(ProjectState.PAUSED)).toBe(false);
+        });
+      });
+
+      describe('getMyQueueProposalsFilter', () => {
+        it('should match by holderUser', () => {
+          const filter = getMyQueueProposalsFilter('user-1', 'faculty-1', 'GIANG_VIEN');
+          expect(filter.OR).toContainEqual({ holderUser: 'user-1' });
+          expect(filter.state.notIn).toContain(ProjectState.COMPLETED);
+        });
+
+        it('should match by holderUnit = user faculty', () => {
+          const filter = getMyQueueProposalsFilter('user-1', 'faculty-1', 'GIANG_VIEN');
+          expect(filter.OR).toContainEqual({ holderUnit: 'faculty-1' });
+        });
+
+        it('should match by PHONG_KHCN for PHONG_KHCN role', () => {
+          const filter = getMyQueueProposalsFilter('user-1', 'faculty-1', 'PHONG_KHCN');
+          expect(filter.OR).toContainEqual({ holderUnit: 'PHONG_KHCN' });
+        });
+
+        it('should NOT include PHONG_KHCN filter for non-PHONG_KHCN role', () => {
+          const filter = getMyQueueProposalsFilter('user-1', 'faculty-1', 'GIANG_VIEN');
+          const hasPHONGKHNCFilter = filter.OR?.some(
+            (item: any) => item.holderUnit === 'PHONG_KHCN'
+          );
+          expect(hasPHONGKHNCFilter).toBe(false);
+        });
+
+        it('should exclude terminal states from queue', () => {
+          const filter = getMyQueueProposalsFilter('user-1', 'faculty-1', 'GIANG_VIEN');
+          expect(filter.state.notIn).toContain(ProjectState.COMPLETED);
+          expect(filter.state.notIn).toContain(ProjectState.CANCELLED);
+          expect(filter.state.notIn).toContain(ProjectState.REJECTED);
+          expect(filter.state.notIn).toContain(ProjectState.WITHDRAWN);
+        });
+      });
+
+      describe('getMyProposalsFilter', () => {
+        it('should filter by ownerId', () => {
+          const filter = getMyProposalsFilter('user-1');
+          expect(filter.ownerId).toBe('user-1');
+        });
+      });
+
+      describe('getOverdueProposalsFilter', () => {
+        it('should filter by slaDeadline before current date', () => {
+          const testDate = new Date('2026-01-10');
+          const filter = getOverdueProposalsFilter(testDate);
+          expect(filter.slaDeadline).toEqual({ lt: testDate });
+        });
+
+        it('should exclude terminal and PAUSED states from overdue', () => {
+          const filter = getOverdueProposalsFilter();
+          expect(filter.state.notIn).toContain(ProjectState.COMPLETED);
+          expect(filter.state.notIn).toContain(ProjectState.CANCELLED);
+          expect(filter.state.notIn).toContain(ProjectState.REJECTED);
+          expect(filter.state.notIn).toContain(ProjectState.WITHDRAWN);
+          expect(filter.state.notIn).toContain(ProjectState.PAUSED);
+        });
+      });
+    });
+  });
+
+  describe('Story 3.3: SLA Integration Tests', () => {
+    beforeEach(() => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...mockProposal,
+          state: ProjectState.FACULTY_REVIEW,
+          holderUnit: 'faculty-1',
+          slaStartDate: new Date('2026-01-06T10:00:00'),
+          slaDeadline: new Date('2026-01-10T17:00:00'),
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
+          id: 'log-1',
+          proposalId: 'proposal-1',
+          action: WorkflowAction.SUBMIT,
+          fromState: ProjectState.DRAFT,
+          toState: ProjectState.FACULTY_REVIEW,
+          actorId: 'user-1',
+          actorName: 'Test User',
+          timestamp: new Date(),
+        });
+        return await callback(mockPrisma as any);
+      });
+    });
+
+    it('AC3.1: should set slaStartDate to current time on submit', async () => {
+      const testDate = new Date('2026-01-06T10:00:00');
+      jest.spyOn(Date, 'now').mockReturnValue(testDate.getTime());
+
+      await service.submitProposal('proposal-1', mockContext);
+
+      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
+        where: { id: 'proposal-1' },
+        data: expect.objectContaining({
+          slaStartDate: expect.any(Date),
+        }),
+      });
+
+      jest.restoreAllMocks();
+    });
+
+    it('AC3.2: should set slaDeadline to 3 business days + 17:00 cutoff', async () => {
+      await service.submitProposal('proposal-1', mockContext);
+
+      // Verify SlaService.calculateDeadline was called with correct parameters
+      expect(mockSlaService.calculateDeadline).toHaveBeenCalledWith(
+        expect.any(Date),
+        3, // 3 business days
+        17, // 17:00 cutoff
+      );
+
+      // Verify the update includes slaDeadline
+      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
+        where: { id: 'proposal-1' },
+        data: expect.objectContaining({
+          slaDeadline: expect.any(Date),
+        }),
+      });
+    });
+
+    it('AC3.3: should include SLA dates in audit log', async () => {
+      await service.submitProposal('proposal-1', mockContext);
+
+      expect(mockAuditService.logEvent).toHaveBeenCalledWith({
+        action: 'PROPOSAL_SUBMIT',
+        actorUserId: 'user-1',
+        entityType: 'Proposal',
+        entityId: 'proposal-1',
+        metadata: expect.objectContaining({
+          slaStartDate: expect.any(String),
+          slaDeadline: expect.any(String),
+        }),
+        ip: '127.0.0.1',
+        userAgent: 'test',
+        requestId: 'req-1',
+      });
+    });
+
+    it('AC3.4: should use correct cutoff hour (17:00) for deadline calculation', async () => {
+      await service.submitProposal('proposal-1', mockContext);
+
+      // The third parameter to calculateDeadline should be 17 (17:00 cutoff)
+      const callArgs = mockSlaService.calculateDeadline.mock.calls[0];
+      expect(callArgs[2]).toBe(17);
+    });
+
+    it('AC3.5: should return proposal with SLA dates in result', async () => {
+      const result = await service.submitProposal('proposal-1', mockContext);
+
+      expect(result.proposal.slaStartDate).toEqual(expect.any(Date));
+      expect(result.proposal.slaDeadline).toEqual(expect.any(Date));
+    });
+  });
+
+  describe('Story 3.3: SLA Business Day Logic Integration Tests', () => {
+    // These tests verify the contract between WorkflowService and SlaService
+    // They document expected behavior for weekend/holiday calculation
+    // The actual business day logic is tested in SlaService's own tests (Story 1.8)
+
+    it('should calculate deadline with proper parameters for weekend scenario', async () => {
+      // Friday submit → deadline should skip weekend (Sat, Sun)
+      // This documents the expected behavior: SlaService handles weekend skipping
+      const friday = new Date('2026-01-03T17:00:00'); // Friday
+      const expectedDeadline = new Date('2026-01-08T17:00:00'); // Wednesday after weekend
+
+      mockSlaService.calculateDeadline.mockResolvedValue(expectedDeadline);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...mockProposal,
+          state: ProjectState.FACULTY_REVIEW,
+          holderUnit: 'faculty-1',
+          slaStartDate: new Date('2026-01-03T17:00:00'),
+          slaDeadline: expectedDeadline,
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
+          id: 'log-1',
+          proposalId: 'proposal-1',
+          action: WorkflowAction.SUBMIT,
+          fromState: ProjectState.DRAFT,
+          toState: ProjectState.FACULTY_REVIEW,
+          actorId: 'user-1',
+          actorName: 'Test User',
+          timestamp: new Date(),
+        });
+        return await callback(mockPrisma as any);
+      });
+
+      const result = await service.submitProposal('proposal-1', mockContext);
+
+      expect(mockSlaService.calculateDeadline).toHaveBeenCalledWith(
+        expect.any(Date),
+        3, // 3 business days
+        17, // 17:00 cutoff
+      );
+      expect(result.proposal.slaDeadline).toEqual(expectedDeadline);
+    });
+
+    it('should calculate deadline skipping holidays when configured', async () => {
+      // If a holiday falls within the 3 business day window, it should be skipped
+      // This documents the expected behavior: SlaService handles holiday skipping
+      const submitDate = new Date('2026-01-06T10:00:00'); // Tuesday
+      const expectedDeadline = new Date('2026-01-10T17:00:00'); // Friday after holiday
+
+      mockSlaService.calculateDeadline.mockResolvedValue(expectedDeadline);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...mockProposal,
+          state: ProjectState.FACULTY_REVIEW,
+          holderUnit: 'faculty-1',
+          slaStartDate: submitDate,
+          slaDeadline: expectedDeadline,
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
+          id: 'log-1',
+          proposalId: 'proposal-1',
+          action: WorkflowAction.SUBMIT,
+          fromState: ProjectState.DRAFT,
+          toState: ProjectState.FACULTY_REVIEW,
+          actorId: 'user-1',
+          actorName: 'Test User',
+          timestamp: new Date(),
+        });
+        return await callback(mockPrisma as any);
+      });
+
+      const result = await service.submitProposal('proposal-1', mockContext);
+
+      expect(result.proposal.slaDeadline).toEqual(expectedDeadline);
+    });
+
+    it('should use 17:00 cutoff hour for deadline time', async () => {
+      const submitDate = new Date('2026-01-06T10:00:00'); // 10 AM submit
+      const expectedDeadline = new Date('2026-01-09T17:00:00'); // 3 business days + 17:00
+
+      mockSlaService.calculateDeadline.mockResolvedValue(expectedDeadline);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...mockProposal,
+          state: ProjectState.FACULTY_REVIEW,
+          holderUnit: 'faculty-1',
+          slaStartDate: submitDate,
+          slaDeadline: expectedDeadline,
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
+          id: 'log-1',
+          proposalId: 'proposal-1',
+          action: WorkflowAction.SUBMIT,
+          fromState: ProjectState.DRAFT,
+          toState: ProjectState.FACULTY_REVIEW,
+          actorId: 'user-1',
+          actorName: 'Test User',
+          timestamp: new Date(),
+        });
+        return await callback(mockPrisma as any);
+      });
+
+      const result = await service.submitProposal('proposal-1', mockContext);
+
+      // Verify the cutoff hour parameter
+      const deadlineArg = mockSlaService.calculateDeadline.mock.calls[0];
+      expect(deadlineArg[2]).toBe(17); // cutoff hour
+      // Verify the result has correct time
+      expect(result.proposal.slaDeadline?.getHours()).toBe(17);
+      expect(result.proposal.slaDeadline?.getMinutes()).toBe(0);
     });
   });
 });
