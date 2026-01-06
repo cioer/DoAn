@@ -24,7 +24,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException({
         success: false,
         error: {
-          code: 'INVALID_TOKEN',
+          error_code: 'INVALID_TOKEN',
           message: 'Token không hợp lệ',
         },
       });

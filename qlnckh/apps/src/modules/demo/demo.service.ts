@@ -116,7 +116,7 @@ export class DemoService {
       throw new ForbiddenException({
         success: false,
         error: {
-          code: 'DEMO_MODE_DISABLED',
+          error_code: 'DEMO_MODE_DISABLED',
           message: 'Chế độ demo không được bật',
         },
       });
@@ -127,7 +127,7 @@ export class DemoService {
       throw new ForbiddenException({
         success: false,
         error: {
-          code: 'INVALID_DEMO_PERSONA',
+          error_code: 'INVALID_DEMO_PERSONA',
           message: 'Người dùng không phải là demo persona hợp lệ',
         },
       });
@@ -151,7 +151,7 @@ export class DemoService {
       throw new NotFoundException({
         success: false,
         error: {
-          code: 'PERSONA_NOT_FOUND',
+          error_code: 'PERSONA_NOT_FOUND',
           message: 'Không tìm thấy persona trong hệ thống',
         },
       });
@@ -166,7 +166,7 @@ export class DemoService {
       throw new NotFoundException({
         success: false,
         error: {
-          code: 'USER_NOT_FOUND',
+          error_code: 'USER_NOT_FOUND',
           message: 'Không tìm thấy người dùng',
         },
       });
@@ -370,7 +370,7 @@ export class DemoService {
       throw new NotFoundException({
         success: false,
         error: {
-          code: 'NOT_FOUND',
+          error_code: 'NOT_FOUND',
           message: 'Endpoint không tồn tại',
         },
       });

@@ -146,7 +146,7 @@ export class AuthController {
       res.status(HttpStatus.UNAUTHORIZED).json({
         success: false,
         error: {
-          code: 'UNAUTHORIZED',
+          error_code: 'UNAUTHORIZED',
           message: 'Chưa đăng nhập',
         },
       });

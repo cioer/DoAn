@@ -81,7 +81,7 @@ export class DemoController {
       res.status(HttpStatus.UNAUTHORIZED).json({
         success: false,
         error: {
-          code: 'UNAUTHORIZED',
+          error_code: 'UNAUTHORIZED',
           message: 'Chưa đăng nhập',
         },
       });
@@ -156,7 +156,7 @@ export class DemoController {
       res.status(HttpStatus.UNAUTHORIZED).json({
         success: false,
         error: {
-          code: 'UNAUTHORIZED',
+          error_code: 'UNAUTHORIZED',
           message: 'Chưa đăng nhập',
         },
       });
@@ -169,7 +169,7 @@ export class DemoController {
       res.status(HttpStatus.FORBIDDEN).json({
         success: false,
         error: {
-          code: 'FORBIDDEN',
+          error_code: 'FORBIDDEN',
           message: 'Chức năng chỉ available ở demo mode',
         },
       });
@@ -181,7 +181,7 @@ export class DemoController {
       res.status(HttpStatus.BAD_REQUEST).json({
         success: false,
         error: {
-          code: 'NOT_CONFIRMED',
+          error_code: 'NOT_CONFIRMED',
           message: 'Vui lòng xác nhận reset demo',
         },
       });

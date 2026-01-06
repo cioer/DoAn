@@ -30,7 +30,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
       throw new UnauthorizedException({
         success: false,
         error: {
-          code: 'REFRESH_TOKEN_REVOKED',
+          error_code: 'REFRESH_TOKEN_REVOKED',
           message: 'Vui lòng đăng nhập lại',
         },
       });

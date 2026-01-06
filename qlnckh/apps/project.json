@@ -4,6 +4,21 @@
   "sourceRoot": "apps/src",
   "projectType": "application",
   "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run --configFile=vitest.config.ts",
+        "cwd": ".."
+      },
+      "configurations": {
+        "watch": {
+          "command": "vitest --configFile=vitest.config.ts"
+        },
+        "coverage": {
+          "command": "vitest run --coverage --configFile=vitest.config.ts"
+        }
+      }
+    },
     "build": {
       "executor": "nx:run-commands",
       "options": {

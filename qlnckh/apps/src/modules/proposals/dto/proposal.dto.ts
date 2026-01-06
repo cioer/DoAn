@@ -119,6 +119,26 @@ export class UpdateProposalDto {
 }
 
 /**
+ * Auto Save Proposal DTO
+ * Used for auto-saving partial form data (Story 2.3)
+ */
+export class AutoSaveProposalDto {
+  @ApiProperty({
+    description: 'Partial form data to auto-save',
+    type: Object,
+  })
+  @IsObject()
+  formData: Record<string, unknown>;
+
+  @ApiProperty({
+    description: 'Expected version for optimistic locking',
+    required: false,
+  })
+  @IsOptional()
+  expectedUpdatedAt?: Date;
+}
+
+/**
  * Proposal List Query DTO
  * Used for filtering and pagination
  */

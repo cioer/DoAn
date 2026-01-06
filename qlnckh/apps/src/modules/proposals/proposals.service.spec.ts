@@ -1,5 +1,10 @@
 import { ProposalsService } from './proposals.service';
-import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { ProjectState } from '@prisma/client';
 
 // Manual mock - bypass DI
@@ -498,6 +503,212 @@ describe('ProposalsService', () => {
 
       await expect(service.remove('notexist', mockUser.id))
         .rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('autoSave (Story 2.3)', () => {
+    const baseFormData = {
+      SEC_INFO_GENERAL: {
+        title: 'Old Title',
+        objective: 'Old Objective',
+      },
+      SEC_BUDGET: {
+        total: 50000000,
+      },
+    };
+
+    const partialFormData = {
+      SEC_INFO_GENERAL: {
+        title: 'New Title',
+      },
+    };
+
+    const mergedFormData = {
+      SEC_INFO_GENERAL: {
+        title: 'New Title',
+        objective: 'Old Objective',
+      },
+      SEC_BUDGET: {
+        total: 50000000,
+      },
+    };
+
+    const proposalWithFormData = {
+      ...mockProposal,
+      formData: baseFormData,
+      updatedAt: new Date('2026-01-06T10:00:00Z'),
+    };
+
+    it('should deep merge form data correctly', async () => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(proposalWithFormData);
+      mockPrisma.proposal.update.mockResolvedValue({
+        ...proposalWithFormData,
+        formData: mergedFormData,
+      });
+
+      const result = await service.autoSave(
+        'proposal-123',
+        { formData: partialFormData },
+        { userId: mockUser.id },
+      );
+
+      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
+        where: { id: 'proposal-123' },
+        data: {
+          formData: mergedFormData,
+        },
+        include: expect.anything(),
+      });
+    });
+
+    it('should reject if proposal is not in DRAFT state', async () => {
+      const submittedProposal = {
+        ...proposalWithFormData,
+        state: ProjectState.FACULTY_REVIEW,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(submittedProposal);
+
+      await expect(
+        service.autoSave('proposal-123', { formData: partialFormData }, { userId: mockUser.id }),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.autoSave('proposal-123', { formData: partialFormData }, { userId: mockUser.id }),
+      ).rejects.toThrow(
+        expect.objectContaining({
+          response: expect.objectContaining({
+            error: expect.objectContaining({
+              code: 'PROPOSAL_NOT_DRAFT',
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('should throw CONFLICT if updatedAt mismatch (optimistic locking)', async () => {
+      const expectedUpdatedAt = new Date('2026-01-06T09:00:00Z'); // Older than proposal
+      const proposalWithNewerUpdate = {
+        ...proposalWithFormData,
+        updatedAt: new Date('2026-01-06T10:00:00Z'), // Newer
+      };
+
+      mockPrisma.proposal.findUnique.mockResolvedValue(proposalWithNewerUpdate);
+
+      await expect(
+        service.autoSave(
+          'proposal-123',
+          { formData: partialFormData, expectedUpdatedAt },
+          { userId: mockUser.id },
+        ),
+      ).rejects.toThrow(ConflictException);
+      await expect(
+        service.autoSave(
+          'proposal-123',
+          { formData: partialFormData, expectedUpdatedAt },
+          { userId: mockUser.id },
+        ),
+      ).rejects.toThrow(
+        expect.objectContaining({
+          response: expect.objectContaining({
+            error: expect.objectContaining({
+              code: 'CONFLICT',
+              message: 'Dữ liệu đã được cập nhật bởi phiên khác. Vui lòng tải lại.',
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('should pass optimistic locking when updatedAt matches', async () => {
+      const expectedUpdatedAt = new Date('2026-01-06T10:00:00Z'); // Same as proposal
+      mockPrisma.proposal.findUnique.mockResolvedValue(proposalWithFormData);
+      mockPrisma.proposal.update.mockResolvedValue(proposalWithFormData);
+
+      await service.autoSave(
+        'proposal-123',
+        { formData: partialFormData, expectedUpdatedAt },
+        { userId: mockUser.id },
+      );
+
+      expect(mockPrisma.proposal.update).toHaveBeenCalled();
+    });
+
+    it('should log PROPOSAL_AUTO_SAVE audit event', async () => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(proposalWithFormData);
+      mockPrisma.proposal.update.mockResolvedValue(proposalWithFormData);
+
+      await service.autoSave('proposal-123', { formData: partialFormData }, { userId: mockUser.id });
+
+      expect(mockAuditService.logEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'PROPOSAL_AUTO_SAVE',
+          actorUserId: mockUser.id,
+          entityType: 'proposal',
+          entityId: 'proposal-123',
+          metadata: expect.objectContaining({
+            proposalCode: 'DT-001',
+            sectionsUpdated: ['SEC_INFO_GENERAL'],
+          }),
+        }),
+      );
+    });
+
+    it('should preserve sections not in current save', async () => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(proposalWithFormData);
+      mockPrisma.proposal.update.mockResolvedValue(proposalWithFormData);
+
+      await service.autoSave('proposal-123', { formData: partialFormData }, { userId: mockUser.id });
+
+      const updateCall = mockPrisma.proposal.update.mock.calls[0][0];
+      expect(updateCall.data.formData.SEC_BUDGET).toEqual(baseFormData.SEC_BUDGET);
+    });
+
+    it('should handle empty existing formData', async () => {
+      const proposalWithEmptyFormData = {
+        ...mockProposal,
+        formData: null,
+        updatedAt: new Date('2026-01-06T10:00:00Z'),
+      };
+
+      mockPrisma.proposal.findUnique.mockResolvedValue(proposalWithEmptyFormData);
+      mockPrisma.proposal.update.mockResolvedValue(proposalWithEmptyFormData);
+
+      await service.autoSave('proposal-123', { formData: partialFormData }, { userId: mockUser.id });
+
+      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
+        where: { id: 'proposal-123' },
+        data: {
+          formData: partialFormData,
+        },
+        include: expect.anything(),
+      });
+    });
+
+    it('should throw ForbiddenException when user is not owner', async () => {
+      const otherProposal = { ...proposalWithFormData, ownerId: 'other-user' };
+      mockPrisma.proposal.findUnique.mockResolvedValue(otherProposal);
+
+      await expect(
+        service.autoSave('proposal-123', { formData: partialFormData }, { userId: mockUser.id }),
+      ).rejects.toThrow(ForbiddenException);
+      await expect(
+        service.autoSave('proposal-123', { formData: partialFormData }, { userId: mockUser.id }),
+      ).rejects.toThrow(
+        expect.objectContaining({
+          response: expect.objectContaining({
+            error: expect.objectContaining({
+              code: 'FORBIDDEN',
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('should throw NotFoundException when proposal not found', async () => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.autoSave('proposal-123', { formData: partialFormData }, { userId: mockUser.id }),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

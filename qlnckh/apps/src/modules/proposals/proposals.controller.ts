@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -26,6 +27,7 @@ import {
   ProposalWithTemplateDto,
   CreateProposalDto,
   UpdateProposalDto,
+  AutoSaveProposalDto,
   PaginatedProposalsDto,
 } from './dto';
 import { RequireRoles } from '../../common/decorators/roles.decorator';
@@ -278,6 +280,86 @@ export class ProposalsController {
     @Query('requestId') requestId?: string,
   ): Promise<ProposalWithTemplateDto> {
     return this.proposalsService.update(id, dto, {
+      userId: user.id,
+      ip,
+      userAgent,
+      requestId,
+    });
+  }
+
+  /**
+   * PATCH /api/proposals/:id/auto-save - Auto-save proposal form data (Story 2.3)
+   * Only owner can auto-save their own DRAFT proposals
+   */
+  @Patch(':id/auto-save')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.GIANG_VIEN)
+  @ApiOperation({
+    summary: 'Tự động lưu form dữ liệu',
+    description: 'Auto-save partial form data với deep merge. Chỉ đề tài ở trạng thái NHÁP (DRAFT) mới có thể auto-save.',
+  })
+  @ApiParam({ name: 'id', description: 'Proposal ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Form data được auto-save thành công',
+    type: ProposalWithTemplateDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - proposal not in DRAFT state',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_DRAFT',
+          message: 'Chỉ có thể auto-save đề tài ở trạng thái NHÁP (DRAFT)',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - not owner',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Bạn không có quyền chỉnh sửa đề tài này',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflict - optimistic locking failed',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'CONFLICT',
+          message: 'Dữ liệu đã được cập nhật bởi phiên khác. Vui lòng tải lại.',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  async autoSave(
+    @Param('id') id: string,
+    @Body() dto: AutoSaveProposalDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<ProposalWithTemplateDto> {
+    return this.proposalsService.autoSave(id, dto, {
       userId: user.id,
       ip,
       userAgent,

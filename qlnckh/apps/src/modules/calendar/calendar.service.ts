@@ -88,7 +88,7 @@ export class BusinessCalendarService {
       throw new NotFoundException({
         success: false,
         error: {
-          code: 'HOLIDAY_NOT_FOUND',
+          error_code: 'HOLIDAY_NOT_FOUND',
           message: 'Không tìm thấy ngày lễ',
         },
       });
@@ -116,7 +116,7 @@ export class BusinessCalendarService {
       throw new ConflictException({
         success: false,
         error: {
-          code: 'HOLIDAY_DATE_EXISTS',
+          error_code: 'HOLIDAY_DATE_EXISTS',
           message: 'Ngày này đã tồn tại trong hệ thống',
         },
       });
@@ -171,7 +171,7 @@ export class BusinessCalendarService {
       throw new NotFoundException({
         success: false,
         error: {
-          code: 'HOLIDAY_NOT_FOUND',
+          error_code: 'HOLIDAY_NOT_FOUND',
           message: 'Không tìm thấy ngày lễ',
         },
       });
@@ -219,7 +219,7 @@ export class BusinessCalendarService {
       throw new NotFoundException({
         success: false,
         error: {
-          code: 'HOLIDAY_NOT_FOUND',
+          error_code: 'HOLIDAY_NOT_FOUND',
           message: 'Không tìm thấy ngày lễ',
         },
       });

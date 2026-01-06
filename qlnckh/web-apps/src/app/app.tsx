@@ -4,6 +4,7 @@ import { Permission } from '../shared/types/permissions';
 import LoginPage from './auth/login';
 import ForbiddenPage from './error/403';
 import UserManagementPage from './admin/users/page';
+import ProposalEditPage from './proposals/[id]/edit/page';
 
 /**
  * AuthGuard Component
@@ -67,6 +68,18 @@ export function App() {
             <AuthGuard>
               <PermissionGuard permission={Permission.USER_MANAGE}>
                 <UserManagementPage />
+              </PermissionGuard>
+            </AuthGuard>
+          }
+        />
+
+        {/* Proposal routes - require GIANG_VIEN role (Story 2.3) */}
+        <Route
+          path="/proposals/:id/edit"
+          element={
+            <AuthGuard>
+              <PermissionGuard permission={Permission.PROPOSAL_EDIT}>
+                <ProposalEditPage />
               </PermissionGuard>
             </AuthGuard>
           }

@@ -3,6 +3,7 @@ export {
   ProposalWithTemplateDto,
   CreateProposalDto,
   UpdateProposalDto,
+  AutoSaveProposalDto,
   ProposalQueryDto,
   PaginationMeta,
   PaginatedProposalsDto,

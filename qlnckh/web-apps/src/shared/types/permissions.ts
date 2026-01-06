@@ -14,6 +14,10 @@ export enum Permission {
 
   // Calendar
   CALENDAR_MANAGE = 'CALENDAR_MANAGE',
+
+  // Proposals (Story 2.2, 2.3)
+  PROPOSAL_CREATE = 'PROPOSAL_CREATE',
+  PROPOSAL_EDIT = 'PROPOSAL_EDIT',
 }
 
 /**

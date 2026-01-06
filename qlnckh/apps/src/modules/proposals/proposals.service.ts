@@ -3,10 +3,11 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  ConflictException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../auth/prisma.service';
-import { ProjectState } from '@prisma/client';
+import { ProjectState, UserRole } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-action.enum';
 import {
@@ -14,6 +15,7 @@ import {
   ProposalWithTemplateDto,
   CreateProposalDto,
   UpdateProposalDto,
+  AutoSaveProposalDto,
   PaginatedProposalsDto,
   PaginationMeta,
 } from './dto';
@@ -494,6 +496,183 @@ export class ProposalsService {
   }
 
   /**
+   * Deep merge two objects
+   * Preserves nested properties from target that are not in source
+   *
+   * Merge Strategy (Story 2.3):
+   * - Objects: Deep merged (recursive merge of nested properties)
+   * - Arrays: REPLACED (not merged) - incoming array completely replaces existing
+   * - Primitives/Null: Overwritten
+   *
+   * Rationale: For form data, arrays represent lists (e.g., attachments, team members).
+   * Auto-save should preserve the complete list from the client, not attempt to merge.
+   * (Story 2.3 - Auto-save)
+   */
+  private deepMerge(
+    target: Record<string, unknown>,
+    source: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const result = { ...target };
+
+    for (const key of Object.keys(source)) {
+      const sourceValue = source[key];
+      const targetValue = result[key];
+
+      if (
+        sourceValue !== null &&
+        typeof sourceValue === 'object' &&
+        !Array.isArray(sourceValue) &&
+        targetValue !== null &&
+        typeof targetValue === 'object' &&
+        !Array.isArray(targetValue)
+      ) {
+        // Both are objects - deep merge
+        result[key] = this.deepMerge(
+          targetValue as Record<string, unknown>,
+          sourceValue as Record<string, unknown>,
+        );
+      } else {
+        // Primitive, array, or null - overwrite
+        result[key] = sourceValue;
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Auto-save proposal form data (Story 2.3)
+   *
+   * Features:
+   * - Deep merge partial form data with existing data
+   * - Optimistic locking with expectedUpdatedAt
+   * - Only DRAFT proposals can be auto-saved
+   * - Only owner can auto-save their own proposals
+   *
+   * @param id - Proposal ID
+   * @param dto - Auto-save data with partial formData and optional expectedUpdatedAt
+   * @param ctx - Request context for audit
+   * @returns Updated proposal with merged form data
+   */
+  async autoSave(
+    id: string,
+    dto: AutoSaveProposalDto,
+    ctx: RequestContext,
+  ): Promise<ProposalWithTemplateDto> {
+    // Get existing proposal
+    const existing = await this.prisma.proposal.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: `Đề tài với ID '${id}' không tồn tại`,
+        },
+      });
+    }
+
+    // Check ownership
+    if (existing.ownerId !== ctx.userId) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Bạn không có quyền chỉnh sửa đề tài này',
+        },
+      });
+    }
+
+    // Check state: only DRAFT can be auto-saved
+    if (existing.state !== ProjectState.DRAFT) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_DRAFT',
+          message: `Chỉ có thể auto-save đề tài ở trạng thái NHÁP (DRAFT). Trạng thái hiện tại: ${existing.state}`,
+        },
+      });
+    }
+
+    // Optimistic locking: check updatedAt if provided
+    if (dto.expectedUpdatedAt) {
+      const expectedTime = new Date(dto.expectedUpdatedAt).getTime();
+      const actualTime = existing.updatedAt.getTime();
+
+      if (actualTime > expectedTime) {
+        throw new ConflictException({
+          success: false,
+          error: {
+            code: 'CONFLICT',
+            message: 'Dữ liệu đã được cập nhật bởi phiên khác. Vui lòng tải lại.',
+            details: [
+              `Phiên của bạn: ${new Date(dto.expectedUpdatedAt).toISOString()}`,
+              `Phi bản hiện tại: ${existing.updatedAt.toISOString()}`,
+            ],
+          },
+        });
+      }
+    }
+
+    // Deep merge form data
+    const existingFormData = (existing.formData as Record<string, unknown>) || {};
+    const mergedFormData = this.deepMerge(existingFormData, dto.formData);
+
+    // Update proposal with merged form data
+    const proposal = await this.prisma.proposal.update({
+      where: { id },
+      data: {
+        formData: mergedFormData as unknown as Record<string, never>,
+      },
+      include: {
+        template: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            version: true,
+          },
+        },
+        owner: {
+          select: {
+            id: true,
+            email: true,
+            displayName: true,
+          },
+        },
+        faculty: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    // Log audit event for auto-save
+    await this.auditService.logEvent({
+      action: AuditAction.PROPOSAL_AUTO_SAVE,
+      actorUserId: ctx.userId,
+      entityType: 'proposal',
+      entityId: proposal.id,
+      metadata: {
+        proposalCode: proposal.code,
+        sectionsUpdated: Object.keys(dto.formData),
+      },
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+      requestId: ctx.requestId,
+    });
+
+    this.logger.log(`Auto-saved proposal ${proposal.code}`);
+
+    return this.mapToDtoWithTemplate(proposal);
+  }
+
+  /**
    * Map Prisma model to DTO
    */
   private mapToDtoWithTemplate(
@@ -519,6 +698,17 @@ export class ProposalsService {
         name: string;
         version: string;
       } | null;
+      owner?: {
+        id: string;
+        email: string;
+        displayName: string;
+        role?: string;
+      } | null;
+      faculty?: {
+        id: string;
+        code: string;
+        name: string;
+      } | null;
     },
   ): ProposalWithTemplateDto {
     return {
@@ -543,6 +733,21 @@ export class ProposalsService {
             code: proposal.template.code,
             name: proposal.template.name,
             version: proposal.template.version,
+          }
+        : null,
+      owner: proposal.owner
+        ? {
+            id: proposal.owner.id,
+            email: proposal.owner.email,
+            displayName: proposal.owner.displayName,
+            role: proposal.owner.role as UserRole | undefined,
+          }
+        : null,
+      faculty: proposal.faculty
+        ? {
+            id: proposal.faculty.id,
+            code: proposal.faculty.code,
+            name: proposal.faculty.name,
           }
         : null,
     };
