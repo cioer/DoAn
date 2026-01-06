@@ -8,3 +8,32 @@ export {
   PaginationMeta,
   PaginatedProposalsDto,
 } from './proposal.dto';
+
+// Story 2.6: Form data types and helper functions
+export {
+  ProposalFormData,
+  SectionIdType,
+  SectionDataType,
+  InfoGeneralSection,
+  ContentMethodSection,
+  ResearchMethodSection,
+  ExpectedResultsSection,
+  BudgetSection,
+  BudgetItem,
+  AttachmentsSection,
+  ResearchersSection,
+  Researcher,
+  FacilitiesSection,
+  TimelineSection,
+  Milestone,
+  ReferencesSection,
+  Reference,
+  FacultyAcceptanceResultsSection,
+  FacultyAcceptanceProductsSection,
+  SchoolAcceptanceResultsSection,
+  SchoolAcceptanceProductsSection,
+  HandoverChecklistSection,
+  ExtensionReasonSection,
+  ExtensionDurationSection,
+  Product,
+} from './proposal-form-data.dto';

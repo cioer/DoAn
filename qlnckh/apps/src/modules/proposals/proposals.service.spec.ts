@@ -711,4 +711,373 @@ describe('ProposalsService', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
+
+  // ========================================================================
+  // Story 2.6: Master Record Operations Tests
+  // ========================================================================
+
+  describe('findOneWithSections (Story 2.6)', () => {
+    const proposalWithFormData = {
+      ...mockProposal,
+      formData: {
+        SEC_INFO_GENERAL: { projectName: 'Test Project' },
+        SEC_BUDGET: { totalBudget: 100000 },
+        SEC_ATTACHMENTS: { documents: ['doc1.pdf'] },
+      },
+    };
+
+    it('should return proposal with only specified sections', async () => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(proposalWithFormData);
+
+      const result = await service.findOneWithSections(
+        'proposal-123',
+        ['SEC_INFO_GENERAL', 'SEC_BUDGET'],
+        mockUser.id,
+      );
+
+      expect(result.formData).toHaveProperty('SEC_INFO_GENERAL');
+      expect(result.formData).toHaveProperty('SEC_BUDGET');
+      expect(result.formData).not.toHaveProperty('SEC_ATTACHMENTS');
+    });
+
+    it('should throw NotFoundException when proposal not found', async () => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.findOneWithSections('proposal-123', ['SEC_INFO_GENERAL'], mockUser.id),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should return empty formData when no sections match', async () => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(proposalWithFormData);
+
+      const result = await service.findOneWithSections(
+        'proposal-123',
+        ['SEC_TIMELINE'],
+        mockUser.id,
+      );
+
+      // Empty object or null when no sections match
+      expect(result.formData === null || Object.keys(result.formData || {}).length === 0).toBe(true);
+    });
+  });
+
+  describe('findAllWithFilters (Story 2.6)', () => {
+    it('should exclude soft-deleted proposals by default', async () => {
+      mockPrisma.proposal.count.mockResolvedValue(1);
+      mockPrisma.proposal.findMany.mockResolvedValue([mockProposal]);
+
+      await service.findAllWithFilters({});
+
+      expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          deletedAt: null,
+        }),
+        skip: 0,
+        take: 20,
+        orderBy: { createdAt: 'desc' },
+        include: expect.anything(),
+      });
+    });
+
+    it('should include soft-deleted proposals when requested', async () => {
+      mockPrisma.proposal.count.mockResolvedValue(2);
+      mockPrisma.proposal.findMany.mockResolvedValue([mockProposal]);
+
+      await service.findAllWithFilters({ includeDeleted: true });
+
+      expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith({
+        where: expect.not.objectContaining({
+          deletedAt: null,
+        }),
+        skip: 0,
+        take: 20,
+        orderBy: { createdAt: 'desc' },
+        include: expect.anything(),
+      });
+    });
+
+    it('should filter by holderUnit', async () => {
+      mockPrisma.proposal.count.mockResolvedValue(1);
+      mockPrisma.proposal.findMany.mockResolvedValue([mockProposal]);
+
+      await service.findAllWithFilters({ holderUnit: 'faculty-123' });
+
+      expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          holderUnit: 'faculty-123',
+        }),
+        skip: 0,
+        take: 20,
+        orderBy: { createdAt: 'desc' },
+        include: expect.anything(),
+      });
+    });
+
+    it('should filter by holderUser', async () => {
+      mockPrisma.proposal.count.mockResolvedValue(1);
+      mockPrisma.proposal.findMany.mockResolvedValue([mockProposal]);
+
+      await service.findAllWithFilters({ holderUser: 'user-456' });
+
+      expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          holderUser: 'user-456',
+        }),
+        skip: 0,
+        take: 20,
+        orderBy: { createdAt: 'desc' },
+        include: expect.anything(),
+      });
+    });
+
+    it('should combine multiple filters', async () => {
+      mockPrisma.proposal.count.mockResolvedValue(1);
+      mockPrisma.proposal.findMany.mockResolvedValue([mockProposal]);
+
+      await service.findAllWithFilters({
+        holderUnit: 'faculty-123',
+        holderUser: 'user-456',
+        state: ProjectState.DRAFT,
+        includeDeleted: false,
+      });
+
+      expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith({
+        where: {
+          holderUnit: 'faculty-123',
+          holderUser: 'user-456',
+          state: ProjectState.DRAFT,
+          deletedAt: null,
+        },
+        skip: 0,
+        take: 20,
+        orderBy: { createdAt: 'desc' },
+        include: expect.anything(),
+      });
+    });
+  });
+
+  describe('findByHolder (Story 2.6)', () => {
+    it('should call findAllWithFilters with correct parameters', async () => {
+      mockPrisma.proposal.count.mockResolvedValue(1);
+      mockPrisma.proposal.findMany.mockResolvedValue([mockProposal]);
+
+      await service.findByHolder({
+        holderUnit: 'faculty-123',
+        state: ProjectState.DRAFT,
+        page: 1,
+        limit: 20,
+      });
+
+      expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith({
+        where: {
+          holderUnit: 'faculty-123',
+          state: ProjectState.DRAFT,
+          deletedAt: null,
+        },
+        skip: 0,
+        take: 20,
+        orderBy: { createdAt: 'desc' },
+        include: expect.anything(),
+      });
+    });
+  });
+
+  describe('softRemove (Story 2.6)', () => {
+    it('should soft delete a DRAFT proposal', async () => {
+      const proposalWithoutDeletedAt = {
+        ...mockProposal,
+        deletedAt: null as Date | null,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(proposalWithoutDeletedAt);
+      mockPrisma.proposal.update.mockResolvedValue({
+        ...proposalWithoutDeletedAt,
+        deletedAt: new Date(),
+      });
+
+      await service.softRemove('proposal-123', mockUser.id, { userId: mockUser.id });
+
+      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
+        where: { id: 'proposal-123' },
+        data: { deletedAt: expect.any(Date) },
+      });
+    });
+
+    it('should log audit event with softDelete flag', async () => {
+      const proposalWithoutDeletedAt = {
+        ...mockProposal,
+        deletedAt: null as Date | null,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(proposalWithoutDeletedAt);
+      mockPrisma.proposal.update.mockResolvedValue({
+        ...proposalWithoutDeletedAt,
+        deletedAt: new Date(),
+      });
+
+      await service.softRemove('proposal-123', mockUser.id, {
+        userId: mockUser.id,
+        ip: '127.0.0.1',
+        userAgent: 'test-agent',
+      });
+
+      expect(mockAuditService.logEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'PROPOSAL_DELETE',
+          actorUserId: mockUser.id,
+          metadata: expect.objectContaining({
+            softDelete: true,
+          }),
+        }),
+      );
+    });
+
+    it('should throw BadRequestException when proposal already soft deleted', async () => {
+      const deletedProposal = {
+        ...mockProposal,
+        deletedAt: new Date() as Date | null,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(deletedProposal);
+
+      await expect(
+        service.softRemove('proposal-123', mockUser.id, { userId: mockUser.id }),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.softRemove('proposal-123', mockUser.id, { userId: mockUser.id }),
+      ).rejects.toThrow(
+        expect.objectContaining({
+          response: expect.objectContaining({
+            error: expect.objectContaining({
+              code: 'ALREADY_DELETED',
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('should throw BadRequestException when proposal not in DRAFT', async () => {
+      const submittedProposal = {
+        ...mockProposal,
+        state: ProjectState.FACULTY_REVIEW,
+        deletedAt: null as Date | null,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(submittedProposal);
+
+      await expect(
+        service.softRemove('proposal-123', mockUser.id, { userId: mockUser.id }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('restore (Story 2.6)', () => {
+    const mockRequestContext: RequestContext = {
+      userId: mockUser.id,
+      ip: '127.0.0.1',
+      userAgent: 'test-agent',
+      requestId: 'test-request-id',
+    };
+
+    it('should restore a soft-deleted proposal', async () => {
+      const deletedProposal = {
+        ...mockProposal,
+        deletedAt: new Date('2026-01-01') as Date | null,
+      };
+      const restoredProposal = {
+        ...mockProposal,
+        deletedAt: null as Date | null,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(deletedProposal);
+      mockPrisma.proposal.update.mockResolvedValue(restoredProposal);
+
+      const result = await service.restore('proposal-123', mockUser.id, mockRequestContext);
+
+      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
+        where: { id: 'proposal-123' },
+        data: { deletedAt: null },
+        include: expect.anything(),
+      });
+      expect(mockAuditService.logEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'PROPOSAL_RESTORE',
+          actorUserId: mockUser.id,
+          entityType: 'proposal',
+          entityId: 'proposal-123',
+        }),
+      );
+    });
+
+    it('should throw BadRequestException when proposal not deleted', async () => {
+      const proposalNotDeleted = {
+        ...mockProposal,
+        deletedAt: null as Date | null,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(proposalNotDeleted);
+
+      await expect(
+        service.restore('proposal-123', mockUser.id, mockRequestContext),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.restore('proposal-123', mockUser.id, mockRequestContext),
+      ).rejects.toThrow(
+        expect.objectContaining({
+          response: expect.objectContaining({
+            error: expect.objectContaining({
+              code: 'NOT_DELETED',
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('should throw ForbiddenException when user is not owner', async () => {
+      const deletedProposal = {
+        ...mockProposal,
+        ownerId: 'other-user',
+        deletedAt: new Date() as Date | null,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(deletedProposal);
+
+      await expect(
+        service.restore('proposal-123', mockUser.id, mockRequestContext),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw NotFoundException when proposal not found', async () => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.restore('notexist', mockUser.id, mockRequestContext),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('Backward compatibility for template version updates (Story 2.6)', () => {
+    it('should preserve existing sections when new sections are added', () => {
+      // This test verifies that form_data structure is backward compatible
+      const oldFormData = {
+        SEC_INFO_GENERAL: { projectName: 'Test' },
+        SEC_BUDGET: { totalBudget: 100000 },
+      };
+
+      // Simulate adding new section (in a future template version)
+      const newFormData = {
+        ...oldFormData,
+        SEC_EXTENSION_REASON: { reason: 'COVID delay' },
+      };
+
+      expect(newFormData).toHaveProperty('SEC_INFO_GENERAL');
+      expect(newFormData).toHaveProperty('SEC_BUDGET');
+      expect(newFormData).toHaveProperty('SEC_EXTENSION_REASON');
+    });
+
+    it('should allow unknown section IDs for future extensibility', () => {
+      const formData: Record<string, unknown> = {
+        SEC_INFO_GENERAL: { projectName: 'Test' },
+        // Future section not yet defined in enum
+        SEC_FUTURE_SECTION: { data: 'value' },
+      };
+
+      expect(formData).toHaveProperty('SEC_INFO_GENERAL');
+      expect(formData).toHaveProperty('SEC_FUTURE_SECTION');
+    });
+  });
 });

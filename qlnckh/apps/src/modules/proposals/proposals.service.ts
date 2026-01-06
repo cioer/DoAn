@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../auth/prisma.service';
-import { ProjectState, UserRole } from '@prisma/client';
+import { ProjectState, SectionId, UserRole } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-action.enum';
 import {
@@ -19,6 +19,7 @@ import {
   PaginatedProposalsDto,
   PaginationMeta,
 } from './dto';
+import { deepMergeFormData } from './helpers/form-data.helper';
 
 /**
  * Request context for audit logging
@@ -507,37 +508,14 @@ export class ProposalsService {
    * Rationale: For form data, arrays represent lists (e.g., attachments, team members).
    * Auto-save should preserve the complete list from the client, not attempt to merge.
    * (Story 2.3 - Auto-save)
+   *
+   * Story 2.6: Now uses shared helper function from form-data.helper.ts
    */
   private deepMerge(
     target: Record<string, unknown>,
     source: Record<string, unknown>,
   ): Record<string, unknown> {
-    const result = { ...target };
-
-    for (const key of Object.keys(source)) {
-      const sourceValue = source[key];
-      const targetValue = result[key];
-
-      if (
-        sourceValue !== null &&
-        typeof sourceValue === 'object' &&
-        !Array.isArray(sourceValue) &&
-        targetValue !== null &&
-        typeof targetValue === 'object' &&
-        !Array.isArray(targetValue)
-      ) {
-        // Both are objects - deep merge
-        result[key] = this.deepMerge(
-          targetValue as Record<string, unknown>,
-          sourceValue as Record<string, unknown>,
-        );
-      } else {
-        // Primitive, array, or null - overwrite
-        result[key] = sourceValue;
-      }
-    }
-
-    return result;
+    return deepMergeFormData(target, source);
   }
 
   /**
@@ -692,6 +670,7 @@ export class ProposalsService {
       formData: Record<string, unknown> | null;
       createdAt: Date;
       updatedAt: Date;
+      deletedAt: Date | null;
       template?: {
         id: string;
         code: string;
@@ -727,6 +706,7 @@ export class ProposalsService {
       formData: proposal.formData as Record<string, unknown> | null,
       createdAt: proposal.createdAt,
       updatedAt: proposal.updatedAt,
+      deletedAt: proposal.deletedAt,
       template: proposal.template
         ? {
             id: proposal.template.id,
@@ -751,5 +731,381 @@ export class ProposalsService {
           }
         : null,
     };
+  }
+
+  // ========================================================================
+  // Story 2.6: Master Record Operations
+  // ========================================================================
+
+  /**
+   * Get proposal by ID with specific section data only
+   * Story 2.6: Query proposals filtered by section data
+   *
+   * @param id - Proposal ID
+   * @param sectionIds - Array of section IDs to include in response
+   * @param userId - Current user ID
+   * @returns Proposal with only specified sections in form_data
+   */
+  async findOneWithSections(
+    id: string,
+    sectionIds: SectionId[],
+    userId: string,
+  ): Promise<ProposalWithTemplateDto> {
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id },
+      include: {
+        template: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            version: true,
+          },
+        },
+        owner: {
+          select: {
+            id: true,
+            email: true,
+            displayName: true,
+            role: true,
+          },
+        },
+        faculty: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: `Đề tài với ID '${id}' không tồn tại`,
+        },
+      });
+    }
+
+    // Filter form_data to include only specified sections
+    const filteredFormData: Record<string, unknown> = {};
+    if (proposal.formData && typeof proposal.formData === 'object') {
+      const sectionIdSet = new Set(sectionIds);
+      for (const [key, value] of Object.entries(proposal.formData)) {
+        if (sectionIdSet.has(key as SectionId)) {
+          filteredFormData[key] = value;
+        }
+      }
+    }
+
+    // Use mapToDtoWithTemplate with filtered form_data
+    const dto = this.mapToDtoWithTemplate({
+      ...proposal,
+      formData: Object.keys(filteredFormData).length > 0 ? filteredFormData : null,
+    });
+
+    return dto;
+  }
+
+  /**
+   * List proposals with soft delete filtering
+   * Story 2.6: Support soft delete pattern
+   *
+   * @param filters - Filter options including includeDeleted
+   * @returns Paginated proposal list
+   */
+  async findAllWithFilters(filters: {
+    ownerId?: string;
+    state?: ProjectState;
+    facultyId?: string;
+    holderUnit?: string;
+    holderUser?: string;
+    includeDeleted?: boolean;
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedProposalsDto> {
+    const {
+      ownerId,
+      state,
+      facultyId,
+      holderUnit,
+      holderUser,
+      includeDeleted = false,
+      page = 1,
+      limit = 20,
+    } = filters;
+
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where: Record<string, unknown> = {};
+
+    if (ownerId) {
+      where.ownerId = ownerId;
+    }
+
+    if (state) {
+      where.state = state;
+    }
+
+    if (facultyId) {
+      where.facultyId = facultyId;
+    }
+
+    if (holderUnit) {
+      where.holderUnit = holderUnit;
+    }
+
+    if (holderUser) {
+      where.holderUser = holderUser;
+    }
+
+    // Soft delete filtering (Story 2.6)
+    if (!includeDeleted) {
+      where.deletedAt = null;
+    }
+
+    // Get total count and proposals in parallel
+    const [total, proposals] = await Promise.all([
+      this.prisma.proposal.count({ where }),
+      this.prisma.proposal.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          template: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              version: true,
+            },
+          },
+          owner: {
+            select: {
+              id: true,
+              email: true,
+              displayName: true,
+            },
+          },
+          faculty: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      data: proposals.map(p => this.mapToDtoWithTemplate(p)),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Get proposals by holder (Story 2.6)
+   * Returns proposals that are waiting for a specific holder unit or user
+   *
+   * @param holderFilters - Holder unit or user filters
+   * @returns List of proposals waiting for the holder
+   */
+  async findByHolder(holderFilters: {
+    holderUnit?: string;
+    holderUser?: string;
+    state?: ProjectState;
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedProposalsDto> {
+    return this.findAllWithFilters({
+      ...holderFilters,
+      includeDeleted: false,
+    });
+  }
+
+  /**
+   * Soft delete a proposal (Story 2.6)
+   * Sets deletedAt timestamp instead of permanently deleting
+   *
+   * @param id - Proposal ID
+   * @param userId - Current user ID
+   * @param ctx - Request context for audit
+   */
+  async softRemove(id: string, userId: string, ctx: RequestContext): Promise<void> {
+    const existing = await this.prisma.proposal.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: `Đề tài với ID '${id}' không tồn tại`,
+        },
+      });
+    }
+
+    // Check ownership
+    if (existing.ownerId !== userId) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Bạn không có quyền xóa đề tài này',
+        },
+      });
+    }
+
+    // Check state: only DRAFT can be deleted
+    if (existing.state !== ProjectState.DRAFT) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_DRAFT',
+          message: `Chỉ có thể xóa đề tài ở trạng thái NHÁP (DRAFT). Trạng thái hiện tại: ${existing.state}`,
+        },
+      });
+    }
+
+    // Check if already soft deleted
+    if (existing.deletedAt !== null) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'ALREADY_DELETED',
+          message: 'Đề tài này đã bị xóa',
+        },
+      });
+    }
+
+    // Log audit event BEFORE soft delete
+    await this.auditService.logEvent({
+      action: 'PROPOSAL_DELETE' as AuditAction,
+      actorUserId: userId,
+      entityType: 'proposal',
+      entityId: id,
+      metadata: {
+        proposalCode: existing.code,
+        title: existing.title,
+        softDelete: true,
+      },
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+      requestId: ctx.requestId,
+    });
+
+    await this.prisma.proposal.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+
+    this.logger.log(`Soft deleted proposal ${existing.code}`);
+  }
+
+  /**
+   * Restore a soft-deleted proposal (Story 2.6)
+   *
+   * @param id - Proposal ID
+   * @param userId - Current user ID
+   * @param ctx - Request context for audit
+   */
+  async restore(id: string, userId: string, ctx: RequestContext): Promise<ProposalWithTemplateDto> {
+    const existing = await this.prisma.proposal.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: `Đề tài với ID '${id}' không tồn tại`,
+        },
+      });
+    }
+
+    // Check ownership
+    if (existing.ownerId !== userId) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Bạn không có quyền khôi phục đề tài này',
+        },
+      });
+    }
+
+    // Check if already soft deleted
+    if (existing.deletedAt === null) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'NOT_DELETED',
+          message: 'Đề tài này chưa bị xóa',
+        },
+      });
+    }
+
+    // Log audit event BEFORE restore
+    await this.auditService.logEvent({
+      action: 'PROPOSAL_RESTORE' as AuditAction,
+      actorUserId: userId,
+      entityType: 'proposal',
+      entityId: id,
+      metadata: {
+        proposalCode: existing.code,
+        title: existing.title,
+        restoredFromDeletedAt: existing.deletedAt,
+      },
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+      requestId: ctx.requestId,
+    });
+
+    const proposal = await this.prisma.proposal.update({
+      where: { id },
+      data: { deletedAt: null },
+      include: {
+        template: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            version: true,
+          },
+        },
+        owner: {
+          select: {
+            id: true,
+            email: true,
+            displayName: true,
+            role: true,
+          },
+        },
+        faculty: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    this.logger.log(`Restored proposal ${proposal.code}`);
+
+    return this.mapToDtoWithTemplate(proposal);
   }
 }

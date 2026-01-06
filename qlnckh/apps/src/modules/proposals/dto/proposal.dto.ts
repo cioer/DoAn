@@ -51,6 +51,9 @@ export class ProposalDto {
 
   @ApiProperty({ description: 'Last update date' })
   updatedAt: Date;
+
+  @ApiProperty({ description: 'Soft delete timestamp', required: false })
+  deletedAt: Date | null;
 }
 
 /**
