@@ -4,7 +4,11 @@ import path from 'path';
 export default defineConfig({
   test: {
     globals: true,
-    environment: 'node',
+    // Use jsdom for frontend tests, node for backend
+    environment: 'jsdom',
+    environmentMatchGlobs: {
+      'apps/**/*.spec.ts': 'node',
+    },
     include: ['apps/**/*.spec.ts', 'web-apps/**/*.spec.ts', 'web-apps/**/*.spec.tsx'],
     exclude: ['node_modules', 'dist', '.nx', '**/node_modules'],
     root: '.',
@@ -35,8 +39,12 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      // Backend alias
       '@': path.resolve(__dirname, './apps/src'),
       '@test': path.resolve(__dirname, './apps/src/test'),
+      // Frontend alias (for web-apps)
+      '@/lib': path.resolve(__dirname, './web-apps/src/lib'),
+      '@/components': path.resolve(__dirname, './web-apps/src/components'),
     },
   },
 });
