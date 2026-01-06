@@ -87,9 +87,9 @@ development_status:
   4-1-faculty-approve-action: done
   4-2-faculty-return-dialog-reason-code-plus-sections: done
   4-3-execute-return-changes-requested-plus-return-target: review
-  4-4-revision-panel-checkbox-da-sua-mvp: backlog
-  4-5-resubmit-action-doc-return-target-tu-log: backlog
-  4-6-revision-pdf-export: backlog
+  4-4-revision-panel-checkbox-da-sua-mvp: ready-for-dev
+  4-5-resubmit-action-doc-return-target-tu-log: ready-for-dev
+  4-6-revision-pdf-export: ready-for-dev
   epic-4-retrospective: optional
 
   # ========================================
