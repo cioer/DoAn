@@ -76,7 +76,7 @@ development_status:
   3-5-queue-filters-dang-cho-toi-cua-toi-etc: done
   3-6-sla-calculator-business-days-plus-cutoff-17-00: done
   3-7-sla-badge-component-icon-plus-text: backlog
-  3-8-idempotency-keys-anti-double-submit-all-state-changing-actions: in-progress
+  3-8-idempotency-keys-anti-double-submit-all-state-changing-actions: done
   3-9-project-detail-pdf-export-wysiwyg-sla-10s-pre-generated-seeds: backlog
   epic-3-retrospective: optional
 
@@ -161,6 +161,6 @@ development_status:
 # ========================================
 # Total Epics: 10
 # Total Stories: 57
-# Stories Done: 14
-# Epics In Progress: 0
+# Stories Done: 15
+# Epics In Progress: 1
 # Epics Done: 2

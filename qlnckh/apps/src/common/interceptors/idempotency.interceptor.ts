@@ -5,7 +5,7 @@ import {
   CallHandler,
   BadRequestException,
 } from '@nestjs/common';
-import { Observable, throwError, of } from 'rxjs';
+import { Observable, throwError, of, Observer } from 'rxjs';
 import { catchError, tap, map } from 'rxjs/operators';
 import { IdempotencyCacheService } from './idempotency-cache.service';
 import { Reflector } from '@nestjs/core';
@@ -94,7 +94,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
       );
     }
 
-    // Check cache for existing response
+    // Check cache for existing response (before acquiring lock)
     const cached = this.cacheService.get(idempotencyKey);
     if (cached) {
       // Return cached response with original status code
@@ -102,7 +102,15 @@ export class IdempotencyInterceptor implements NestInterceptor {
       return of(cached.data);
     }
 
-    // Execute action and cache result
+    // Acquire lock to prevent race condition with concurrent requests
+    const lockAcquired = this.cacheService.acquireLock(idempotencyKey);
+    if (!lockAcquired) {
+      // Another request is processing this idempotency key
+      // Wait briefly and check cache again (up to 3 retries)
+      return this.waitForCachedResult(idempotencyKey, response, 0);
+    }
+
+    // Execute action and cache result (with lock protection)
     return next.handle().pipe(
       map((data) => {
         // Cache successful response
@@ -111,9 +119,76 @@ export class IdempotencyInterceptor implements NestInterceptor {
       }),
       catchError((error) => {
         // Don't cache errors - let them propagate
+        this.cacheService.releaseLock(idempotencyKey);
         return throwError(() => error);
       }),
+      tap(() => {
+        // Release lock after successful completion
+        this.cacheService.releaseLock(idempotencyKey);
+      }),
     );
+  }
+
+  /**
+   * Wait for cached result when another request is processing
+   * Used for race condition protection during concurrent double-clicks
+   *
+   * @param idempotencyKey - UUID v4 idempotency key
+   * @param response - HTTP response object
+   * @param retryCount - Current retry attempt
+   * @returns Observable with cached result or error
+   */
+  private waitForCachedResult(
+    idempotencyKey: string,
+    response: any,
+    retryCount: number,
+  ): Observable<any> {
+    const maxRetries = 3;
+    const retryDelay = 50; // 50ms between retries
+
+    return new Observable<any>((observer: Observer<any>) => {
+      const checkCache = () => {
+        const cached = this.cacheService.get(idempotencyKey);
+        if (cached) {
+          response.status(cached.statusCode);
+          observer.next(cached.data);
+          observer.complete();
+        } else if (retryCount < maxRetries) {
+          // Retry after delay
+          setTimeout(
+            () =>
+              this.waitForCachedResult(
+                idempotencyKey,
+                response,
+                retryCount + 1,
+              ).subscribe({
+                next: (data) => observer.next(data),
+                error: (err) => observer.error(err),
+                complete: () => observer.complete(),
+              }),
+            retryDelay,
+          );
+        } else {
+          // Max retries reached - return conflict error
+          observer.error(
+            new BadRequestException({
+              success: false,
+              error: {
+                code: 'IDEMPOTENCY_REQUEST_IN_PROGRESS',
+                message:
+                  'Yêu cầu đang được xử lý. Vui lòng không gửi lại yêu cầu giống nhau.',
+              },
+            }),
+          );
+        }
+      };
+
+      // Start checking cache
+      const timeoutId = setTimeout(checkCache, retryDelay);
+
+      // Cleanup timeout on unsubscribe
+      return () => clearTimeout(timeoutId);
+    });
   }
 
   /**
@@ -164,16 +239,23 @@ export class IdempotencyInterceptor implements NestInterceptor {
  */
 export const Idempotency = (
   require: boolean = true,
-): ParameterDecorator => {
+): MethodDecorator & PropertyDecorator => {
   return (
     target: any,
-    propertyKey: string,
-    descriptor: PropertyDescriptor,
+    propertyKey: string | symbol,
+    descriptor: PropertyDescriptor | number,
   ) => {
+    // Handle both PropertyDescriptor (method decorator) and number (parameter decorator)
+    const descriptorValue =
+      typeof descriptor === 'object' ? descriptor.value : descriptor;
+
     Reflect.defineMetadata(
       'requireIdempotency',
       require,
-      descriptor.value,
+      typeof descriptorValue === 'function'
+        ? descriptorValue
+        : descriptor,
+      propertyKey,
     );
   };
 };
