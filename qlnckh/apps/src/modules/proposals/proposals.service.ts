@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../auth/prisma.service';
-import { ProjectState, SectionId, UserRole } from '@prisma/client';
+import { ProjectState, SectionId, UserRole, WorkflowAction } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-action.enum';
 import {
@@ -40,6 +40,13 @@ interface RequestContext {
 @Injectable()
 export class ProposalsService {
   private readonly logger = new Logger(ProposalsService.name);
+
+  /**
+   * Holder unit constant for PHONG_KHCN (Department of Science & Technology)
+   * When holderUnit is null, it indicates PHONG_KHCN should handle the proposal
+   * This is a deliberate design choice to avoid circular references with faculty table
+   */
+  private static readonly HOLDER_PHONG_KHCN = null as string | null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -1210,7 +1217,7 @@ export class ProposalsService {
       await tx.workflowLog.create({
         data: {
           proposalId,
-          action: 'START_PROJECT',
+          action: WorkflowAction.START_PROJECT,
           fromState: ProjectState.APPROVED,
           toState: ProjectState.IN_PROGRESS,
           actorId: userId,
@@ -1383,7 +1390,7 @@ export class ProposalsService {
       await tx.workflowLog.create({
         data: {
           proposalId,
-          action: 'SUBMIT_FACULTY_ACCEPTANCE',
+          action: WorkflowAction.SUBMIT_FACULTY_ACCEPTANCE,
           fromState: ProjectState.IN_PROGRESS,
           toState: ProjectState.FACULTY_ACCEPTANCE_REVIEW,
           actorId: userId,
@@ -1484,8 +1491,9 @@ export class ProposalsService {
 
     const isAccept = dto.decision === 'DAT';
     const nextState = isAccept ? ProjectState.SCHOOL_ACCEPTANCE_REVIEW : ProjectState.IN_PROGRESS;
-    const action = isAccept ? 'FACULTY_ACCEPT' : 'FACULTY_REJECT';
-    const nextHolderUnit = isAccept ? null : existing.facultyId; // null = PHONG_KHCN, facultyId = back to PI
+    const action = isAccept ? WorkflowAction.FACULTY_ACCEPT : WorkflowAction.FACULTY_REJECT;
+    // When accepted, PHONG_KHCN handles; when rejected, return to PI
+    const nextHolderUnit = isAccept ? ProposalsService.HOLDER_PHONG_KHCN : existing.facultyId;
     const nextHolderUser = isAccept ? null : existing.ownerId;
 
     // Use atomic transaction for state transition
@@ -1650,7 +1658,7 @@ export class ProposalsService {
 
     const isAccept = dto.decision === 'DAT';
     const nextState = isAccept ? ProjectState.HANDOVER : ProjectState.IN_PROGRESS;
-    const action = isAccept ? 'SCHOOL_ACCEPT' : 'SCHOOL_REJECT';
+    const action = isAccept ? WorkflowAction.SCHOOL_ACCEPT : WorkflowAction.SCHOOL_REJECT;
 
     // Use atomic transaction for state transition
     const result = await this.prisma.$transaction(async (tx) => {
@@ -1865,7 +1873,7 @@ export class ProposalsService {
       await tx.workflowLog.create({
         data: {
           proposalId,
-          action: 'HANDOVER_COMPLETE' as any,
+          action: WorkflowAction.HANDOVER_COMPLETE,
           fromState: ProjectState.HANDOVER,
           toState: ProjectState.COMPLETED,
           actorId: userId,
@@ -1943,7 +1951,16 @@ export class ProposalsService {
       });
     }
 
-    // Check state: only HANDOVER can save checklist
+    // Check state: only HANDOVER can save checklist (COMPLETED is read-only)
+    if (existing.state === ProjectState.COMPLETED) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'READ_ONLY',
+          message: 'Đề tài đã hoàn thành. Không thể chỉnh sửa checklist.',
+        },
+      });
+    }
     if (existing.state !== ProjectState.HANDOVER) {
       throw new BadRequestException({
         success: false,

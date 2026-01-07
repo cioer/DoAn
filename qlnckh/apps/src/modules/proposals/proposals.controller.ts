@@ -743,10 +743,21 @@ export class ProposalsController {
     @Query('userAgent') userAgent?: string,
     @Query('requestId') requestId?: string,
   ): Promise<ProposalWithTemplateDto> {
+    // Map DTO to service contract (class-validator already validated the DTO)
+    const serviceDto = {
+      results: dto.results,
+      products: dto.products.map(p => ({
+        name: p.name,
+        type: p.type, // ProductType enum is string-compatible
+        note: p.note,
+        attachmentId: p.attachmentId,
+      })),
+      attachmentIds: dto.attachmentIds,
+    };
     return this.proposalsService.submitFacultyAcceptance(
       id,
       user.id,
-      dto as unknown as { results: string; products: Array<{ name: string; type: string; note?: string; attachmentId?: string }>; attachmentIds?: string[] },
+      serviceDto,
       {
         userId: user.id,
         ip,
@@ -798,11 +809,16 @@ export class ProposalsController {
     @Query('userAgent') userAgent?: string,
     @Query('requestId') requestId?: string,
   ): Promise<ProposalWithTemplateDto> {
+    // Map DTO to service contract (class-validator already validated the DTO)
+    const serviceDto = {
+      decision: dto.decision as 'DAT' | 'KHONG_DAT', // FacultyDecision enum values match
+      comments: dto.comments,
+    };
     return this.proposalsService.facultyAcceptance(
       id,
       user.id,
       user.role,
-      dto as unknown as { decision: 'DAT' | 'KHONG_DAT'; comments?: string },
+      serviceDto,
       {
         userId: user.id,
         ip,
@@ -896,11 +912,16 @@ export class ProposalsController {
     @Query('userAgent') userAgent?: string,
     @Query('requestId') requestId?: string,
   ): Promise<ProposalWithTemplateDto> {
+    // Map DTO to service contract (class-validator already validated the DTO)
+    const serviceDto = {
+      decision: dto.decision as 'DAT' | 'KHONG_DAT', // SchoolDecision enum values match
+      comments: dto.comments,
+    };
     return this.proposalsService.schoolAcceptance(
       id,
       user.id,
       user.role,
-      dto as unknown as { decision: 'DAT' | 'KHONG_DAT'; comments?: string },
+      serviceDto,
       {
         userId: user.id,
         ip,
@@ -994,10 +1015,18 @@ export class ProposalsController {
     @Query('userAgent') userAgent?: string,
     @Query('requestId') requestId?: string,
   ): Promise<ProposalWithTemplateDto> {
+    // Map DTO to service contract (class-validator already validated the DTO)
+    const serviceDto = {
+      checklist: dto.checklist.map(item => ({
+        id: item.id,
+        checked: item.checked,
+        note: item.note,
+      })),
+    };
     return this.proposalsService.saveHandoverChecklist(
       id,
       user.id,
-      dto as unknown as { checklist: Array<{ id: string; checked: boolean; note?: string }> },
+      serviceDto,
       {
         userId: user.id,
         ip,
@@ -1049,10 +1078,18 @@ export class ProposalsController {
     @Query('userAgent') userAgent?: string,
     @Query('requestId') requestId?: string,
   ): Promise<ProposalWithTemplateDto> {
+    // Map DTO to service contract (class-validator already validated the DTO)
+    const serviceDto = {
+      checklist: dto.checklist.map(item => ({
+        id: item.id,
+        checked: item.checked,
+        note: item.note,
+      })),
+    };
     return this.proposalsService.completeHandover(
       id,
       user.id,
-      dto as unknown as { checklist: Array<{ id: string; checked: boolean; note?: string }> },
+      serviceDto,
       {
         userId: user.id,
         ip,
