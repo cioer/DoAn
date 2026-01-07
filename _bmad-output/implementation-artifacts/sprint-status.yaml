@@ -38,6 +38,18 @@ project_key: NCKH-2026
 tracking_system: file-system
 story_location: "_bmad-output/implementation-artifacts/stories"
 
+# Code Review Fixes Applied 2026-01-07:
+# - Fixed all 'as unknown' casts in documents.service.ts
+# - Fixed all 'as any' casts in docx.service.ts (11 instances)
+# - Fixed 'as any' cast in document-templates.controller.ts
+# - Fixed placeholder extraction wildcard bug
+# - Removed @Injectable() from abstract class pdf-base.service.ts
+# - Moved file write outside transaction in document-templates.service.ts
+# - Added template type validation in documents.service.ts
+# - Added EvaluationFormData interface for type safety
+# - Fixed filename collision bug in docx.service.ts
+# - All fixes follow Epic 6 retro patterns
+
 development_status:
   # ========================================
   # EPIC 1: Foundation + Demo Operator (8 stories)
@@ -114,15 +126,15 @@ development_status:
   6-4-school-acceptance-vote: done
   6-5-handover-plus-dossier-pack-checklist: done
   6-6-zip-dossier-pack-export-sla-30s-progress-pre-generated-seeds: done
-  epic-6-retrospective: optional
+  epic-6-retrospective: done
 
   # ========================================
   # EPIC 7: Document Export (Milestone Completion) (3 stories)
   # ========================================
-  epic-7: backlog
-  7-1-document-export-completion-refinement: backlog
-  7-2-template-upload-plus-registry: backlog
-  7-3-docx-generation-plus-sha-256-plus-manifest-plus-retention-plus-rbac-download-plus-verify: backlog
+  epic-7: done
+  7-1-document-export-completion-refinement: done
+  7-2-template-upload-plus-registry: done
+  7-3-docx-generation-plus-sha-256-plus-manifest-plus-retention-plus-rbac-download-plus-verify: done
   epic-7-retrospective: optional
 
   # ========================================
@@ -161,6 +173,6 @@ development_status:
 # ========================================
 # Total Epics: 10
 # Total Stories: 57
-# Stories Done: 23
+# Stories Done: 26
 # Epics In Progress: 0
-# Epics Done: 4
+# Epics Done: 7
