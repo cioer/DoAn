@@ -155,17 +155,23 @@ enum WorkflowAction {
   APPROVE            // Duyệt
   RETURN             // Trả về yêu cầu sửa
   RESUBMIT           // Nộp lại
-  START_PROJECT      // Bắt đầu thực hiện
-  SUBMIT_ACCEPTANCE  // Nộp nghiệm thu
-  ACCEPT             // Chấp nhận nghiệm thu
-  REJECT             // Từ chối
+  START_PROJECT      // Bắt đầu thực hiện (Story 6.1)
+  SUBMIT_FACULTY_ACCEPTANCE // Nộp hồ sơ nghiệm thu cấp Khoa (Story 6.2)
+  FACULTY_ACCEPT     // Khoa chấp nhận nghiệm thu (Story 6.3)
+  FACULTY_REJECT     // Khoa từ chối nghiệm thu (Story 6.3)
+  SCHOOL_ACCEPT      // Trường chấp nhận nghiệm thu (Story 6.4)
+  SCHOOL_REJECT      // Trường từ chối nghiệm thu (Story 6.4)
+  HANDOVER_COMPLETE  // Hoàn thành bàn giao (Story 6.5)
+  SUBMIT_ACCEPTANCE  // Nộp nghiệm thu (legacy)
+  ACCEPT             // Chấp nhận nghiệm thu (legacy)
+  REJECT             // Từ chối (legacy)
   CANCEL             // Hủy
   WITHDRAW           // Rút
   PAUSE              // Tạm dừng
   RESUME             // Tiếp tục
   FINALIZE           // Hoàn tất (đóng dự án)
   ASSIGN_COUNCIL     // Phân bổ hội đồng
-  FACULTY_ACCEPT     // Khoa chấp nhận nghiệm thu
+  EVALUATION_SUBMITTED // Nộp phiếu đánh giá (Story 5.4)
 }
 
 model Proposal {
@@ -180,6 +186,8 @@ model Proposal {
   holderUser      String?       @map("holder_user")  // User ID (optional)
   slaStartDate    DateTime?     @map("sla_start_date")
   slaDeadline     DateTime?     @map("sla_deadline")
+  actualStartDate DateTime?     @map("actual_start_date") // Story 6.1: Set when starting project
+  completedDate   DateTime?     @map("completed_date")   // Story 6.5: Set when completing project
   templateId      String?       @map("template_id")   // FK to form_templates (Story 2.2)
   templateVersion String?       @map("template_version") // e.g., "v1.0" (Story 2.2)
   formData        Json?         @map("form_data")     // JSON with section data (Story 2.2)
@@ -396,7 +404,7 @@ model CouncilMember {
 
 enum EvaluationState {
   DRAFT      // Đang soạn thảo
-  SUBMITTED  // Đã nộp (sau khi finalize)
+  FINALIZED  // Đã hoàn tất (sau khi finalize - Story 5.4)
 }
 
 model Evaluation {
@@ -428,6 +436,7 @@ model Attachment {
   fileUrl     String    @map("file_url")
   fileSize    Int       @map("file_size")     // in bytes
   mimeType    String    @map("mime_type")
+  type        String    @default("GENERAL") @map("type") // GENERAL, FACULTY_ACCEPTANCE, SCHOOL_ACCEPTANCE, HANDOVER (Story 6.2)
   uploadedBy  String    @map("uploaded_by")
   uploadedAt  DateTime  @default(now()) @map("uploaded_at")
   deletedAt   DateTime? @map("deleted_at")
@@ -438,4 +447,5 @@ model Attachment {
   @@index([proposalId])
   @@index([uploadedBy])
   @@index([deletedAt])
+  @@index([type])  // Story 6.2: Index for attachment type filtering
 }

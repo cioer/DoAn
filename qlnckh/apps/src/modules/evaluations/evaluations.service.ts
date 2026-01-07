@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
-import { PrismaService, EvaluationState } from '../auth/prisma.service';
-import { ProjectState } from '@prisma/client';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger, ConflictException } from '@nestjs/common';
+import { PrismaService } from '../auth/prisma.service';
+import { EvaluationState, ProjectState, WorkflowAction, WorkflowAction as PrismaWorkflowAction, Prisma } from '@prisma/client';
 
 /**
  * User object attached to request by JWT guard
@@ -165,13 +165,13 @@ export class EvaluationService {
       });
     }
 
-    // Only allow updating DRAFT evaluations
+    // Only allow updating DRAFT evaluations (Story 5.4, Story 5.5)
     if (evaluation.state !== EvaluationState.DRAFT) {
-      throw new BadRequestException({
+      throw new ForbiddenException({
         success: false,
         error: {
-          code: 'EVALUATION_NOT_DRAFT',
-          message: 'Chỉ có thể sửa phiếu đánh giá ở trạng thái DRAFT',
+          code: 'EVALUATION_FINALIZED',
+          message: 'Đánh giá đã hoàn tất. Không thể chỉnh sửa.',
         },
       });
     }
@@ -207,7 +207,7 @@ export class EvaluationService {
         },
       },
       data: {
-        formData: mergedData,
+        formData: mergedData as Prisma.InputJsonValue,
       },
     });
 
@@ -248,16 +248,36 @@ export class EvaluationService {
   }
 
   /**
-   * Submit evaluation (Story 5.4, Story 5.5 - future)
-   * Transitions evaluation from DRAFT to SUBMITTED
+   * Submit evaluation (Story 5.4, Story 5.5)
+   * Transitions evaluation from DRAFT to FINALIZED
+   * Also transitions proposal from OUTLINE_COUNCIL_REVIEW to APPROVED
    *
    * @param proposalId - Proposal ID
    * @param evaluatorId - Evaluator user ID
    * @param idempotencyKey - UUID for idempotency
-   * @returns Updated evaluation
+   * @returns Updated evaluation and proposal
    */
   async submitEvaluation(proposalId: string, evaluatorId: string, idempotencyKey: string) {
-    const evaluation = await this.getEvaluation(proposalId, evaluatorId);
+    // Get evaluation with proposal for validation
+    const evaluation = await this.prisma.evaluation.findUnique({
+      where: {
+        proposalId_evaluatorId: {
+          proposalId,
+          evaluatorId,
+        },
+      },
+      include: {
+        proposal: {
+          select: {
+            id: true,
+            state: true,
+            holderUser: true,
+            ownerId: true,
+            facultyId: true,
+          },
+        },
+      },
+    });
 
     if (!evaluation) {
       throw new NotFoundException({
@@ -265,6 +285,37 @@ export class EvaluationService {
         error: {
           code: 'EVALUATION_NOT_FOUND',
           message: 'Không tìm thấy phiếu đánh giá',
+        },
+      });
+    }
+
+    // Check if already finalized (idempotency path)
+    if (evaluation.state === EvaluationState.FINALIZED) {
+      // Return existing result for idempotency
+      return {
+        evaluation,
+        proposal: evaluation.proposal,
+      };
+    }
+
+    // Validate proposal state must be OUTLINE_COUNCIL_REVIEW
+    if (evaluation.proposal.state !== ProjectState.OUTLINE_COUNCIL_REVIEW) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'INVALID_STATE',
+          message: `Chỉ có thể nộp đánh giá ở trạng thái OUTLINE_COUNCIL_REVIEW. Hiện tại: ${evaluation.proposal.state}`,
+        },
+      });
+    }
+
+    // Validate holder_user must be current user (secretary assigned to evaluate)
+    if (evaluation.proposal.holderUser !== evaluatorId) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'NOT_ASSIGNED_EVALUATOR',
+          message: 'Bạn không phải là người được phân bổ đánh giá đề tài này',
         },
       });
     }
@@ -281,21 +332,52 @@ export class EvaluationService {
       });
     }
 
-    // Update state to SUBMITTED
-    const updatedEvaluation = await this.prisma.evaluation.update({
-      where: {
-        proposalId_evaluatorId: {
-          proposalId,
-          evaluatorId,
+    // Execute transaction: finalize evaluation + transition proposal (Story 5.4 Task 4.5)
+    const result = await this.prisma.$transaction(async (tx) => {
+      // 1. Finalize evaluation: DRAFT → FINALIZED
+      const finalizedEvaluation = await tx.evaluation.update({
+        where: {
+          proposalId_evaluatorId: {
+            proposalId,
+            evaluatorId,
+          },
         },
-      },
-      data: {
-        state: EvaluationState.SUBMITTED,
-      },
+        data: {
+          state: EvaluationState.FINALIZED,
+        },
+      });
+
+      // 2. Transition proposal: OUTLINE_COUNCIL_REVIEW → APPROVED (Story 5.4 Task 4.5)
+      const updatedProposal = await tx.proposal.update({
+        where: { id: proposalId },
+        data: {
+          state: ProjectState.APPROVED,
+          holderUnit: evaluation.proposal.facultyId, // Return to owner's faculty
+          holderUser: evaluation.proposal.ownerId, // Return to PI
+        },
+      });
+
+      // 3. Log workflow entry: EVALUATION_SUBMITTED (Story 5.4 AC3)
+      await tx.workflowLog.create({
+        data: {
+          proposalId,
+          action: PrismaWorkflowAction.EVALUATION_SUBMITTED, // Story 5.4: Use specific action for evaluation submission
+          fromState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+          toState: ProjectState.APPROVED,
+          actorId: evaluatorId,
+          actorName: 'Thư ký Hội đồng', // Will be updated with actual user name
+          comment: 'Đánh giá hội đồng đã hoàn tất',
+        },
+      });
+
+      return {
+        evaluation: finalizedEvaluation,
+        proposal: updatedProposal,
+      };
     });
 
-    this.logger.log(`Submitted evaluation for proposal ${proposalId} by ${evaluatorId}`);
+    this.logger.log(`Submitted evaluation for proposal ${proposalId} by ${evaluatorId}, transitioned to APPROVED`);
 
-    return updatedEvaluation;
+    return result;
   }
 }

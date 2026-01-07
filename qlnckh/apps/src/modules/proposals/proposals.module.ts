@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ProposalsController } from './proposals.controller';
 import { ProposalsService } from './proposals.service';
 import { FormDataValidationService } from './form-data-validation.service';
+import { DossierExportService } from './dossier-export.service';
 import { PrismaService } from '../auth/prisma.service';
 import { AuthModule } from '../auth/auth.module';
 import { RbacModule } from '../rbac/rbac.module';
@@ -21,8 +22,9 @@ import { IdempotencyModule } from '../../common/interceptors';
   providers: [
     ProposalsService,
     FormDataValidationService,
+    DossierExportService,
     PrismaService,
   ],
-  exports: [ProposalsService, FormDataValidationService],
+  exports: [ProposalsService, FormDataValidationService, DossierExportService],
 })
 export class ProposalsModule {}

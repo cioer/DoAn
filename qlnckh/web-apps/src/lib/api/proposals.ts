@@ -14,6 +14,8 @@ export interface Proposal {
   holderUser: string | null;
   slaStartDate: Date | null;
   slaDeadline: Date | null;
+  actualStartDate: Date | null;
+  completedDate: Date | null;
   templateId: string | null;
   templateVersion: string | null;
   formData: Record<string, unknown> | null;
@@ -71,6 +73,119 @@ export interface ProposalListResponse {
     limit: number;
     totalPages: number;
   };
+}
+
+// ============================================================================
+// Epic 6: Acceptance & Handover Types
+// ============================================================================
+
+/**
+ * Product type for faculty acceptance
+ */
+export enum ProductType {
+  BAI_BAO = 'BAI_BAO',
+  SACH = 'SACH',
+  PHAN_MEM = 'PHAN_MEM',
+  SAN_PHAM = 'SAN_PHAM',
+  KHAC = 'KHAC',
+}
+
+/**
+ * Faculty acceptance product
+ */
+export interface FacultyAcceptanceProduct {
+  name: string;
+  type: ProductType;
+  note?: string;
+  attachmentId?: string;
+}
+
+/**
+ * Submit faculty acceptance request
+ */
+export interface SubmitFacultyAcceptanceRequest {
+  results: string;
+  products: FacultyAcceptanceProduct[];
+  attachmentIds?: string[];
+}
+
+/**
+ * Faculty decision
+ */
+export enum FacultyDecision {
+  DAT = 'DAT',
+  KHONG_DAT = 'KHONG_DAT',
+}
+
+/**
+ * Faculty acceptance decision request
+ */
+export interface FacultyAcceptanceDecisionRequest {
+  decision: FacultyDecision;
+  comments?: string;
+}
+
+/**
+ * School decision
+ */
+export enum SchoolDecision {
+  DAT = 'DAT',
+  KHONG_DAT = 'KHONG_DAT',
+}
+
+/**
+ * School acceptance decision request
+ */
+export interface SchoolAcceptanceDecisionRequest {
+  decision: SchoolDecision;
+  comments?: string;
+}
+
+/**
+ * Handover checklist item
+ */
+export interface HandoverChecklistItem {
+  id: string;
+  checked: boolean;
+  note?: string;
+}
+
+/**
+ * Complete handover request
+ */
+export interface CompleteHandoverRequest {
+  checklist: HandoverChecklistItem[];
+}
+
+/**
+ * Dossier pack type
+ */
+export enum DossierPackType {
+  FACULTY_ACCEPTANCE = 'FACULTY_ACCEPTANCE',
+  SCHOOL_ACCEPTANCE = 'SCHOOL_ACCEPTANCE',
+  HANDOVER = 'HANDOVER',
+  FINAL = 'FINAL',
+}
+
+/**
+ * Dossier pack status response
+ */
+export interface DossierPackStatus {
+  ready: boolean;
+  state: string;
+  message: string;
+}
+
+/**
+ * Dossier export response
+ */
+export interface DossierExportResponse {
+  zipId: string;
+  fileName: string;
+  fileUrl: string;
+  fileSize: number;
+  createdAt: Date;
+  expiresAt: Date;
 }
 
 /**
@@ -151,5 +266,128 @@ export const proposalsApi = {
    */
   deleteProposal: async (id: string): Promise<void> => {
     await apiClient.delete(`/proposals/${id}`);
+  },
+
+  // ========================================================================
+  // Epic 6: Acceptance & Handover API Calls
+  // ========================================================================
+
+  /**
+   * Story 6.1: Start project execution (APPROVED → IN_PROGRESS)
+   */
+  startProject: async (id: string): Promise<Proposal> => {
+    const response = await apiClient.post<{ success: true; data: Proposal }>(
+      `/proposals/${id}/start`,
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Story 6.2: Submit faculty acceptance review (IN_PROGRESS → FACULTY_ACCEPTANCE_REVIEW)
+   */
+  submitFacultyAcceptance: async (id: string, data: SubmitFacultyAcceptanceRequest): Promise<Proposal> => {
+    const response = await apiClient.post<{ success: true; data: Proposal }>(
+      `/proposals/${id}/faculty-acceptance`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Story 6.3: Get faculty acceptance data for review
+   */
+  getFacultyAcceptanceData: async (id: string): Promise<{
+    results?: string;
+    products?: Array<{ id: string; name: string; type: string; note?: string }>;
+    submittedAt?: string;
+  }> => {
+    const response = await apiClient.get<{
+      success: true;
+      data: { results?: string; products?: Array<{ id: string; name: string; type: string; note?: string }>; submittedAt?: string };
+    }>(`/proposals/${id}/faculty-acceptance-data`);
+    return response.data.data;
+  },
+
+  /**
+   * Story 6.3: Submit faculty acceptance decision
+   */
+  submitFacultyDecision: async (id: string, data: FacultyAcceptanceDecisionRequest): Promise<Proposal> => {
+    const response = await apiClient.post<{ success: true; data: Proposal }>(
+      `/proposals/${id}/faculty-acceptance-decision`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Story 6.4: Get school acceptance data for review
+   */
+  getSchoolAcceptanceData: async (id: string): Promise<{
+    facultyDecision?: { decision: string; decidedAt: string; comments?: string };
+    results?: string;
+    products?: Array<{ id: string; name: string; type: string; note?: string }>;
+  }> => {
+    const response = await apiClient.get<{
+      success: true;
+      data: {
+        facultyDecision?: { decision: string; decidedAt: string; comments?: string };
+        results?: string;
+        products?: Array<{ id: string; name: string; type: string; note?: string }>;
+      };
+    }>(`/proposals/${id}/school-acceptance-data`);
+    return response.data.data;
+  },
+
+  /**
+   * Story 6.4: Submit school acceptance decision
+   */
+  submitSchoolDecision: async (id: string, data: SchoolAcceptanceDecisionRequest): Promise<Proposal> => {
+    const response = await apiClient.post<{ success: true; data: Proposal }>(
+      `/proposals/${id}/school-acceptance-decision`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Story 6.5: Save handover checklist draft
+   */
+  saveHandoverChecklist: async (id: string, checklist: HandoverChecklistItem[]): Promise<Proposal> => {
+    const response = await apiClient.patch<{ success: true; data: Proposal }>(
+      `/proposals/${id}/handover-checklist`,
+      { checklist },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Story 6.5: Complete handover (HANDOVER → COMPLETED)
+   */
+  completeHandover: async (id: string, checklist: HandoverChecklistItem[]): Promise<Proposal> => {
+    const response = await apiClient.post<{ success: true; data: Proposal }>(
+      `/proposals/${id}/complete-handover`,
+      { checklist },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Story 6.6: Get dossier pack status
+   */
+  getDossierPackStatus: async (id: string, packType: DossierPackType): Promise<DossierPackStatus> => {
+    const response = await apiClient.get<{ success: true; data: DossierPackStatus }>(
+      `/proposals/${id}/dossier-status/${packType}`,
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Story 6.6: Generate dossier pack ZIP
+   */
+  generateDossierPack: async (id: string, packType: DossierPackType): Promise<DossierExportResponse> => {
+    const response = await apiClient.post<{ success: true; data: DossierExportResponse }>(
+      `/proposals/${id}/dossier/${packType}`,
+    );
+    return response.data.data;
   },
 };

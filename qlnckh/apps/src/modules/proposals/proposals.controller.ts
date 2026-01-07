@@ -32,12 +32,21 @@ import {
   AutoSaveProposalDto,
   PaginatedProposalsDto,
 } from './dto';
+import {
+  StartProjectDto,
+  SubmitFacultyAcceptanceDto,
+  FacultyAcceptanceDecisionDto,
+  SchoolAcceptanceDecisionDto,
+  CompleteHandoverDto,
+  SaveHandoverChecklistDto,
+} from './dto';
 import { RequireRoles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UserRole, ProjectState, SectionId } from '@prisma/client';
 import { AuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../rbac/guards/roles.guard';
 import { IdempotencyInterceptor } from '../../common/interceptors';
+import { DossierExportService, DossierPackType } from './dossier-export.service';
 
 /**
  * User object attached to request by JWT guard
@@ -55,7 +64,10 @@ interface RequestUser {
 @UseInterceptors(IdempotencyInterceptor)
 @ApiBearerAuth()
 export class ProposalsController {
-  constructor(private readonly proposalsService: ProposalsService) {}
+  constructor(
+    private readonly proposalsService: ProposalsService,
+    private readonly dossierExportService: DossierExportService,
+  ) {}
 
   /**
    * POST /api/proposals - Create new proposal (DRAFT)
@@ -625,5 +637,554 @@ export class ProposalsController {
       userAgent,
       requestId,
     });
+  }
+
+  // ========================================================================
+  // Epic 6: Acceptance & Handover Endpoints
+  // ========================================================================
+
+  /**
+   * POST /api/proposals/:id/start - Start project execution (Story 6.1)
+   * Transitions proposal from APPROVED to IN_PROGRESS
+   * Only owner can start their approved project
+   */
+  @Post(':id/start')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.GIANG_VIEN)
+  @ApiOperation({
+    summary: 'Bắt đầu thực hiện đề tài',
+    description: 'Chuyển đề tài từ trạng thái DUYỆT sang ĐANG THỰC HIỆN. Chỉ chủ nhiệm đề tài mới có thể bắt đầu.',
+  })
+  @ApiParam({ name: 'id', description: 'Proposal ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Đề tài đã được bắt đầu',
+    type: ProposalWithTemplateDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - proposal not in APPROVED state',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'INVALID_STATE',
+          message: 'Đề tài chưa ở trạng thái được duyệt',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - not owner',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  async startProject(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<ProposalWithTemplateDto> {
+    return this.proposalsService.startProject(id, user.id, {
+      userId: user.id,
+      ip,
+      userAgent,
+      requestId,
+    });
+  }
+
+  /**
+   * POST /api/proposals/:id/faculty-acceptance - Submit faculty acceptance review (Story 6.2)
+   * Transitions proposal from IN_PROGRESS to FACULTY_ACCEPTANCE_REVIEW
+   * Only owner can submit
+   */
+  @Post(':id/faculty-acceptance')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.GIANG_VIEN)
+  @ApiOperation({
+    summary: 'Nộp hồ sơ nghiệm thu cấp Khoa',
+    description: 'Chuyển đề tài từ ĐANG THỰC HIỆN sang NGHIỆM THU KHOA. Chỉ chủ nhiệm đề tài mới có thể nộp.',
+  })
+  @ApiParam({ name: 'id', description: 'Proposal ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Đã nộp hồ sơ nghiệm thu',
+    type: ProposalWithTemplateDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - validation error or invalid state',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - not owner',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  async submitFacultyAcceptance(
+    @Param('id') id: string,
+    @Body() dto: SubmitFacultyAcceptanceDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<ProposalWithTemplateDto> {
+    return this.proposalsService.submitFacultyAcceptance(
+      id,
+      user.id,
+      dto as unknown as { results: string; products: Array<{ name: string; type: string; note?: string; attachmentId?: string }>; attachmentIds?: string[] },
+      {
+        userId: user.id,
+        ip,
+        userAgent,
+        requestId,
+      },
+    );
+  }
+
+  /**
+   * POST /api/proposals/:id/faculty-acceptance-decision - Faculty acceptance decision (Story 6.3)
+   * Transitions proposal from FACULTY_ACCEPTANCE_REVIEW to SCHOOL_ACCEPTANCE_REVIEW or IN_PROGRESS
+   * Only QUAN_LY_KHOA can decide
+   */
+  @Post(':id/faculty-acceptance-decision')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.QUAN_LY_KHOA, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Nghiệm thu cấp Khoa',
+    description: 'Quản lý Khoa duyệt/không duyệt nghiệm thu. Nếu đạt → chuyển lên Trường. Nếu không đạt → trả về chủ nhiệm.',
+  })
+  @ApiParam({ name: 'id', description: 'Proposal ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Đã ra quyết định nghiệm thu',
+    type: ProposalWithTemplateDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - validation error or invalid state',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - not QUAN_LY_KHOA',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  async facultyAcceptanceDecision(
+    @Param('id') id: string,
+    @Body() dto: FacultyAcceptanceDecisionDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<ProposalWithTemplateDto> {
+    return this.proposalsService.facultyAcceptance(
+      id,
+      user.id,
+      user.role,
+      dto as unknown as { decision: 'DAT' | 'KHONG_DAT'; comments?: string },
+      {
+        userId: user.id,
+        ip,
+        userAgent,
+        requestId,
+        userDisplayName: user.displayName || user.email,
+      },
+    );
+  }
+
+  /**
+   * GET /api/proposals/:id/faculty-acceptance-data - Get faculty acceptance data (Story 6.3)
+   * Returns faculty acceptance submission data for review
+   */
+  @Get(':id/faculty-acceptance-data')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Lấy dữ liệu nghiệm thu Khoa',
+    description: 'Lấy thông tin hồ sơ nghiệm thu để xem xét',
+  })
+  @ApiParam({ name: 'id', description: 'Proposal ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Dữ liệu nghiệm thu Khoa',
+    schema: {
+      example: {
+        results: 'string',
+        products: [],
+        submittedAt: '2024-01-01T00:00:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - no access',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  async getFacultyAcceptanceData(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<{
+    results?: string;
+    products?: Array<{ id: string; name: string; type: string; note?: string }>;
+    submittedAt?: string;
+  }> {
+    return this.proposalsService.getFacultyAcceptanceData(id, user.id, user.role);
+  }
+
+  /**
+   * POST /api/proposals/:id/school-acceptance-decision - School acceptance decision (Story 6.4)
+   * Transitions proposal from SCHOOL_ACCEPTANCE_REVIEW to HANDOVER or IN_PROGRESS
+   * Only PHONG_KHCN, THU_KY_HOI_DONG, or ADMIN can decide
+   */
+  @Post(':id/school-acceptance-decision')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.PHONG_KHCN, UserRole.THU_KY_HOI_DONG, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Nghiệm thu cấp Trường',
+    description: 'Phòng KHCN/Thư ký Hội đồng duyệt/không duyệt nghiệm thu. Nếu đạt → chuyển sang Bàn giao. Nếu không đạt → trả về chủ nhiệm.',
+  })
+  @ApiParam({ name: 'id', description: 'Proposal ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Đã ra quyết định nghiệm thu',
+    type: ProposalWithTemplateDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - validation error or invalid state',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - not authorized role',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  async schoolAcceptanceDecision(
+    @Param('id') id: string,
+    @Body() dto: SchoolAcceptanceDecisionDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<ProposalWithTemplateDto> {
+    return this.proposalsService.schoolAcceptance(
+      id,
+      user.id,
+      user.role,
+      dto as unknown as { decision: 'DAT' | 'KHONG_DAT'; comments?: string },
+      {
+        userId: user.id,
+        ip,
+        userAgent,
+        requestId,
+        userDisplayName: user.displayName || user.email,
+      },
+    );
+  }
+
+  /**
+   * GET /api/proposals/:id/school-acceptance-data - Get school acceptance data (Story 6.4)
+   * Returns school acceptance submission data for review
+   */
+  @Get(':id/school-acceptance-data')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Lấy dữ liệu nghiệm thu Trường',
+    description: 'Lấy thông tin hồ sơ nghiệm thu cấp Khoa và quyết định của Khoa để xem xét',
+  })
+  @ApiParam({ name: 'id', description: 'Proposal ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Dữ liệu nghiệm thu Trường',
+    schema: {
+      example: {
+        facultyDecision: { decision: 'DAT', decidedAt: '2024-01-01T00:00:00.000Z', comments: 'string' },
+        results: 'string',
+        products: [],
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - no access',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  async getSchoolAcceptanceData(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+  ): Promise<{
+    facultyDecision?: { decision: string; decidedAt: string; comments?: string };
+    results?: string;
+    products?: Array<{ id: string; name: string; type: string; note?: string }>;
+  }> {
+    return this.proposalsService.getSchoolAcceptanceData(id, user.id, user.role);
+  }
+
+  /**
+   * PATCH /api/proposals/:id/handover-checklist - Save handover checklist draft (Story 6.5)
+   * Auto-saves handover checklist before completion
+   * Only owner can save
+   */
+  @Patch(':id/handover-checklist')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.GIANG_VIEN)
+  @ApiOperation({
+    summary: 'Lưu nháp checklist bàn giao',
+    description: 'Tự động lưu checklist bàn giao trước khi hoàn thành. Chỉ chủ nhiệm đề tài mới có thể lưu.',
+  })
+  @ApiParam({ name: 'id', description: 'Proposal ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Checklist đã được lưu',
+    type: ProposalWithTemplateDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - invalid state',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - not owner',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  async saveHandoverChecklist(
+    @Param('id') id: string,
+    @Body() dto: SaveHandoverChecklistDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<ProposalWithTemplateDto> {
+    return this.proposalsService.saveHandoverChecklist(
+      id,
+      user.id,
+      dto as unknown as { checklist: Array<{ id: string; checked: boolean; note?: string }> },
+      {
+        userId: user.id,
+        ip,
+        userAgent,
+        requestId,
+      },
+    );
+  }
+
+  /**
+   * POST /api/proposals/:id/complete-handover - Complete handover (Story 6.5)
+   * Transitions proposal from HANDOVER to COMPLETED
+   * Only owner can complete handover
+   */
+  @Post(':id/complete-handover')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.GIANG_VIEN)
+  @ApiOperation({
+    summary: 'Hoàn thành bàn giao',
+    description: 'Chuyển đề tài từ BÀN GIAO sang HOÀN THÀNH. Chỉ chủ nhiệm đề tài mới có thể hoàn thành.',
+  })
+  @ApiParam({ name: 'id', description: 'Proposal ID (UUID)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Đã hoàn thành bàn giao',
+    type: ProposalWithTemplateDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - validation error or invalid state',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - not owner',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  async completeHandover(
+    @Param('id') id: string,
+    @Body() dto: CompleteHandoverDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<ProposalWithTemplateDto> {
+    return this.proposalsService.completeHandover(
+      id,
+      user.id,
+      dto as unknown as { checklist: Array<{ id: string; checked: boolean; note?: string }> },
+      {
+        userId: user.id,
+        ip,
+        userAgent,
+        requestId,
+      },
+    );
+  }
+
+  // ========================================================================
+  // Story 6.6: Dossier Export Endpoints
+  // ========================================================================
+
+  /**
+   * GET /api/proposals/:id/dossier-status/:packType - Get dossier pack status (Story 6.6)
+   * Check if a proposal is ready for a specific pack type export
+   */
+  @Get(':id/dossier-status/:packType')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Kiểm tra trạng thái hồ sơ xuất',
+    description: 'Kiểm tra xem đề tài đã sẵn sàng để xuất hồ sơ chưa',
+  })
+  @ApiParam({ name: 'id', description: 'Proposal ID (UUID)' })
+  @ApiParam({
+    name: 'packType',
+    description: 'Loại hồ sơ',
+    enum: DossierPackType,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Trạng thái hồ sơ',
+    schema: {
+      example: {
+        ready: true,
+        state: 'COMPLETED',
+        message: 'Đã sẵn sàng xuất hồ sơ',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  async getDossierPackStatus(
+    @Param('id') id: string,
+    @Param('packType') packType: DossierPackType,
+    @CurrentUser() user: RequestUser,
+  ): Promise<{
+    ready: boolean;
+    state: ProjectState;
+    message: string;
+  }> {
+    return this.dossierExportService.getDossierPackStatus(id, packType);
+  }
+
+  /**
+   * POST /api/proposals/:id/dossier/:packType - Generate dossier pack ZIP (Story 6.6)
+   * Generates and returns a ZIP file with all dossier documents
+   */
+  @Post(':id/dossier/:packType')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Xuất hồ sơ (ZIP)',
+    description: 'Tạo file ZIP chứa toàn bộ hồ sơ của đề tài',
+  })
+  @ApiParam({ name: 'id', description: 'Proposal ID (UUID)' })
+  @ApiParam({
+    name: 'packType',
+    description: 'Loại hồ sơ',
+    enum: DossierPackType,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Thông tin file ZIP đã tạo',
+    schema: {
+      example: {
+        zipId: 'uuid',
+        fileName: 'DT-001_FINAL_2024-01-01.zip',
+        fileUrl: '/exports/DT-001_FINAL_2024-01-01.zip',
+        fileSize: 1234567,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        expiresAt: '2024-01-02T00:00:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - invalid state or pack type',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - no access',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  async generateDossierPack(
+    @Param('id') id: string,
+    @Param('packType') packType: DossierPackType,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<{
+    zipId: string;
+    fileName: string;
+    fileUrl: string;
+    fileSize: number;
+    createdAt: Date;
+    expiresAt: Date;
+  }> {
+    return this.dossierExportService.generateDossierPack(
+      id,
+      packType,
+      user.id,
+      user.role,
+      {
+        userId: user.id,
+        ip,
+        userAgent,
+        requestId,
+      },
+    );
   }
 }

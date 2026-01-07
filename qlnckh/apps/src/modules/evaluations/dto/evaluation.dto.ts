@@ -59,7 +59,7 @@ export class UpdateEvaluationDto {
   formData?: Record<string, unknown>;
 
   @ApiPropertyOptional()
-  @IsEnum(EvaluationState)
+  @IsEnum(EvaluationState, { message: 'State must be one of: DRAFT, FINALIZED' })
   state?: EvaluationState;
 }
 

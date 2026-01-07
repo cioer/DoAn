@@ -37,6 +37,12 @@ export class ProposalDto {
   @ApiProperty({ description: 'SLA deadline', required: false })
   slaDeadline: Date | null;
 
+  @ApiProperty({ description: 'Actual start date (Story 6.1)', required: false })
+  actualStartDate: Date | null;
+
+  @ApiProperty({ description: 'Completed date (Story 6.5)', required: false })
+  completedDate: Date | null;
+
   @ApiProperty({ description: 'Form template ID', required: false })
   templateId: string | null;
 

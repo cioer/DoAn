@@ -68,7 +68,7 @@ development_status:
   # ========================================
   # EPIC 3: Workflow Core + Queue + SLA (9 stories)
   # ========================================
-  epic-3: in-progress
+  epic-3: done
   3-1-16-canonical-states-plus-transitions: done
   3-2-holder-rules-holder-unit-plus-holder-user: done
   3-3-submit-proposal-draft-right-arrow-faculty-review: done
@@ -95,25 +95,25 @@ development_status:
   # ========================================
   # EPIC 5: School Ops + Council Review (6 stories)
   # ========================================
-  epic-5: in-progress
+  epic-5: done
   5-1-school-selection-queue: done
   5-2-council-assignment: done
   5-3-evaluation-form-draft-plus-auto-save: done
-  5-4-preview-pdf-plus-confirm-gate-submit-once: backlog
-  5-5-finalize-right-arrow-read-only-submit-once-lock: backlog
-  5-6-evaluation-pdf-export: backlog
-  epic-5-retrospective: optional
+  5-4-preview-pdf-plus-confirm-gate-submit-once: done
+  5-5-finalize-right-arrow-read-only-submit-once-lock: done
+  5-6-evaluation-pdf-export: done
+  epic-5-retrospective: done
 
   # ========================================
   # EPIC 6: Acceptance & Handover + Dossier Pack (6 stories)
   # ========================================
-  epic-6: backlog
-  6-1-start-project-approved-right-arrow-in-progress: backlog
-  6-2-submit-faculty-acceptance-review: backlog
-  6-3-faculty-acceptance-vote: backlog
-  6-4-school-acceptance-vote: backlog
-  6-5-handover-plus-dossier-pack-checklist: backlog
-  6-6-zip-dossier-pack-export-sla-30s-progress-pre-generated-seeds: backlog
+  epic-6: done
+  6-1-start-project-approved-right-arrow-in-progress: done
+  6-2-submit-faculty-acceptance-review: done
+  6-3-faculty-acceptance-vote: done
+  6-4-school-acceptance-vote: done
+  6-5-handover-plus-dossier-pack-checklist: done
+  6-6-zip-dossier-pack-export-sla-30s-progress-pre-generated-seeds: done
   epic-6-retrospective: optional
 
   # ========================================
@@ -161,6 +161,6 @@ development_status:
 # ========================================
 # Total Epics: 10
 # Total Stories: 57
-# Stories Done: 17
-# Epics In Progress: 1
-# Epics Done: 2
+# Stories Done: 23
+# Epics In Progress: 0
+# Epics Done: 4

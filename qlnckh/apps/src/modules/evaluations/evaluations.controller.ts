@@ -1,7 +1,8 @@
-import { Controller, Get, Patch, HttpCode, HttpStatus, Param, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Patch, Post, HttpCode, HttpStatus, Param, Body, UseGuards, Req, UseInterceptors } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { EvaluationService } from './evaluations.service';
+import { IdempotencyInterceptor } from '../../common/interceptors';
 import {
   UpdateEvaluationDto,
   EvaluationDto,
@@ -9,6 +10,10 @@ import {
   UpdateEvaluationResponse,
   ErrorResponseDto,
 } from './dto/evaluation.dto';
+import {
+  SubmitEvaluationRequestDto,
+  SubmitEvaluationResponseDto,
+} from './dto/submit-evaluation.dto';
 
 /**
  * User object attached to request by JWT guard
@@ -31,6 +36,7 @@ interface RequestWithUser extends Request {
 @ApiTags('evaluations')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
+@UseInterceptors(IdempotencyInterceptor) // Story 5.4: Enable idempotency for state-changing actions
 @Controller('evaluations')
 export class EvaluationController {
   constructor(private readonly evaluationService: EvaluationService) {}
@@ -142,6 +148,66 @@ export class EvaluationController {
         formData: evaluation.formData as Record<string, unknown>,
         createdAt: evaluation.createdAt,
         updatedAt: evaluation.updatedAt,
+      },
+    };
+  }
+
+  /**
+   * Submit evaluation (Story 5.4)
+   * Transitions evaluation from DRAFT to FINALIZED
+   * Transitions proposal from OUTLINE_COUNCIL_REVIEW to APPROVED
+   * Requires idempotency key via X-Idempotency-Key header
+   *
+   * @param proposalId - Proposal ID
+   * @param submitDto - Submit request with idempotency key
+   * @param req - Request with user info
+   * @returns Submitted evaluation and updated proposal
+   */
+  @Post(':proposalId/submit')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Submit evaluation',
+    description: 'Submits evaluation for finalization. Transitions evaluation to FINALIZED and proposal to APPROVED.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Evaluation submitted successfully',
+    type: SubmitEvaluationResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid state or incomplete form data',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user is not the assigned secretary',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Evaluation not found',
+    type: ErrorResponseDto,
+  })
+  async submitEvaluation(
+    @Param('proposalId') proposalId: string,
+    @Body() submitDto: SubmitEvaluationRequestDto,
+    @Req() req: RequestWithUser,
+  ): Promise<SubmitEvaluationResponseDto> {
+    const result = await this.evaluationService.submitEvaluation(
+      proposalId,
+      req.user.id,
+      submitDto.idempotencyKey,
+    );
+
+    return {
+      success: true,
+      data: {
+        evaluationId: result.evaluation.id,
+        state: result.evaluation.state,
+        proposalId: result.proposal.id,
+        proposalState: result.proposal.state,
+        submittedAt: result.evaluation.updatedAt,
       },
     };
   }

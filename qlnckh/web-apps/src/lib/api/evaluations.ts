@@ -1,7 +1,7 @@
 import { apiClient } from '../auth/auth';
 
 /**
- * Evaluation API (Story 5.3)
+ * Evaluation API (Story 5.3, Story 5.4)
  * Provides API methods for council evaluation operations
  */
 
@@ -10,7 +10,7 @@ import { apiClient } from '../auth/auth';
  */
 export enum EvaluationState {
   DRAFT = 'DRAFT',
-  SUBMITTED = 'SUBMITTED',
+  FINALIZED = 'FINALIZED', // Story 5.4: Replaced SUBMITTED with FINALIZED
 }
 
 /**
@@ -81,6 +81,27 @@ export interface EvaluationErrorResponse {
 }
 
 /**
+ * Submit Evaluation Request (Story 5.4)
+ */
+export interface SubmitEvaluationRequest {
+  idempotencyKey: string;
+}
+
+/**
+ * Submit Evaluation Response (Story 5.4)
+ */
+export interface SubmitEvaluationResponse {
+  success: true;
+  data: {
+    evaluationId: string;
+    state: string;
+    proposalId: string;
+    proposalState: string;
+    submittedAt: string;
+  };
+}
+
+/**
  * Default Evaluation Form Data (Story 5.3)
  * Used when creating a new draft evaluation
  */
@@ -94,8 +115,20 @@ export const DEFAULT_EVALUATION_DATA: EvaluationFormData = {
 };
 
 /**
+ * Generate UUID v4 for idempotency key (Story 5.4)
+ */
+export const generateIdempotencyKey = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
+/**
  * Evaluation API Client
  * Story 5.3: Evaluation Form Draft
+ * Story 5.4: Preview PDF + Confirm Gate
  */
 export const evaluationApi = {
   /**
@@ -122,7 +155,7 @@ export const evaluationApi = {
    * @param proposalId - Proposal ID
    * @param formData - Partial form data to update
    * @returns Updated evaluation
-   * @throws 400 if evaluation is not in DRAFT state
+   * @throws 403 if evaluation is FINALIZED (Story 5.4, Story 5.5)
    * @throws 404 if evaluation not found
    */
   updateEvaluation: async (
@@ -132,6 +165,34 @@ export const evaluationApi = {
     const response = await apiClient.patch<UpdateEvaluationResponse>(
       `/evaluations/${proposalId}`,
       { formData },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Submit evaluation (Story 5.4)
+   * Transitions evaluation from DRAFT to FINALIZED
+   * Transitions proposal from OUTLINE_COUNCIL_REVIEW to APPROVED
+   *
+   * @param proposalId - Proposal ID
+   * @param idempotencyKey - UUID v4 for idempotency
+   * @returns Submitted evaluation and updated proposal
+   * @throws 400 if proposal not in OUTLINE_COUNCIL_REVIEW state or form incomplete
+   * @throws 403 if user is not the assigned secretary
+   * @throws 404 if evaluation not found
+   */
+  submitEvaluation: async (
+    proposalId: string,
+    idempotencyKey: string,
+  ): Promise<SubmitEvaluationResponse['data']> => {
+    const response = await apiClient.post<SubmitEvaluationResponse>(
+      `/evaluations/${proposalId}/submit`,
+      { idempotencyKey },
+      {
+        headers: {
+          'X-Idempotency-Key': idempotencyKey,
+        },
+      },
     );
     return response.data.data;
   },

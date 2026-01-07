@@ -665,6 +665,8 @@ export class ProposalsService {
       holderUser: string | null;
       slaStartDate: Date | null;
       slaDeadline: Date | null;
+      actualStartDate: Date | null;
+      completedDate: Date | null;
       templateId: string | null;
       templateVersion: string | null;
       formData: Record<string, unknown> | null;
@@ -701,6 +703,8 @@ export class ProposalsService {
       holderUser: proposal.holderUser,
       slaStartDate: proposal.slaStartDate,
       slaDeadline: proposal.slaDeadline,
+      actualStartDate: proposal.actualStartDate,
+      completedDate: proposal.completedDate,
       templateId: proposal.templateId,
       templateVersion: proposal.templateVersion,
       formData: proposal.formData as Record<string, unknown> | null,
@@ -1107,5 +1111,1023 @@ export class ProposalsService {
     this.logger.log(`Restored proposal ${proposal.code}`);
 
     return this.mapToDtoWithTemplate(proposal);
+  }
+
+  // ========================================================================
+  // Epic 6: Acceptance & Handover Operations
+  // ========================================================================
+
+  /**
+   * Start Project Execution (Story 6.1)
+   * Transition proposal from APPROVED to IN_PROGRESS
+   *
+   * @param proposalId - Proposal ID
+   * @param userId - Current user ID (must be owner)
+   * @param ctx - Request context for audit
+   * @returns Updated proposal with actualStartDate set
+   */
+  async startProject(
+    proposalId: string,
+    userId: string,
+    ctx: RequestContext,
+  ): Promise<ProposalWithTemplateDto> {
+    // Get existing proposal
+    const existing = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: { owner: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: `Đề tài với ID '${proposalId}' không tồn tại`,
+        },
+      });
+    }
+
+    // Check ownership
+    if (existing.ownerId !== userId) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Bạn không có quyền thực hiện hành động này',
+        },
+      });
+    }
+
+    // Check state: only APPROVED can start
+    if (existing.state !== ProjectState.APPROVED) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'INVALID_STATE',
+          message: `Đề tài chưa ở trạng thái được duyệt. Trạng thái hiện tại: ${existing.state}`,
+        },
+      });
+    }
+
+    // Use atomic transaction for state transition and workflow log
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Update proposal state and set actualStartDate
+      const proposal = await tx.proposal.update({
+        where: { id: proposalId },
+        data: {
+          state: ProjectState.IN_PROGRESS,
+          actualStartDate: new Date(),
+          // holderUnit and holderUser remain with owner
+        },
+        include: {
+          template: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              version: true,
+            },
+          },
+          owner: {
+            select: {
+              id: true,
+              email: true,
+              displayName: true,
+              role: true,
+            },
+          },
+          faculty: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+      // Create workflow log entry
+      await tx.workflowLog.create({
+        data: {
+          proposalId,
+          action: 'START_PROJECT',
+          fromState: ProjectState.APPROVED,
+          toState: ProjectState.IN_PROGRESS,
+          actorId: userId,
+          actorName: existing.owner.displayName,
+          timestamp: new Date(),
+        },
+      });
+
+      return proposal;
+    });
+
+    // Log audit event
+    await this.auditService.logEvent({
+      action: 'PROPOSAL_START' as AuditAction,
+      actorUserId: userId,
+      entityType: 'proposal',
+      entityId: proposalId,
+      metadata: {
+        proposalCode: existing.code,
+        fromState: ProjectState.APPROVED,
+        toState: ProjectState.IN_PROGRESS,
+      },
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+      requestId: ctx.requestId,
+    });
+
+    this.logger.log(`Started project ${existing.code}`);
+
+    return this.mapToDtoWithTemplate(result);
+  }
+
+  /**
+   * Submit Faculty Acceptance Review (Story 6.2)
+   * Transition proposal from IN_PROGRESS to FACULTY_ACCEPTANCE_REVIEW
+   *
+   * @param proposalId - Proposal ID
+   * @param userId - Current user ID (must be owner)
+   * @param dto - Faculty acceptance data
+   * @param ctx - Request context for audit
+   * @returns Updated proposal
+   */
+  async submitFacultyAcceptance(
+    proposalId: string,
+    userId: string,
+    dto: {
+      results: string;
+      products: Array<{ name: string; type: string; note?: string; attachmentId?: string }>;
+      attachmentIds?: string[];
+    },
+    ctx: RequestContext,
+  ): Promise<ProposalWithTemplateDto> {
+    // Get existing proposal
+    const existing = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: { owner: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: `Đề tài với ID '${proposalId}' không tồn tại`,
+        },
+      });
+    }
+
+    // Check ownership
+    if (existing.ownerId !== userId) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Bạn không có quyền thực hiện hành động này',
+        },
+      });
+    }
+
+    // Check state: only IN_PROGRESS can submit faculty acceptance
+    if (existing.state !== ProjectState.IN_PROGRESS) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'INVALID_STATE',
+          message: `Đề tài chưa ở trạng thái đang thực hiện. Trạng thái hiện tại: ${existing.state}`,
+        },
+      });
+    }
+
+    // Validate form data
+    if (!dto.results || dto.results.trim() === '') {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Kết quả thực hiện không được để trống',
+        },
+      });
+    }
+
+    if (!dto.products || dto.products.length === 0) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Phải có ít nhất một sản phẩm',
+        },
+      });
+    }
+
+    // Use atomic transaction for state transition
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Update formData with faculty acceptance data
+      const currentFormData = (existing.formData as Record<string, unknown>) || {};
+      const updatedFormData = {
+        ...currentFormData,
+        [SectionId.SEC_FACULTY_ACCEPTANCE_RESULTS]: {
+          results: dto.results,
+          submittedAt: new Date().toISOString(),
+        },
+        [SectionId.SEC_FACULTY_ACCEPTANCE_PRODUCTS]: {
+          products: dto.products.map((p, idx) => ({
+            id: `product-${idx}`,
+            name: p.name,
+            type: p.type,
+            note: p.note || null,
+            attachmentId: p.attachmentId || null,
+          })),
+        },
+      };
+
+      // Update proposal
+      const proposal = await tx.proposal.update({
+        where: { id: proposalId },
+        data: {
+          state: ProjectState.FACULTY_ACCEPTANCE_REVIEW,
+          formData: updatedFormData as unknown as Record<string, never>,
+          holderUnit: existing.facultyId,
+          holderUser: null,
+        },
+        include: {
+          template: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              version: true,
+            },
+          },
+          owner: {
+            select: {
+              id: true,
+              email: true,
+              displayName: true,
+              role: true,
+            },
+          },
+          faculty: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+      // Create workflow log entry
+      await tx.workflowLog.create({
+        data: {
+          proposalId,
+          action: 'SUBMIT_FACULTY_ACCEPTANCE',
+          fromState: ProjectState.IN_PROGRESS,
+          toState: ProjectState.FACULTY_ACCEPTANCE_REVIEW,
+          actorId: userId,
+          actorName: existing.owner.displayName,
+          timestamp: new Date(),
+        },
+      });
+
+      return proposal;
+    });
+
+    // Log audit event
+    await this.auditService.logEvent({
+      action: 'FACULTY_ACCEPTANCE_SUBMIT' as AuditAction,
+      actorUserId: userId,
+      entityType: 'proposal',
+      entityId: proposalId,
+      metadata: {
+        proposalCode: existing.code,
+        productsCount: dto.products.length,
+      },
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+      requestId: ctx.requestId,
+    });
+
+    this.logger.log(`Submitted faculty acceptance for ${existing.code}`);
+
+    return this.mapToDtoWithTemplate(result);
+  }
+
+  /**
+   * Faculty Acceptance Decision (Story 6.3)
+   * Transition proposal from FACULTY_ACCEPTANCE_REVIEW to SCHOOL_ACCEPTANCE_REVIEW or IN_PROGRESS
+   *
+   * @param proposalId - Proposal ID
+   * @param userId - Current user ID (must be QUAN_LY_KHOA)
+   * @param userRole - User role for authorization
+   * @param dto - Faculty decision data
+   * @param ctx - Request context for audit
+   * @returns Updated proposal
+   */
+  async facultyAcceptance(
+    proposalId: string,
+    userId: string,
+    userRole: UserRole,
+    dto: { decision: 'DAT' | 'KHONG_DAT'; comments?: string },
+    ctx: RequestContext,
+  ): Promise<ProposalWithTemplateDto> {
+    // Get existing proposal
+    const existing = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: { owner: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: `Đề tài với ID '${proposalId}' không tồn tại`,
+        },
+      });
+    }
+
+    // Check role: only QUAN_LY_KHOA can perform faculty acceptance
+    if (userRole !== UserRole.QUAN_LY_KHOA && userRole !== UserRole.ADMIN) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Chỉ Quản lý Khoa mới có quyền nghiệm thu',
+        },
+      });
+    }
+
+    // Check state: only FACULTY_ACCEPTANCE_REVIEW can be decided
+    if (existing.state !== ProjectState.FACULTY_ACCEPTANCE_REVIEW) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'INVALID_STATE',
+          message: `Đề tài chưa ở trạng thái nghiệm thu Khoa. Trạng thái hiện tại: ${existing.state}`,
+        },
+      });
+    }
+
+    // Validate: comments required when KHONG_DAT
+    if (dto.decision === 'KHONG_DAT' && (!dto.comments || dto.comments.trim() === '')) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Vui lòng nhập lý do không đạt',
+        },
+      });
+    }
+
+    const isAccept = dto.decision === 'DAT';
+    const nextState = isAccept ? ProjectState.SCHOOL_ACCEPTANCE_REVIEW : ProjectState.IN_PROGRESS;
+    const action = isAccept ? 'FACULTY_ACCEPT' : 'FACULTY_REJECT';
+    const nextHolderUnit = isAccept ? null : existing.facultyId; // null = PHONG_KHCN, facultyId = back to PI
+    const nextHolderUser = isAccept ? null : existing.ownerId;
+
+    // Use atomic transaction for state transition
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Update formData with faculty decision
+      const currentFormData = (existing.formData as Record<string, unknown>) || {};
+      const facultyResultsSection = currentFormData[SectionId.SEC_FACULTY_ACCEPTANCE_RESULTS] as Record<string, unknown> || {};
+
+      const updatedFormData = {
+        ...currentFormData,
+        [SectionId.SEC_FACULTY_ACCEPTANCE_RESULTS]: {
+          ...facultyResultsSection,
+          facultyDecision: {
+            decision: dto.decision,
+            decidedBy: userId,
+            decidedAt: new Date().toISOString(),
+            comments: dto.comments || null,
+          },
+        },
+      };
+
+      // Update proposal
+      const proposal = await tx.proposal.update({
+        where: { id: proposalId },
+        data: {
+          state: nextState,
+          formData: updatedFormData as unknown as Record<string, never>,
+          ...(nextHolderUnit !== null && { holderUnit: nextHolderUnit }),
+          ...(nextHolderUser !== null && { holderUser: nextHolderUser }),
+        },
+        include: {
+          template: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              version: true,
+            },
+          },
+          owner: {
+            select: {
+              id: true,
+              email: true,
+              displayName: true,
+              role: true,
+            },
+          },
+          faculty: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+      // Create workflow log entry
+      await tx.workflowLog.create({
+        data: {
+          proposalId,
+          action: action as any,
+          fromState: ProjectState.FACULTY_ACCEPTANCE_REVIEW,
+          toState: nextState,
+          actorId: userId,
+          actorName: (ctx as any).userDisplayName || 'Quản lý Khoa',
+          comment: dto.comments || null,
+          timestamp: new Date(),
+        },
+      });
+
+      return proposal;
+    });
+
+    // Log audit event
+    await this.auditService.logEvent({
+      action: isAccept ? 'FACULTY_ACCEPT' : 'FACULTY_REJECT' as AuditAction,
+      actorUserId: userId,
+      entityType: 'proposal',
+      entityId: proposalId,
+      metadata: {
+        proposalCode: existing.code,
+        decision: dto.decision,
+      },
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+      requestId: ctx.requestId,
+    });
+
+    this.logger.log(`Faculty acceptance ${dto.decision} for ${existing.code}`);
+
+    return this.mapToDtoWithTemplate(result);
+  }
+
+  /**
+   * School Acceptance Decision (Story 6.4)
+   * Transition proposal from SCHOOL_ACCEPTANCE_REVIEW to HANDOVER or IN_PROGRESS
+   *
+   * @param proposalId - Proposal ID
+   * @param userId - Current user ID (must be PHONG_KHCN, THU_KY_HOI_DONG, or ADMIN)
+   * @param userRole - User role for authorization
+   * @param dto - School decision data
+   * @param ctx - Request context for audit
+   * @returns Updated proposal
+   */
+  async schoolAcceptance(
+    proposalId: string,
+    userId: string,
+    userRole: UserRole,
+    dto: { decision: 'DAT' | 'KHONG_DAT'; comments?: string },
+    ctx: RequestContext,
+  ): Promise<ProposalWithTemplateDto> {
+    // Get existing proposal
+    const existing = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: { owner: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: `Đề tài với ID '${proposalId}' không tồn tại`,
+        },
+      });
+    }
+
+    // Check role: only PHONG_KHCN, THU_KY_HOI_DONG, or ADMIN can perform school acceptance
+    const allowedRoles = [UserRole.PHONG_KHCN, UserRole.THU_KY_HOI_DONG, UserRole.ADMIN];
+    if (!allowedRoles.includes(userRole)) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Bạn không có quyền nghiệm thu cấp Trường',
+        },
+      });
+    }
+
+    // Check state: only SCHOOL_ACCEPTANCE_REVIEW can be decided
+    if (existing.state !== ProjectState.SCHOOL_ACCEPTANCE_REVIEW) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'INVALID_STATE',
+          message: `Đề tài chưa ở trạng thái nghiệm thu Trường. Trạng thái hiện tại: ${existing.state}`,
+        },
+      });
+    }
+
+    // Validate: comments required when KHONG_DAT
+    if (dto.decision === 'KHONG_DAT' && (!dto.comments || dto.comments.trim() === '')) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Vui lòng nhập lý do không đạt',
+        },
+      });
+    }
+
+    const isAccept = dto.decision === 'DAT';
+    const nextState = isAccept ? ProjectState.HANDOVER : ProjectState.IN_PROGRESS;
+    const action = isAccept ? 'SCHOOL_ACCEPT' : 'SCHOOL_REJECT';
+
+    // Use atomic transaction for state transition
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Update formData with school decision
+      const currentFormData = (existing.formData as Record<string, unknown>) || {};
+      const facultyResultsSection = currentFormData[SectionId.SEC_FACULTY_ACCEPTANCE_RESULTS] as Record<string, unknown> || {};
+
+      const updatedFormData = {
+        ...currentFormData,
+        [SectionId.SEC_FACULTY_ACCEPTANCE_RESULTS]: {
+          ...facultyResultsSection,
+          schoolDecision: {
+            decision: dto.decision,
+            decidedBy: userId,
+            decidedAt: new Date().toISOString(),
+            comments: dto.comments || null,
+          },
+        },
+      };
+
+      // Update proposal - both accept and reject return to owner
+      const proposal = await tx.proposal.update({
+        where: { id: proposalId },
+        data: {
+          state: nextState,
+          formData: updatedFormData as unknown as Record<string, never>,
+          holderUnit: existing.facultyId,
+          holderUser: existing.ownerId,
+        },
+        include: {
+          template: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              version: true,
+            },
+          },
+          owner: {
+            select: {
+              id: true,
+              email: true,
+              displayName: true,
+              role: true,
+            },
+          },
+          faculty: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+      // Create workflow log entry
+      await tx.workflowLog.create({
+        data: {
+          proposalId,
+          action: action as any,
+          fromState: ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+          toState: nextState,
+          actorId: userId,
+          actorName: (ctx as any).userDisplayName || 'Quản trị viên',
+          comment: dto.comments || null,
+          timestamp: new Date(),
+        },
+      });
+
+      return proposal;
+    });
+
+    // Log audit event
+    await this.auditService.logEvent({
+      action: isAccept ? 'SCHOOL_ACCEPT' : 'SCHOOL_REJECT' as AuditAction,
+      actorUserId: userId,
+      entityType: 'proposal',
+      entityId: proposalId,
+      metadata: {
+        proposalCode: existing.code,
+        decision: dto.decision,
+      },
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+      requestId: ctx.requestId,
+    });
+
+    this.logger.log(`School acceptance ${dto.decision} for ${existing.code}`);
+
+    return this.mapToDtoWithTemplate(result);
+  }
+
+  /**
+   * Complete Handover (Story 6.5)
+   * Transition proposal from HANDOVER to COMPLETED
+   *
+   * @param proposalId - Proposal ID
+   * @param userId - Current user ID (must be owner)
+   * @param dto - Handover checklist data
+   * @param ctx - Request context for audit
+   * @returns Updated proposal with completedDate set
+   */
+  async completeHandover(
+    proposalId: string,
+    userId: string,
+    dto: {
+      checklist: Array<{ id: string; checked: boolean; note?: string }>;
+    },
+    ctx: RequestContext,
+  ): Promise<ProposalWithTemplateDto> {
+    // Get existing proposal
+    const existing = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: { owner: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: `Đề tài với ID '${proposalId}' không tồn tại`,
+        },
+      });
+    }
+
+    // Check ownership
+    if (existing.ownerId !== userId) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Bạn không có quyền thực hiện hành động này',
+        },
+      });
+    }
+
+    // Check state: only HANDOVER can be completed
+    if (existing.state !== ProjectState.HANDOVER) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'INVALID_STATE',
+          message: `Đề tài chưa ở trạng thái bàn giao. Trạng thái hiện tại: ${existing.state}`,
+        },
+      });
+    }
+
+    // Validate: at least one item checked
+    const checkedItems = dto.checklist.filter(item => item.checked);
+    if (checkedItems.length === 0) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Vui lòng chọn ít nhất một mục',
+        },
+      });
+    }
+
+    // Use atomic transaction for state transition
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Update formData with handover checklist
+      const currentFormData = (existing.formData as Record<string, unknown>) || {};
+      const updatedFormData = {
+        ...currentFormData,
+        [SectionId.SEC_HANDOVER_CHECKLIST]: {
+          completedAt: new Date().toISOString(),
+          checklist: dto.checklist,
+        },
+      };
+
+      // Update proposal
+      const proposal = await tx.proposal.update({
+        where: { id: proposalId },
+        data: {
+          state: ProjectState.COMPLETED,
+          completedDate: new Date(),
+          formData: updatedFormData as unknown as Record<string, never>,
+          holderUnit: existing.facultyId,
+          holderUser: existing.ownerId,
+        },
+        include: {
+          template: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              version: true,
+            },
+          },
+          owner: {
+            select: {
+              id: true,
+              email: true,
+              displayName: true,
+              role: true,
+            },
+          },
+          faculty: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+      // Create workflow log entry
+      await tx.workflowLog.create({
+        data: {
+          proposalId,
+          action: 'HANDOVER_COMPLETE' as any,
+          fromState: ProjectState.HANDOVER,
+          toState: ProjectState.COMPLETED,
+          actorId: userId,
+          actorName: existing.owner.displayName,
+          timestamp: new Date(),
+        },
+      });
+
+      return proposal;
+    });
+
+    // Log audit event
+    await this.auditService.logEvent({
+      action: 'HANDOVER_COMPLETE' as AuditAction,
+      actorUserId: userId,
+      entityType: 'proposal',
+      entityId: proposalId,
+      metadata: {
+        proposalCode: existing.code,
+        checklistItemsCount: dto.checklist.length,
+        checkedItemsCount: checkedItems.length,
+      },
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+      requestId: ctx.requestId,
+    });
+
+    this.logger.log(`Completed handover for ${existing.code}`);
+
+    return this.mapToDtoWithTemplate(result);
+  }
+
+  /**
+   * Save Handover Checklist Draft (Story 6.5)
+   * Auto-save handover checklist before completion
+   *
+   * @param proposalId - Proposal ID
+   * @param userId - Current user ID (must be owner)
+   * @param dto - Handover checklist data (draft)
+   * @param ctx - Request context for audit
+   * @returns Updated proposal
+   */
+  async saveHandoverChecklist(
+    proposalId: string,
+    userId: string,
+    dto: {
+      checklist: Array<{ id: string; checked: boolean; note?: string }>;
+    },
+    ctx: RequestContext,
+  ): Promise<ProposalWithTemplateDto> {
+    // Get existing proposal
+    const existing = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: { owner: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: `Đề tài với ID '${proposalId}' không tồn tại`,
+        },
+      });
+    }
+
+    // Check ownership
+    if (existing.ownerId !== userId) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Bạn không có quyền chỉnh sửa checklist này',
+        },
+      });
+    }
+
+    // Check state: only HANDOVER can save checklist
+    if (existing.state !== ProjectState.HANDOVER) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'INVALID_STATE',
+          message: `Chỉ có thể lưu checklist ở trạng thái bàn giao. Trạng thái hiện tại: ${existing.state}`,
+        },
+      });
+    }
+
+    // Update formData with handover checklist draft
+    const currentFormData = (existing.formData as Record<string, unknown>) || {};
+    const updatedFormData = {
+      ...currentFormData,
+      [SectionId.SEC_HANDOVER_CHECKLIST]: {
+        draft: true,
+        lastSavedAt: new Date().toISOString(),
+        checklist: dto.checklist,
+      },
+    };
+
+    // Update proposal
+    const proposal = await this.prisma.proposal.update({
+      where: { id: proposalId },
+      data: {
+        formData: updatedFormData as unknown as Record<string, never>,
+      },
+      include: {
+        template: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            version: true,
+          },
+        },
+        owner: {
+          select: {
+            id: true,
+            email: true,
+            displayName: true,
+            role: true,
+          },
+        },
+        faculty: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    this.logger.log(`Auto-saved handover checklist for ${existing.code}`);
+
+    return this.mapToDtoWithTemplate(proposal);
+  }
+
+  /**
+   * Get Faculty Acceptance Data (Story 6.3)
+   * Returns faculty acceptance data for review display
+   *
+   * @param proposalId - Proposal ID
+   * @param userId - Current user ID
+   * @param userRole - User role for authorization
+   * @returns Faculty acceptance data
+   */
+  async getFacultyAcceptanceData(
+    proposalId: string,
+    userId: string,
+    userRole: UserRole,
+  ): Promise<{
+    results?: string;
+    products?: Array<{ id: string; name: string; type: string; note?: string }>;
+    submittedAt?: string;
+  }> {
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: {
+        id: true,
+        state: true,
+        ownerId: true,
+        formData: true,
+      },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: `Đề tài với ID '${proposalId}' không tồn tại`,
+        },
+      });
+    }
+
+    // Check access: QUAN_LY_KHOA, owner, PHONG_KHCN, ADMIN
+    const allowedRoles = [UserRole.QUAN_LY_KHOA, UserRole.PHONG_KHCN, UserRole.ADMIN];
+    const isOwner = proposal.ownerId === userId;
+    const hasAccess = allowedRoles.includes(userRole) || isOwner;
+
+    if (!hasAccess) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Bạn không có quyền xem thông tin này',
+        },
+      });
+    }
+
+    const formData = (proposal.formData as Record<string, unknown>) || {};
+    const resultsSection = formData[SectionId.SEC_FACULTY_ACCEPTANCE_RESULTS] as Record<string, unknown> | undefined;
+    const productsSection = formData[SectionId.SEC_FACULTY_ACCEPTANCE_PRODUCTS] as Record<string, unknown> | undefined;
+
+    return {
+      results: resultsSection?.results as string | undefined,
+      products: productsSection?.products as Array<{ id: string; name: string; type: string; note?: string }> | undefined,
+      submittedAt: resultsSection?.submittedAt as string | undefined,
+    };
+  }
+
+  /**
+   * Get School Acceptance Data (Story 6.4)
+   * Returns school acceptance data for review display
+   *
+   * @param proposalId - Proposal ID
+   * @param userId - Current user ID
+   * @param userRole - User role for authorization
+   * @returns School acceptance data including faculty decision
+   */
+  async getSchoolAcceptanceData(
+    proposalId: string,
+    userId: string,
+    userRole: UserRole,
+  ): Promise<{
+    facultyDecision?: { decision: string; decidedAt: string; comments?: string };
+    results?: string;
+    products?: Array<{ id: string; name: string; type: string; note?: string }>;
+  }> {
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: {
+        id: true,
+        state: true,
+        ownerId: true,
+        formData: true,
+      },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: `Đề tài với ID '${proposalId}' không tồn tại`,
+        },
+      });
+    }
+
+    // Check access: PHONG_KHCN, THU_KY_HOI_DONG, ADMIN, owner
+    const allowedRoles = [UserRole.PHONG_KHCN, UserRole.THU_KY_HOI_DONG, UserRole.ADMIN];
+    const isOwner = proposal.ownerId === userId;
+    const hasAccess = allowedRoles.includes(userRole) || isOwner;
+
+    if (!hasAccess) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Bạn không có quyền xem thông tin này',
+        },
+      });
+    }
+
+    const formData = (proposal.formData as Record<string, unknown>) || {};
+    const resultsSection = formData[SectionId.SEC_FACULTY_ACCEPTANCE_RESULTS] as Record<string, unknown> | undefined;
+    const productsSection = formData[SectionId.SEC_FACULTY_ACCEPTANCE_PRODUCTS] as Record<string, unknown> | undefined;
+
+    return {
+      facultyDecision: resultsSection?.facultyDecision as { decision: string; decidedAt: string; comments?: string } | undefined,
+      results: resultsSection?.results as string | undefined,
+      products: productsSection?.products as Array<{ id: string; name: string; type: string; note?: string }> | undefined,
+    };
   }
 }

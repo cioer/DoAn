@@ -1,5 +1,6 @@
-import { Injectable, Logger, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, InternalServerErrorException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../auth/prisma.service';
+import { EvaluationState } from '@prisma/client';
 import { chromium } from 'playwright';
 import * as path from 'path';
 import * as fs from 'fs/promises';
@@ -1109,6 +1110,532 @@ export class PdfService {
 2. Sửa đổi nội dung theo yêu cầu
 3. Đánh dấu "Đã sửa" cho các phần đã hoàn thành
 4. Nhấn "Nộp lại" để gửi hồ sơ xét duyệt lại
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      Hệ thống Quản lý Nghiên cứu Khoa học - Generated on ${new Date().toLocaleString('vi-VN')}<br>
+      Trang này được tạo tự động từ hệ thống.
+    </div>
+  </div>
+</body>
+</html>
+    `;
+  }
+
+  /**
+   * Generate PDF for evaluation (Story 5.6)
+   *
+   * Creates a PDF document showing evaluation details including:
+   * - Proposal information
+   * - Evaluation scores and comments for all sections
+   * - Conclusion (Đạt/Không đạt)
+   * - Evaluator information and signature
+   *
+   * @param proposalId - Proposal UUID
+   * @param options - PDF generation options
+   * @returns PDF buffer
+   */
+  async generateEvaluationPdf(proposalId: string, options: PdfOptions = {}): Promise<Buffer> {
+    const startTime = Date.now();
+
+    // Fetch evaluation with proposal, evaluator, and council data
+    const evaluation = await this.prisma.evaluation.findFirst({
+      where: { proposalId },
+      include: {
+        proposal: {
+          select: {
+            id: true,
+            code: true,
+            title: true,
+            ownerId: true,
+            councilId: true,
+          },
+        },
+        evaluator: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!evaluation) {
+      throw new NotFoundException(`Không tìm thấy phiếu đánh giá cho đề tài ${proposalId}`);
+    }
+
+    // Validate evaluation is finalized
+    if (evaluation.state !== EvaluationState.FINALIZED) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'EVALUATION_NOT_FINALIZED',
+          message: 'Chỉ có thể xuất PDF cho phiếu đánh giá đã hoàn tất',
+        },
+      });
+    }
+
+    // Fetch council name if exists
+    let councilName = 'N/A';
+    if (evaluation.proposal.councilId) {
+      const council = await this.prisma.council.findUnique({
+        where: { id: evaluation.proposal.councilId },
+        select: { name: true },
+      });
+      councilName = council?.name || 'N/A';
+    }
+
+    // Fix #9: Launch browser and ensure it's closed properly with try/finally
+    const browser = await chromium.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+
+    try {
+      // Generate HTML content
+      const html = await this.generateEvaluationHtml(evaluation, councilName);
+
+      try {
+        const page = await browser.newPage();
+
+        // Set timeout for PDF generation (10s SLA from Story 3.9)
+        const timeout = options.timeout || this.defaultTimeout;
+        page.setDefaultTimeout(timeout);
+
+        // Set content and wait for network idle
+        await page.setContent(html, {
+          waitUntil: 'networkidle',
+          timeout,
+        });
+
+        // Generate PDF
+        const pdfBuffer = await page.pdf({
+          format: options.format || 'A4',
+          printBackground: true,
+          margin: options.margin || {
+            top: '20px',
+            bottom: '20px',
+            left: '20px',
+            right: '20px',
+          },
+          preferCSSPageSize: false,
+          displayHeaderFooter: false,
+        });
+
+        const duration = Date.now() - startTime;
+        this.logger.log(`Evaluation PDF generated for proposal ${proposalId} in ${duration}ms`);
+
+        return pdfBuffer;
+      } catch (browserError) {
+        this.logger.error(`Failed to generate PDF page for evaluation ${proposalId}`, browserError);
+        throw browserError;
+      }
+    } catch (error) {
+      this.logger.error(`Failed to generate evaluation PDF for proposal ${proposalId}`, error);
+      throw new InternalServerErrorException(
+        `Không thể tạo PDF đánh giá: ${error instanceof Error ? error.message : 'Lỗi không xác định'}`,
+      );
+    } finally {
+      // Ensure browser is always closed, even if errors occur
+      try {
+        await browser.close();
+      } catch (closeError) {
+        this.logger.warn(`Failed to close browser for evaluation ${proposalId}`, closeError);
+      }
+    }
+  }
+
+  /**
+   * Generate HTML for evaluation PDF (Story 5.6)
+   *
+   * @param evaluation - Evaluation data with relations
+   * @param councilName - Council name
+   * @returns HTML string
+   */
+  private async generateEvaluationHtml(evaluation: any, councilName: string): Promise<string> {
+    const formData = evaluation.formData as Record<string, unknown> || {};
+
+    // Helper to render score dots
+    const renderScoreDots = (score: number): string => {
+      let dots = '';
+      for (let i = 1; i <= 5; i++) {
+        const filled = i <= score;
+        dots += `<span class="score-dot ${filled ? 'filled' : 'empty'}"></span>`;
+      }
+      return dots;
+    };
+
+    // Format submitted timestamp
+    const submittedAt = evaluation.updatedAt
+      ? new Date(evaluation.updatedAt).toLocaleString('vi-VN')
+      : '';
+
+    return `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PHIẾU ĐÁNH GIÁ - ${evaluation.proposal.code}</title>
+  <style>
+    /* Reset and base styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Times New Roman', serif;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #000000;
+      background: #ffffff;
+    }
+
+    /* Container */
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      border-bottom: 2px solid #000;
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+    }
+
+    .header-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #000;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .header-subtitle {
+      font-size: 12px;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    /* Section */
+    .section {
+      margin-bottom: 20px;
+      page-break-inside: avoid;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #000;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #000;
+    }
+
+    /* Info rows */
+    .info-row {
+      display: flex;
+      padding: 6px 0;
+      border-bottom: 1px dotted #ccc;
+    }
+
+    .info-label {
+      flex: 0 0 150px;
+      font-weight: 600;
+      color: #000;
+    }
+
+    .info-value {
+      flex: 1;
+      color: #000;
+    }
+
+    /* Evaluation section */
+    .evaluation-section {
+      margin-bottom: 16px;
+      page-break-inside: avoid;
+    }
+
+    .evaluation-section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #000;
+      margin-bottom: 8px;
+    }
+
+    .score-display {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .score-label {
+      font-weight: 600;
+    }
+
+    .score-dots {
+      display: flex;
+      gap: 4px;
+    }
+
+    .score-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .score-dot.filled {
+      background: #000;
+    }
+
+    .score-dot.empty {
+      border: 1px solid #000;
+      background: #fff;
+    }
+
+    .score-text {
+      font-weight: 600;
+    }
+
+    .comments-box {
+      background: #f5f5f5;
+      padding: 10px;
+      border-left: 3px solid #000;
+      margin-top: 6px;
+    }
+
+    .comments-label {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    /* Conclusion section */
+    .conclusion-section {
+      background: #f0f0f0;
+      border: 2px solid #000;
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      margin: 20px 0;
+      page-break-inside: avoid;
+    }
+
+    .conclusion-label {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .conclusion-value {
+      font-size: 20px;
+      font-weight: 700;
+      padding: 8px 16px;
+      display: inline-block;
+      border-radius: 4px;
+    }
+
+    .conclusion-dat {
+      background: #10b981;
+      color: #fff;
+    }
+
+    .conclusion-khong-dat {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    /* Signature section */
+    .signature-section {
+      margin-top: 32px;
+      page-break-inside: avoid;
+    }
+
+    .signature-box {
+      display: flex;
+      gap: 40px;
+      margin-top: 16px;
+    }
+
+    .signature-item {
+      flex: 1;
+    }
+
+    .signature-label {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .signature-placeholder {
+      height: 60px;
+      border-bottom: 1px solid #000;
+      margin: 12px 0 8px 0;
+    }
+
+    .timestamp {
+      font-size: 11px;
+      color: #666;
+      font-style: italic;
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 32px;
+      padding-top: 16px;
+      border-top: 1px solid #ccc;
+      font-size: 10px;
+      color: #666;
+      text-align: center;
+    }
+
+    /* Page break control */
+    .page-break-before {
+      page-break-before: always;
+    }
+
+    .page-break-after {
+      page-break-after: always;
+    }
+
+    .no-break {
+      page-break-inside: avoid;
+    }
+
+    /* Empty state */
+    .empty-value {
+      color: #999;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-title">PHIẾU ĐÁNH GIÁ ĐỀ TÀI</div>
+      <div class="header-subtitle">Hệ thống Quản lý Nghiên cứu Khoa học</div>
+    </div>
+
+    <!-- Proposal Info Section -->
+    <div class="section no-break">
+      <div class="section-title">THÔNG TIN ĐỀ TÀI</div>
+
+      <div class="info-row">
+        <div class="info-label">Mã số:</div>
+        <div class="info-value">${this.escapeHtml(evaluation.proposal.code || '')}</div>
+      </div>
+
+      <div class="info-row">
+        <div class="info-label">Tên đề tài:</div>
+        <div class="info-value">${this.escapeHtml(evaluation.proposal.title || 'Chưa đặt tên')}</div>
+      </div>
+
+      <div class="info-row">
+        <div class="info-label">Hội đồng:</div>
+        <div class="info-value">${this.escapeHtml(councilName)}</div>
+      </div>
+    </div>
+
+    <!-- Evaluation Sections -->
+    <div class="section no-break">
+      <div class="section-title">KẾT QUẢ ĐÁNH GIÁ</div>
+
+      <!-- Section 1: Scientific Content -->
+      <div class="evaluation-section no-break">
+        <div class="evaluation-section-title">1. Đánh giá nội dung khoa học</div>
+        <div class="score-display">
+          <span class="score-label">Điểm:</span>
+          <div class="score-dots">${renderScoreDots((formData.scientificContent as any)?.score || 0)}</div>
+          <span class="score-text">${(formData.scientificContent as any)?.score || 0}/5</span>
+        </div>
+        <div class="comments-box">
+          <div class="comments-label">Nhận xét:</div>
+          <div>${this.escapeHtml((formData.scientificContent as any)?.comments || 'Không có')}</div>
+        </div>
+      </div>
+
+      <!-- Section 2: Research Method -->
+      <div class="evaluation-section no-break">
+        <div class="evaluation-section-title">2. Đánh giá phương pháp nghiên cứu</div>
+        <div class="score-display">
+          <span class="score-label">Điểm:</span>
+          <div class="score-dots">${renderScoreDots((formData.researchMethod as any)?.score || 0)}</div>
+          <span class="score-text">${(formData.researchMethod as any)?.score || 0}/5</span>
+        </div>
+        <div class="comments-box">
+          <div class="comments-label">Nhận xét:</div>
+          <div>${this.escapeHtml((formData.researchMethod as any)?.comments || 'Không có')}</div>
+        </div>
+      </div>
+
+      <!-- Section 3: Feasibility -->
+      <div class="evaluation-section no-break">
+        <div class="evaluation-section-title">3. Đánh giá tính khả thi</div>
+        <div class="score-display">
+          <span class="score-label">Điểm:</span>
+          <div class="score-dots">${renderScoreDots((formData.feasibility as any)?.score || 0)}</div>
+          <span class="score-text">${(formData.feasibility as any)?.score || 0}/5</span>
+        </div>
+        <div class="comments-box">
+          <div class="comments-label">Nhận xét:</div>
+          <div>${this.escapeHtml((formData.feasibility as any)?.comments || 'Không có')}</div>
+        </div>
+      </div>
+
+      <!-- Section 4: Budget -->
+      <div class="evaluation-section no-break">
+        <div class="evaluation-section-title">4. Đánh giá kinh phí</div>
+        <div class="score-display">
+          <span class="score-label">Điểm:</span>
+          <div class="score-dots">${renderScoreDots((formData.budget as any)?.score || 0)}</div>
+          <span class="score-text">${(formData.budget as any)?.score || 0}/5</span>
+        </div>
+        <div class="comments-box">
+          <div class="comments-label">Nhận xét:</div>
+          <div>${this.escapeHtml((formData.budget as any)?.comments || 'Không có')}</div>
+        </div>
+      </div>
+
+      <!-- Other Comments (if provided) -->
+      ${(formData.otherComments as string) ? `
+      <div class="evaluation-section no-break">
+        <div class="evaluation-section-title">5. Ý kiến khác</div>
+        <div class="comments-box">
+          <div>${this.escapeHtml(formData.otherComments as string)}</div>
+        </div>
+      </div>
+      ` : ''}
+    </div>
+
+    <!-- Conclusion Section -->
+    <div class="conclusion-section no-break">
+      <div class="conclusion-label">KẾT LUẬN</div>
+      <div class="conclusion-value ${formData.conclusion === 'DAT' ? 'conclusion-dat' : 'conclusion-khong-dat'}">
+        ${formData.conclusion === 'DAT' ? 'ĐẠT' : 'KHÔNG ĐẠT'}
+      </div>
+    </div>
+
+    <!-- Signature Section -->
+    <div class="signature-section no-break">
+      <div class="section-title">CHỮ KÝ</div>
+
+      <div class="signature-box">
+        <div class="signature-item">
+          <div class="signature-label">Người đánh giá:</div>
+          <div>${this.escapeHtml(evaluation.evaluator?.name || evaluation.evaluator?.email || '')}</div>
+          <div class="signature-label">Chức vụ:</div>
+          <div>Thư ký Hội đồng</div>
+          <div class="signature-placeholder"></div>
+          <div class="timestamp">Ngày nộp: ${submittedAt}</div>
         </div>
       </div>
     </div>

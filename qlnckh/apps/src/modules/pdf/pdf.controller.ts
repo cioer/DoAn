@@ -8,6 +8,7 @@ import {
   Res,
   NotFoundException,
   InternalServerErrorException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
@@ -19,6 +20,9 @@ import {
 } from '@nestjs/swagger';
 import { PdfService } from './pdf.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../rbac/guards/roles.guard';
+import { RequireRoles } from '../../common/decorators/roles.decorator';
+import { UserRole } from '@prisma/client';
 
 /**
  * User object attached to request by JWT guard
@@ -215,6 +219,119 @@ export class PdfController {
       res.send(pdfBuffer);
     } catch (error) {
       if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException({
+        success: false,
+        error: {
+          code: 'PDF_GENERATION_FAILED',
+          message: 'Không thể tạo PDF. Vui lòng thử lại.',
+        },
+      });
+    }
+  }
+
+  /**
+   * GET /api/proposals/:id/evaluation-pdf
+   * Story 5.6: Generate PDF export for evaluation
+   *
+   * Returns PDF buffer for finalized evaluation with proposal info,
+   * evaluation scores and comments, and conclusion. Only available
+   * for proposals with FINALIZED evaluation state.
+   *
+   * RBAC: Only THU_KY_HOI_DONG, PHONG_KHCN, or ADMIN can export evaluation PDF.
+   */
+  @Get(':id/evaluation-pdf')
+  @UseGuards(RolesGuard) // Story 5.6: Enable RBAC check for evaluation PDF export
+  @RequireRoles(UserRole.THU_KY_HOI_DONG, UserRole.PHONG_KHCN, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Xuất PDF đánh giá',
+    description:
+      'Xuất PDF cho phiếu đánh giá đã hoàn tất với đầy đủ thông tin đề tài, điểm số, nhận xét và kết luận.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'PDF file',
+    content: {
+      'application/pdf': {
+        example: 'Binary PDF content',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Evaluation not finalized',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'EVALUATION_NOT_FINALIZED',
+          message: 'Chỉ có thể xuất PDF cho phiếu đánh giá đã hoàn tất',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Evaluation not found',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'EVALUATION_NOT_FOUND',
+          message: 'Không tìm thấy phiếu đánh giá',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'PDF generation failed',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'PDF_GENERATION_FAILED',
+          message: 'Không thể tạo PDF. Vui lòng thử lại.',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - chưa đăng nhập',
+  })
+  async getEvaluationPdf(
+    @Param('id') id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      // Get proposal code for filename
+      const proposalCode = await this.pdfService.getProposalCode(id);
+
+      // Generate PDF
+      const pdfBuffer = await this.pdfService.generateEvaluationPdf(id);
+
+      // Generate filename with timestamp: {code}_evaluation_{timestamp}.pdf
+      const timestamp = new Date().getTime();
+      const filename = `${proposalCode}_evaluation_${timestamp}.pdf`;
+
+      // Set headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', pdfBuffer.length.toString());
+
+      // Send PDF buffer
+      res.send(pdfBuffer);
+    } catch (error) {
+      // Fix: Use instanceof for proper NestJS exception type checking
+      if (error instanceof NotFoundException || error instanceof ForbiddenException) {
         throw error;
       }
       throw new InternalServerErrorException({

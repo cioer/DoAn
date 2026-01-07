@@ -1,5 +1,5 @@
 /**
- * Evaluation Form Component (Story 5.3)
+ * Evaluation Form Component (Story 5.3, Story 5.4, Story 5.5, Story 5.6)
  *
  * Provides evaluation form for council secretaries to evaluate proposals.
  * Features:
@@ -8,17 +8,30 @@
  * - Other comments optional field
  * - Auto-save with 2-second debounce
  * - Save indicator showing "Đã lưu vào HH:mm:ss"
+ * - "Hoàn tất" button with preview modal (Story 5.4)
+ * - Submit evaluation to FINALIZED state (Story 5.4)
+ * - Read-only mode when FINALIZED (Story 5.5)
+ * - SubmittedBadge display when FINALIZED (Story 5.5)
+ * - Export PDF button when FINALIZED (Story 5.6)
  *
  * Story 5.3: AC1 - Evaluation Form Display
  * Story 5.3: AC2 - Auto-save Functionality
+ * Story 5.4: AC1 - Preview Modal Display
+ * Story 5.4: AC3 - Submit Evaluation
+ * Story 5.5: AC1 - Read-Only UI Mode
+ * Story 5.6: AC1 - PDF Export Button
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import { evaluationApi, EvaluationFormData, DEFAULT_EVALUATION_DATA, EvaluationState } from '../../lib/api/evaluations';
+import { EvaluationPreviewModal } from './EvaluationPreviewModal';
+import { SubmittedBadge } from './SubmittedBadge';
+import { ExportPdfButton } from './ExportPdfButton';
 
 export interface EvaluationFormProps {
   proposalId: string;
+  proposalCode?: string; // Story 5.6: For PDF export filename
   holderUser: string | null; // From proposal data
   currentState: string; // Should be OUTLINE_COUNCIL_REVIEW
   currentUserId: string; // From auth context
@@ -47,13 +60,15 @@ interface ScoreSectionProps {
   comments: string;
   onScoreChange: (score: number) => void;
   onCommentsChange: (comments: string) => void;
+  disabled?: boolean; // Story 5.5: Disabled prop for read-only mode
 }
 
 /**
  * Score Section Component
  * Renders a single evaluation section with score slider and comment textarea
+ * Story 5.5: Added disabled prop for read-only mode
  */
-function ScoreSection({ title, score, comments, onScoreChange, onCommentsChange }: ScoreSectionProps) {
+function ScoreSection({ title, score, comments, onScoreChange, onCommentsChange, disabled = false }: ScoreSectionProps) {
   return (
     <div className="border rounded-lg p-4 space-y-3 bg-white dark:bg-gray-800">
       <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100">{title}</h4>
@@ -71,7 +86,8 @@ function ScoreSection({ title, score, comments, onScoreChange, onCommentsChange 
           step="1"
           value={score}
           onChange={(e) => onScoreChange(Number(e.target.value))}
-          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-blue-600"
+          disabled={disabled}
+          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
         />
         <div className="flex justify-between text-xs text-gray-500 dark:text-gray-500">
           <span>1 - Kém</span>
@@ -90,7 +106,8 @@ function ScoreSection({ title, score, comments, onScoreChange, onCommentsChange 
           onChange={(e) => onCommentsChange(e.target.value)}
           placeholder="Nhập nhận xét cho mục này..."
           rows={3}
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+          disabled={disabled}
+          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50 dark:disabled:bg-gray-900"
         />
       </div>
     </div>
@@ -99,9 +116,11 @@ function ScoreSection({ title, score, comments, onScoreChange, onCommentsChange 
 
 /**
  * Evaluation Form Component (Story 5.3)
+ * Story 5.6: Added proposalCode prop for PDF export
  */
 export function EvaluationForm({
   proposalId,
+  proposalCode,
   holderUser,
   currentState,
   currentUserId,
@@ -112,11 +131,20 @@ export function EvaluationForm({
   // Form state
   const [formData, setFormData] = useState<EvaluationFormData>(DEFAULT_EVALUATION_DATA);
   const [initialEvaluation, setInitialEvaluation] = useState<EvaluationFormData | null>(null);
+  const [evaluationState, setEvaluationState] = useState<EvaluationState>(EvaluationState.DRAFT);
+  const [submittedAt, setSubmittedAt] = useState<Date | null>(null); // Story 5.5: Submitted timestamp
 
   // UI state
   const [autoSaveState, setAutoSaveState] = useState<AutoSaveState>({ status: 'idle' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false); // Story 5.4: Preview modal state
+
+  /**
+   * Check if form is read-only (Story 5.5: AC1)
+   * Form is read-only when evaluation is FINALIZED
+   */
+  const isReadOnly = evaluationState === EvaluationState.FINALIZED;
 
   // Refs for auto-save
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
@@ -163,6 +191,8 @@ export function EvaluationForm({
 
         setFormData(mergedFormData);
         setInitialEvaluation(mergedFormData);
+        setEvaluationState(evaluation.state as EvaluationState); // Story 5.4: Capture evaluation state
+        setSubmittedAt(evaluation.state === EvaluationState.FINALIZED ? new Date(evaluation.updatedAt) : null); // Story 5.5: Capture submittedAt
         setAutoSaveState({
           status: 'saved',
           lastSavedAt: new Date(evaluation.updatedAt),
@@ -184,9 +214,10 @@ export function EvaluationForm({
 
   /**
    * Perform save with error handling
+   * Skip save when evaluation is finalized (Story 5.5: AC1)
    */
   const performSave = useCallback(async (dataToSave: EvaluationFormData) => {
-    if (isSavingRef.current || !canEvaluate) {
+    if (isSavingRef.current || !canEvaluate || isReadOnly) {
       return;
     }
 
@@ -277,6 +308,37 @@ export function EvaluationForm({
       }
     };
   }, [canEvaluate, performSave]);
+
+  /**
+   * Check if form is complete for submission (Story 5.4)
+   * Conclusion is required
+   */
+  const isFormComplete = (): boolean => {
+    return !!formData.conclusion;
+  };
+
+  /**
+   * Handle open preview modal (Story 5.4: AC1)
+   */
+  const handleOpenPreview = () => {
+    setIsPreviewModalOpen(true);
+  };
+
+  /**
+   * Handle submit success (Story 5.4: AC3, Story 5.5: AC1)
+   */
+  const handleSubmitSuccess = () => {
+    setEvaluationState(EvaluationState.FINALIZED);
+    setSubmittedAt(new Date()); // Story 5.5: Set submitted timestamp
+    onSubmitComplete?.();
+  };
+
+  /**
+   * Handle close preview modal (Story 5.4: AC2)
+   */
+  const handleClosePreview = () => {
+    setIsPreviewModalOpen(false);
+  };
 
   /**
    * Render save indicator (Story 5.3: AC2)
@@ -375,11 +437,11 @@ export function EvaluationForm({
   }
 
   /**
-   * Evaluation Form (Story 5.3: AC1)
+   * Evaluation Form (Story 5.3: AC1, Story 5.5: AC1)
    */
   return (
     <div className="space-y-6">
-      {/* Header with Save Indicator */}
+      {/* Header with Save Indicator / Submitted Badge (Story 5.5) */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -389,7 +451,12 @@ export function EvaluationForm({
             Đánh giá các tiêu chí và đưa ra kết luận cho đề tài này.
           </p>
         </div>
-        {renderSaveIndicator()}
+        {/* Show SubmittedBadge when FINALIZED, otherwise show save indicator */}
+        {isReadOnly && submittedAt ? (
+          <SubmittedBadge submittedAt={submittedAt} />
+        ) : (
+          renderSaveIndicator()
+        )}
       </div>
 
       {/* Form Sections */}
@@ -405,6 +472,7 @@ export function EvaluationForm({
           onCommentsChange={(comments) =>
             handleFieldChange('scientificContent', { ...formData.scientificContent, comments })
           }
+          disabled={isReadOnly}
         />
 
         {/* Research Method */}
@@ -418,6 +486,7 @@ export function EvaluationForm({
           onCommentsChange={(comments) =>
             handleFieldChange('researchMethod', { ...formData.researchMethod, comments })
           }
+          disabled={isReadOnly}
         />
 
         {/* Feasibility */}
@@ -431,6 +500,7 @@ export function EvaluationForm({
           onCommentsChange={(comments) =>
             handleFieldChange('feasibility', { ...formData.feasibility, comments })
           }
+          disabled={isReadOnly}
         />
 
         {/* Budget */}
@@ -444,6 +514,7 @@ export function EvaluationForm({
           onCommentsChange={(comments) =>
             handleFieldChange('budget', { ...formData.budget, comments })
           }
+          disabled={isReadOnly}
         />
 
         {/* Conclusion */}
@@ -454,25 +525,27 @@ export function EvaluationForm({
           <div className="space-y-2">
             <label className="text-xs text-gray-600 dark:text-gray-400">Kết luận:</label>
             <div className="flex gap-6">
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className={`flex items-center gap-2 ${isReadOnly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                 <input
                   type="radio"
                   name="conclusion"
                   value="DAT"
                   checked={formData.conclusion === 'DAT'}
                   onChange={() => handleFieldChange('conclusion', 'DAT' as const)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                  disabled={isReadOnly}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                 />
                 <span className="text-sm text-gray-900 dark:text-gray-100">Đạt</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className={`flex items-center gap-2 ${isReadOnly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                 <input
                   type="radio"
                   name="conclusion"
                   value="KHONG_DAT"
                   checked={formData.conclusion === 'KHONG_DAT'}
                   onChange={() => handleFieldChange('conclusion', 'KHONG_DAT' as const)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                  disabled={isReadOnly}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                 />
                 <span className="text-sm text-gray-900 dark:text-gray-100">Không đạt</span>
               </label>
@@ -480,7 +553,7 @@ export function EvaluationForm({
           </div>
         </div>
 
-        {/* Other Comments (Optional) */}
+        {/* Other Comments (Optional) - Story 5.5: Disabled when read-only */}
         <div className="border rounded-lg p-4 space-y-3 bg-white dark:bg-gray-800">
           <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
             6. Ý kiến khác (optional)
@@ -490,15 +563,50 @@ export function EvaluationForm({
             onChange={(e) => handleFieldChange('otherComments', e.target.value)}
             placeholder="Nhập ý kiến khác nếu có..."
             rows={3}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+            disabled={isReadOnly}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50 dark:disabled:bg-gray-900"
           />
         </div>
       </div>
+
+      {/* Submit Button (Story 5.4) */}
+      {evaluationState === EvaluationState.DRAFT && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={handleOpenPreview}
+            disabled={!isFormComplete() || autoSaveState.status === 'saving'}
+            className="px-6 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          >
+            Hoàn tất
+          </button>
+        </div>
+      )}
+
+      {/* Export PDF Button (Story 5.6) - Shown when FINALIZED */}
+      {evaluationState === EvaluationState.FINALIZED && (
+        <div className="flex justify-center">
+          <ExportPdfButton
+            proposalId={proposalId}
+            isFinalized={isReadOnly}
+            proposalCode={proposalCode}
+          />
+        </div>
+      )}
 
       {/* Footer note */}
       <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
         Phiếu đánh giá sẽ được tự động lưu sau 2 giây kể từ khi bạn thay đổi.
       </div>
+
+      {/* Preview Modal (Story 5.4) */}
+      <EvaluationPreviewModal
+        isOpen={isPreviewModalOpen}
+        onClose={handleClosePreview}
+        proposalId={proposalId}
+        formData={formData}
+        onSubmitSuccess={handleSubmitSuccess}
+      />
     </div>
   );
 }

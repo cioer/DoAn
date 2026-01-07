@@ -37,3 +37,30 @@ export {
   ExtensionDurationSection,
   Product,
 } from './proposal-form-data.dto';
+
+// Epic 6: Acceptance & Handover DTOs
+export { StartProjectDto, StartProjectResponseDto } from './start-proposal.dto';
+export {
+  SubmitFacultyAcceptanceDto,
+} from './submit-faculty-acceptance.dto';
+export {
+  FacultyAcceptanceProductDto,
+  ProductType,
+} from './faculty-acceptance-product.dto';
+export {
+  FacultyAcceptanceDecisionDto,
+  FacultyDecision,
+} from './faculty-acceptance-decision.dto';
+export {
+  SchoolAcceptanceDecisionDto,
+  SchoolDecision,
+} from './school-acceptance-decision.dto';
+export {
+  CompleteHandoverDto,
+  SaveHandoverChecklistDto,
+} from './complete-handover.dto';
+export {
+  HandoverChecklistItemDto,
+  HANDOVER_CHECKLIST_ITEMS,
+  HandoverChecklistItemId,
+} from './handover-checklist.dto';
