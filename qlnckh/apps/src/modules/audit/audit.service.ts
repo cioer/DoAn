@@ -9,6 +9,25 @@ import { AuditEventResponse, PaginationMeta } from './entities/audit-event.entit
 import { AuditQueryDto } from './dto';
 
 /**
+ * Audit Statistics Interface
+ * Story 10.4: AC2 - Statistics Dashboard
+ */
+export interface AuditStatistics {
+  totalEvents: number;
+  eventsByAction: Record<string, number>;
+  eventsByEntityType: Record<string, number>;
+  topActors: Array<{
+    userId: string;
+    displayName: string;
+    email: string;
+    count: number;
+  }>;
+  todayEvents: number;
+  thisWeekEvents: number;
+  thisMonthEvents: number;
+}
+
+/**
  * Create Audit Event DTO (internal interface for logEvent)
  * Separated from entities to allow AuditAction enum type
  */
@@ -51,7 +70,7 @@ export class AuditService {
           actingAsUserId: dto.actingAsUserId || null,
           entityType: dto.entityType || null,
           entityId: dto.entityId || null,
-          metadata: (dto.metadata || null) as unknown as Prisma.NullableJsonNullValueInput,
+          metadata: dto.metadata ?? Prisma.JsonNull,
           ip: dto.ip || null,
           userAgent: dto.userAgent || null,
           requestId: dto.requestId || null,
@@ -116,16 +135,10 @@ export class AuditService {
     if (from_date || to_date) {
       where.occurredAt = {};
       if (from_date) {
-        where.occurredAt = {
-          ...where.occurredAt as object,
-          gte: new Date(from_date),
-        };
+        (where.occurredAt as Prisma.AuditEventWhereInput['occurredAt']).gte = new Date(from_date);
       }
       if (to_date) {
-        where.occurredAt = {
-          ...where.occurredAt as object,
-          lte: new Date(to_date),
-        };
+        (where.occurredAt as Prisma.AuditEventWhereInput['occurredAt']).lte = new Date(to_date);
       }
     }
 
@@ -234,5 +247,280 @@ export class AuditService {
       userAgent: event.userAgent,
       requestId: event.requestId,
     }));
+  }
+
+  /**
+   * Get audit statistics
+   * Story 10.4: AC2 - Statistics Dashboard
+   *
+   * Returns aggregated statistics about audit events.
+   *
+   * @returns Audit statistics
+   */
+  async getAuditStatistics(): Promise<AuditStatistics> {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(startOfDay);
+    startOfWeek.setDate(startOfWeek.getDate() - startOfDay.getDay());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Get total events
+    const totalEvents = await this.prisma.auditEvent.count();
+
+    // Get events by action
+    const eventsByActionRaw = await this.prisma.auditEvent.groupBy({
+      by: ['action'],
+      _count: { action: true },
+      orderBy: { _count: { action: 'desc' } },
+    });
+    const eventsByAction: Record<string, number> = {};
+    eventsByActionRaw.forEach((item) => {
+      eventsByAction[item.action] = item._count.action;
+    });
+
+    // Get events by entity type
+    const eventsByEntityRaw = await this.prisma.auditEvent.groupBy({
+      by: ['entityType'],
+      _count: { entityType: true },
+      where: { entityType: { not: null } },
+      orderBy: { _count: { entityType: 'desc' } },
+    });
+    const eventsByEntityType: Record<string, number> = {};
+    eventsByEntityRaw.forEach((item) => {
+      if (item.entityType) {
+        eventsByEntityType[item.entityType] = item._count.entityType;
+      }
+    });
+
+    // Get top actors
+    const topActorsRaw = await this.prisma.auditEvent.groupBy({
+      by: ['actorUserId'],
+      _count: { actorUserId: true },
+      orderBy: { _count: { actorUserId: 'desc' } },
+      take: 10,
+    });
+    const topActors = await Promise.all(
+      topActorsRaw.map(async (item) => {
+        const user = await this.prisma.user.findUnique({
+          where: { id: item.actorUserId },
+          select: { displayName: true, email: true },
+        });
+        return {
+          userId: item.actorUserId,
+          displayName: user?.displayName || 'Unknown',
+          email: user?.email || 'Unknown',
+          count: item._count.actorUserId,
+        };
+      }),
+    );
+
+    // Get time-based counts
+    const [todayEvents, thisWeekEvents, thisMonthEvents] = await Promise.all([
+      this.prisma.auditEvent.count({
+        where: { occurredAt: { gte: startOfDay } },
+      }),
+      this.prisma.auditEvent.count({
+        where: { occurredAt: { gte: startOfWeek } },
+      }),
+      this.prisma.auditEvent.count({
+        where: { occurredAt: { gte: startOfMonth } },
+      }),
+    ]);
+
+    return {
+      totalEvents,
+      eventsByAction,
+      eventsByEntityType,
+      topActors,
+      todayEvents,
+      thisWeekEvents,
+      thisMonthEvents,
+    };
+  }
+
+  /**
+   * Get audit events grouped by action
+   * Story 10.4: AC4 - Action Grouping
+   *
+   * @param query - Query parameters
+   * @returns Grouped audit events
+   */
+  async getAuditEventsGroupedByAction(query: AuditQueryDto): Promise<{
+    groups: Array<{
+      action: string;
+      count: number;
+      latestEvent: AuditEventResponse;
+    }>;
+  }> {
+    // Apply same filters as getAuditEvents
+    const where = this.buildWhereClause(query);
+
+    // Group by action
+    const grouped = await this.prisma.auditEvent.groupBy({
+      by: ['action'],
+      where,
+      _count: { action: true },
+      _max: { occurredAt: true },
+      orderBy: { _count: { action: 'desc' } },
+    });
+
+    // For each group, get the latest event
+    const groups = await Promise.all(
+      grouped.map(async (group) => {
+        const latestEvent = await this.prisma.auditEvent.findFirst({
+          where: {
+            ...where,
+            action: group.action,
+          },
+          orderBy: { occurredAt: 'desc' },
+          include: {
+            actorUser: {
+              select: { email: true, displayName: true },
+            },
+          },
+        });
+
+        return {
+          action: group.action,
+          count: group._count.action,
+          latestEvent: latestEvent
+            ? {
+                id: latestEvent.id,
+                occurredAt: latestEvent.occurredAt,
+                actorUserId: latestEvent.actorUserId,
+                actorEmail: latestEvent.actorUser?.email,
+                actorDisplayName: latestEvent.actorUser?.displayName,
+                actingAsUserId: latestEvent.actingAsUserId,
+                actingAsEmail: null,
+                actingAsDisplayName: null,
+                action: latestEvent.action,
+                entityType: latestEvent.entityType,
+                entityId: latestEvent.entityId,
+                metadata: latestEvent.metadata,
+                ip: latestEvent.ip,
+                userAgent: latestEvent.userAgent,
+                requestId: latestEvent.requestId,
+              }
+            : null,
+        };
+      }),
+    );
+
+    return { groups };
+  }
+
+  /**
+   * Get timeline view of audit events
+   * Story 10.4: AC5 - Timeline View
+   *
+   * @param query - Query parameters
+   * @returns Timeline grouped by date
+   */
+  async getAuditTimeline(query: AuditQueryDto): Promise<{
+    timeline: Array<{
+      date: string;
+      count: number;
+      events: AuditEventResponse[];
+    }>;
+  }> {
+    const where = this.buildWhereClause(query);
+    const limit = query.limit || 100;
+
+    // Get events ordered by date descending
+    const events = await this.prisma.auditEvent.findMany({
+      where,
+      take: limit,
+      orderBy: { occurredAt: 'desc' },
+      include: {
+        actorUser: {
+          select: { email: true, displayName: true },
+        },
+        actingAsUser: {
+          select: { email: true, displayName: true },
+        },
+      },
+    });
+
+    // Group by date
+    const timelineMap: Record<string, AuditEventResponse[]> = {};
+
+    events.forEach((event) => {
+      const dateKey = event.occurredAt.toISOString().split('T')[0]; // YYYY-MM-DD
+      if (!timelineMap[dateKey]) {
+        timelineMap[dateKey] = [];
+      }
+
+      timelineMap[dateKey].push({
+        id: event.id,
+        occurredAt: event.occurredAt,
+        actorUserId: event.actorUserId,
+        actorEmail: event.actorUser?.email,
+        actorDisplayName: event.actorUser?.displayName,
+        actingAsUserId: event.actingAsUserId,
+        actingAsEmail: event.actingAsUser?.email,
+        actingAsDisplayName: event.actingAsUser?.displayName,
+        action: event.action,
+        entityType: event.entityType,
+        entityId: event.entityId,
+        metadata: event.metadata,
+        ip: event.ip,
+        userAgent: event.userAgent,
+        requestId: event.requestId,
+      });
+    });
+
+    // Convert to array
+    const timeline = Object.entries(timelineMap).map(([date, events]) => ({
+      date,
+      count: events.length,
+      events,
+    }));
+
+    return { timeline };
+  }
+
+  /**
+   * Build Prisma where clause from query DTO
+   * Extracted for reuse across methods
+   */
+  private buildWhereClause(query: AuditQueryDto): Prisma.AuditEventWhereInput {
+    const {
+      entity_type,
+      entity_id,
+      actor_user_id,
+      action,
+      from_date,
+      to_date,
+    } = query;
+
+    const where: Prisma.AuditEventWhereInput = {};
+
+    if (entity_type) {
+      where.entityType = entity_type;
+    }
+
+    if (entity_id) {
+      where.entityId = entity_id;
+    }
+
+    if (actor_user_id) {
+      where.actorUserId = actor_user_id;
+    }
+
+    if (action) {
+      where.action = action;
+    }
+
+    if (from_date || to_date) {
+      where.occurredAt = {};
+      if (from_date) {
+        (where.occurredAt as Prisma.AuditEventWhereInput['occurredAt']).gte = new Date(from_date);
+      }
+      if (to_date) {
+        (where.occurredAt as Prisma.AuditEventWhereInput['occurredAt']).lte = new Date(to_date);
+      }
+    }
+
+    return where;
   }
 }

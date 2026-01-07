@@ -43,18 +43,22 @@ import {
   isTerminalQueueState,
   TERMINAL_QUEUE_STATES,
 } from './helpers/holder-rules.helper';
-import { ProjectState, Prisma } from '@prisma/client';
+import { ProjectState, Prisma, UserRole } from '@prisma/client';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequireRoles } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../rbac/guards/roles.guard';
 import { IdempotencyInterceptor } from '../../common/interceptors';
-import { UserRole } from '@prisma/client';
 import {
   ApproveFacultyReviewDto,
   ReturnFacultyReviewDto,
   ResubmitProposalDto,
   TransitionResponseDto,
+  CancelProposalDto,
+  WithdrawProposalDto,
+  RejectProposalDto,
+  PauseProposalDto,
+  ResumeProposalDto,
 } from './dto/transition.dto';
 
 /**
@@ -357,7 +361,7 @@ export class WorkflowController {
       case QueueFilterType.UPCOMING: {
         // Calculate +2 working days from now
         const startDate = new Date();
-        const endDate = this.slaService.addBusinessDays(startDate, 2);
+        const endDate = await this.slaService.addBusinessDays(startDate, 2);
         whereClause = getUpcomingProposalsFilter(startDate, endDate);
         break;
       }
@@ -898,6 +902,455 @@ export class WorkflowController {
         previousState: result.previousState,
         currentState: result.currentState,
         action: 'RESUBMIT',
+        holderUnit: result.holderUnit,
+        holderUser: result.holderUser,
+        workflowLogId: result.workflowLog.id,
+      },
+    };
+  }
+
+  // ============================================================
+  // Epic 9: Exception Action Endpoints (Stories 9.1, 9.2, 9.3)
+  // ============================================================
+
+  /**
+   * POST /api/workflow/:proposalId/cancel
+   * Story 9.1: Cancel Action - Owner can cancel DRAFT proposals
+   *
+   * Cancels a proposal in DRAFT state.
+   */
+  @Post(':proposalId/cancel')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.GIANG_VIEN)
+  @ApiOperation({
+    summary: 'Hủy đề tài',
+    description:
+      'Hủy đề tài ở trạng thái Nháp (DRAFT). Chỉ chủ nhiệm (GIANG_VIEN) mới có thể hủy.',
+  })
+  @ApiParam({
+    name: 'proposalId',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Đề tài được hủy thành công',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          proposalId: 'proposal-uuid',
+          previousState: 'DRAFT',
+          currentState: 'CANCELLED',
+          action: 'CANCEL',
+          cancelledAt: '2026-01-07T10:00:00.000Z',
+          workflowLogId: 'log-uuid',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - proposal not in DRAFT state',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Chỉ có thể hủy đề tài ở trạng thái Nháp (DRAFT)',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - not owner of proposal',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  async cancelProposal(
+    @Param('proposalId') proposalId: string,
+    @Body() dto: CancelProposalDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<TransitionResponseDto> {
+    const result = await this.workflowService.cancelProposal(
+      proposalId,
+      dto.reason,
+      {
+        userId: user.id,
+        userRole: user.role,
+        userFacultyId: user.facultyId,
+        idempotencyKey: dto.idempotencyKey,
+        ip,
+        userAgent,
+        requestId,
+      },
+    );
+
+    return {
+      success: true,
+      data: {
+        proposalId: result.proposal.id,
+        previousState: result.previousState,
+        currentState: result.currentState,
+        action: 'CANCEL',
+        holderUnit: result.holderUnit,
+        holderUser: result.holderUser,
+        workflowLogId: result.workflowLog.id,
+      },
+    };
+  }
+
+  /**
+   * POST /api/workflow/:proposalId/withdraw
+   * Story 9.1: Withdraw Action - Owner can withdraw before APPROVED
+   *
+   * Withdraws a proposal that's in review but not yet approved.
+   */
+  @Post(':proposalId/withdraw')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.GIANG_VIEN)
+  @ApiOperation({
+    summary: 'Rút hồ sơ đề tài',
+    description:
+      'Rút hồ sơ đề tài đang xem xét (trước khi APPROVED). Chỉ chủ nhiệm (GIANG_VIEN) mới có thể rút.',
+  })
+  @ApiParam({
+    name: 'proposalId',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Đề tài được rút thành công',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          proposalId: 'proposal-uuid',
+          previousState: 'FACULTY_REVIEW',
+          currentState: 'WITHDRAWN',
+          action: 'WITHDRAW',
+          withdrawnAt: '2026-01-07T10:00:00.000Z',
+          workflowLogId: 'log-uuid',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - proposal not withdrawable',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - not owner of proposal',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  async withdrawProposal(
+    @Param('proposalId') proposalId: string,
+    @Body() dto: WithdrawProposalDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<TransitionResponseDto> {
+    const result = await this.workflowService.withdrawProposal(
+      proposalId,
+      dto.reason,
+      {
+        userId: user.id,
+        userRole: user.role,
+        userFacultyId: user.facultyId,
+        idempotencyKey: dto.idempotencyKey,
+        ip,
+        userAgent,
+        requestId,
+      },
+    );
+
+    return {
+      success: true,
+      data: {
+        proposalId: result.proposal.id,
+        previousState: result.previousState,
+        currentState: result.currentState,
+        action: 'WITHDRAW',
+        holderUnit: result.holderUnit,
+        holderUser: result.holderUser,
+        workflowLogId: result.workflowLog.id,
+      },
+    };
+  }
+
+  /**
+   * POST /api/workflow/:proposalId/reject
+   * Story 9.2: Reject Action - Decision makers can reject proposals
+   *
+   * Rejects a proposal in review state with a reason.
+   */
+  @Post(':proposalId/reject')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(
+    UserRole.QUAN_LY_KHOA,
+    UserRole.PHONG_KHCN,
+    UserRole.THU_KY_HOI_DONG,
+    UserRole.THANH_TRUNG,
+    UserRole.BAN_GIAM_HOC,
+  )
+  @ApiOperation({
+    summary: 'Từ chối đề tài',
+    description:
+      'Từ chối đề tài đang ở trạng thái xem xét. Các vai trò được phép tùy theo trạng thái.',
+  })
+  @ApiParam({
+    name: 'proposalId',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Đề tài bị từ chối thành công',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          proposalId: 'proposal-uuid',
+          previousState: 'FACULTY_REVIEW',
+          currentState: 'REJECTED',
+          action: 'REJECT',
+          rejectedAt: '2026-01-07T10:00:00.000Z',
+          rejectedBy: 'user-uuid',
+          reasonCode: 'NOT_SCIENTIFIC',
+          workflowLogId: 'log-uuid',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - proposal not rejectable',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - insufficient permissions',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  async rejectProposal(
+    @Param('proposalId') proposalId: string,
+    @Body() dto: RejectProposalDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<TransitionResponseDto> {
+    const result = await this.workflowService.rejectProposal(
+      proposalId,
+      dto.reasonCode,
+      dto.comment,
+      {
+        userId: user.id,
+        userRole: user.role,
+        userFacultyId: user.facultyId,
+        idempotencyKey: dto.idempotencyKey,
+        ip,
+        userAgent,
+        requestId,
+      },
+    );
+
+    return {
+      success: true,
+      data: {
+        proposalId: result.proposal.id,
+        previousState: result.previousState,
+        currentState: result.currentState,
+        action: 'REJECT',
+        holderUnit: result.holderUnit,
+        holderUser: result.holderUser,
+        workflowLogId: result.workflowLog.id,
+      },
+    };
+  }
+
+  /**
+   * POST /api/workflow/:proposalId/pause
+   * Story 9.3: Pause Action - PHONG_KHCN can pause proposals
+   *
+   * Temporarily pauses a proposal.
+   */
+  @Post(':proposalId/pause')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.PHONG_KHCN)
+  @ApiOperation({
+    summary: 'Tạm dừng đề tài',
+    description:
+      'Tạm dừng tạm thời đề tài. Chỉ PKHCN mới có quyền tạm dừng/tiếp tục.',
+  })
+  @ApiParam({
+    name: 'proposalId',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Đề tài được tạm dừng thành công',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          proposalId: 'proposal-uuid',
+          previousState: 'IN_PROGRESS',
+          currentState: 'PAUSED',
+          action: 'PAUSE',
+          pausedAt: '2026-01-07T10:00:00.000Z',
+          prePauseState: 'IN_PROGRESS',
+          workflowLogId: 'log-uuid',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - proposal cannot be paused',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - not PHONG_KHCN',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  async pauseProposal(
+    @Param('proposalId') proposalId: string,
+    @Body() dto: PauseProposalDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<TransitionResponseDto> {
+    const expectedResumeAt = dto.expectedResumeAt
+      ? new Date(dto.expectedResumeAt)
+      : undefined;
+
+    const result = await this.workflowService.pauseProposal(
+      proposalId,
+      dto.reason,
+      expectedResumeAt,
+      {
+        userId: user.id,
+        userRole: user.role,
+        userFacultyId: user.facultyId,
+        idempotencyKey: dto.idempotencyKey,
+        ip,
+        userAgent,
+        requestId,
+      },
+    );
+
+    return {
+      success: true,
+      data: {
+        proposalId: result.proposal.id,
+        previousState: result.previousState,
+        currentState: result.currentState,
+        action: 'PAUSE',
+        holderUnit: result.holderUnit,
+        holderUser: result.holderUser,
+        workflowLogId: result.workflowLog.id,
+      },
+    };
+  }
+
+  /**
+   * POST /api/workflow/:proposalId/resume
+   * Story 9.3: Resume Action - PHONG_KHCN can resume paused proposals
+   *
+   * Resumes a paused proposal back to its pre-pause state.
+   */
+  @Post(':proposalId/resume')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.PHONG_KHCN)
+  @ApiOperation({
+    summary: 'Tiếp tục đề tài',
+    description:
+      'Tiếp tục đề tài đang tạm dừng. Chỉ PKHCN mới có quyền tạm dừng/tiếp tục.',
+  })
+  @ApiParam({
+    name: 'proposalId',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Đề tài được tiếp tục thành công',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          proposalId: 'proposal-uuid',
+          previousState: 'PAUSED',
+          currentState: 'IN_PROGRESS',
+          action: 'RESUME',
+          resumedAt: '2026-01-07T10:00:00.000Z',
+          newSlaDeadline: '2026-02-07T17:00:00.000Z',
+          workflowLogId: 'log-uuid',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - proposal not paused',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - not PHONG_KHCN',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  async resumeProposal(
+    @Param('proposalId') proposalId: string,
+    @Body() dto: ResumeProposalDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<TransitionResponseDto> {
+    const result = await this.workflowService.resumeProposal(
+      proposalId,
+      dto.comment,
+      {
+        userId: user.id,
+        userRole: user.role,
+        userFacultyId: user.facultyId,
+        idempotencyKey: dto.idempotencyKey,
+        ip,
+        userAgent,
+        requestId,
+      },
+    );
+
+    return {
+      success: true,
+      data: {
+        proposalId: result.proposal.id,
+        previousState: result.previousState,
+        currentState: result.currentState,
+        action: 'RESUME',
         holderUnit: result.holderUnit,
         holderUser: result.holderUser,
         workflowLogId: result.workflowLog.id,

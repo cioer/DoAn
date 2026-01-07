@@ -4,9 +4,10 @@ import {
   BadRequestException,
   ConflictException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../auth/prisma.service';
-import { ProjectState, WorkflowAction, WorkflowLog, Proposal } from '@prisma/client';
+import { ProjectState, WorkflowAction, WorkflowLog, Proposal, UserRole } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-action.enum';
 import {
@@ -22,6 +23,7 @@ import {
   canRolePerformAction,
 } from './helpers/workflow.constants';
 import { SlaService } from '../calendar/sla.service';
+import { RejectReasonCode } from './enums/reject-reason-code.enum';
 
 /**
  * Context for state transitions
@@ -31,6 +33,7 @@ export interface TransitionContext {
   userId: string;
   userRole: string;
   userFacultyId?: string | null;
+  userDisplayName?: string;
   ip?: string;
   userAgent?: string;
   requestId?: string;
@@ -68,7 +71,8 @@ export class WorkflowService {
   // Simple in-memory idempotency store (Redis to be added in Epic 3.8)
   // WARNING: This cache does NOT survive server restarts. Duplicate submissions
   // are possible after restart until Redis is implemented.
-  private readonly idempotencyStore = new Map<string, TransitionResult>();
+  // Can store either TransitionResult or Promise<TransitionResult> for race condition handling
+  private readonly idempotencyStore = new Map<string, TransitionResult | Promise<TransitionResult>>();
 
   constructor(
     private prisma: PrismaService,
@@ -365,7 +369,7 @@ export class WorkflowService {
 
       // Log audit
       await this.auditService.logEvent({
-        action: 'FACULTY_APPROVE',
+        action: 'FACULTY_APPROVE' as AuditAction,
         actorUserId: context.userId,
         entityType: 'Proposal',
         entityId: proposalId,
@@ -515,7 +519,7 @@ export class WorkflowService {
 
       // Log audit
       await this.auditService.logEvent({
-        action: 'FACULTY_RETURN',
+        action: AuditAction.FACULTY_RETURN,
         actorUserId: context.userId,
         entityType: 'Proposal',
         entityId: proposalId,
@@ -706,7 +710,7 @@ export class WorkflowService {
 
         // Log audit
         await this.auditService.logEvent({
-          action: 'PROPOSAL_RESUBMIT',
+          action: AuditAction.PROPOSAL_RESUBMIT,
           actorUserId: context.userId,
           entityType: 'Proposal',
           entityId: proposalId,
@@ -952,5 +956,824 @@ export class WorkflowService {
    */
   clearIdempotencyKey(key: string): void {
     this.idempotencyStore.delete(key);
+  }
+
+  // ============================================================
+  // Epic 9: Exception Actions (Stories 9.1, 9.2, 9.3)
+  // ============================================================
+
+  /**
+   * Cancel Proposal (DRAFT → CANCELLED)
+   * Story 9.1: Cancel Action - Owner can cancel DRAFT proposals
+   *
+   * Epic 7/8 Retro Pattern:
+   * - NO `as unknown` casting
+   * - NO `as any` casting
+   * - Direct WorkflowAction enum usage
+   * - Proper interface typing
+   *
+   * @param proposalId - Proposal ID
+   * @param reason - Optional reason for cancellation
+   * @param context - Transition context
+   * @returns Transition result
+   */
+  async cancelProposal(
+    proposalId: string,
+    reason: string | undefined,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    // Check idempotency
+    if (context.idempotencyKey) {
+      const cached = this.idempotencyStore.get(context.idempotencyKey);
+      if (cached) {
+        if (cached instanceof Promise) {
+          return cached;
+        }
+        this.logger.log(
+          `Idempotent request: ${context.idempotencyKey} - returning cached result`,
+        );
+        return cached;
+      }
+    }
+
+    // Fetch proposal with proper typing (Epic 7/8 retro pattern)
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: { owner: true, faculty: true },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException('Đề tài không tồn tại');
+    }
+
+    // State validation - Cancel only from DRAFT
+    if (proposal.state !== ProjectState.DRAFT) {
+      throw new BadRequestException(
+        'Chỉ có thể hủy đề tài ở trạng thái Nháp (DRAFT)',
+      );
+    }
+
+    // Ownership check - Only owner can cancel
+    if (proposal.ownerId !== context.userId) {
+      throw new ForbiddenException('Bạn không có quyền hủy đề tài này');
+    }
+
+    // RBAC validation
+    this.validateActionPermission(WorkflowAction.CANCEL, context.userRole);
+
+    // Get user display name
+    const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+    const executeCancel = async (): Promise<TransitionResult> => {
+      // Execute cancel - using Prisma's typed update
+      const result = await this.prisma.$transaction(async (tx) => {
+        const updated = await tx.proposal.update({
+          where: { id: proposalId },
+          data: {
+            state: ProjectState.CANCELLED,
+            holderUnit: proposal.facultyId, // Back to owner's faculty
+            holderUser: proposal.ownerId, // Back to owner
+            cancelledAt: new Date(),
+          },
+        });
+
+        // Log workflow action - Direct enum usage (Epic 7/8 retro)
+        const workflowLog = await tx.workflowLog.create({
+          data: {
+            proposalId: proposal.id,
+            action: WorkflowAction.CANCEL, // Direct enum, NO double cast
+            fromState: proposal.state,
+            toState: ProjectState.CANCELLED,
+            actorId: context.userId,
+            actorName: actorDisplayName,
+            comment: reason || 'Hủy bỏ đề tài',
+            timestamp: new Date(),
+          },
+        });
+
+        // Log audit event
+        await this.auditService.logEvent({
+          action: AuditAction.PROPOSAL_CANCEL,
+          actorUserId: context.userId,
+          entityType: 'Proposal',
+          entityId: proposalId,
+          metadata: {
+            proposalCode: proposal.code,
+            fromState: proposal.state,
+            toState: ProjectState.CANCELLED,
+            reason,
+          },
+          ip: context.ip,
+          userAgent: context.userAgent,
+          requestId: context.requestId,
+        });
+
+        return { proposal: updated, workflowLog };
+      });
+
+      const transitionResult: TransitionResult = {
+        proposal: result.proposal,
+        workflowLog: result.workflowLog,
+        previousState: proposal.state,
+        currentState: ProjectState.CANCELLED,
+        holderUnit: proposal.facultyId,
+        holderUser: proposal.ownerId,
+      };
+
+      this.logger.log(
+        `Proposal ${proposal.code} cancelled: ${proposal.state} → CANCELLED`,
+      );
+
+      return transitionResult;
+    };
+
+    // Set the promise as a pending value in cache to prevent duplicate requests
+    if (context.idempotencyKey) {
+      const cancelPromise = executeCancel();
+      this.idempotencyStore.set(context.idempotencyKey, cancelPromise);
+      return cancelPromise;
+    }
+
+    return executeCancel();
+  }
+
+  /**
+   * Withdraw Proposal (Review states → WITHDRAWN)
+   * Story 9.1: Withdraw Action - Owner can withdraw before APPROVED
+   *
+   * Epic 7/8 Retro Pattern:
+   * - NO `as unknown` casting
+   * - NO `as any` casting
+   * - Direct WorkflowAction enum usage
+   * - Proper interface typing
+   *
+   * @param proposalId - Proposal ID
+   * @param reason - Optional reason for withdrawal
+   * @param context - Transition context
+   * @returns Transition result
+   */
+  async withdrawProposal(
+    proposalId: string,
+    reason: string | undefined,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    // Check idempotency
+    if (context.idempotencyKey) {
+      const cached = this.idempotencyStore.get(context.idempotencyKey);
+      if (cached) {
+        if (cached instanceof Promise) {
+          return cached;
+        }
+        this.logger.log(
+          `Idempotent request: ${context.idempotencyKey} - returning cached result`,
+        );
+        return cached;
+      }
+    }
+
+    // Fetch proposal with proper typing
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: { owner: true, faculty: true },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException('Đề tài không tồn tại');
+    }
+
+    // Define withdrawable states (Story 9.1)
+    const WITHDRAWABLE_STATES: ProjectState[] = [
+      ProjectState.FACULTY_REVIEW,
+      ProjectState.SCHOOL_SELECTION_REVIEW,
+      ProjectState.OUTLINE_COUNCIL_REVIEW,
+      ProjectState.CHANGES_REQUESTED,
+    ];
+
+    // State validation - Cannot withdraw after APPROVED
+    if (!WITHDRAWABLE_STATES.includes(proposal.state)) {
+      throw new BadRequestException(
+        'Đề tài đang thực hiện, không thể rút. Vui lòng liên hệ PKHCN nếu cần.',
+      );
+    }
+
+    // Ownership check - Only owner can withdraw
+    if (proposal.ownerId !== context.userId) {
+      throw new ForbiddenException('Bạn không có quyền rút đề tài này');
+    }
+
+    // RBAC validation
+    this.validateActionPermission(WorkflowAction.WITHDRAW, context.userRole);
+
+    // Store current holder for notification
+    const currentHolderId = proposal.holderUser;
+    const currentHolderUnit = proposal.holderUnit;
+
+    // Get user display name
+    const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+    const executeWithdraw = async (): Promise<TransitionResult> => {
+      // Execute withdraw
+      const result = await this.prisma.$transaction(async (tx) => {
+        const updated = await tx.proposal.update({
+          where: { id: proposalId },
+          data: {
+            state: ProjectState.WITHDRAWN,
+            holderUnit: proposal.facultyId,
+            holderUser: proposal.ownerId,
+            withdrawnAt: new Date(),
+          },
+        });
+
+        // Log workflow action
+        const workflowLog = await tx.workflowLog.create({
+          data: {
+            proposalId: proposal.id,
+            action: WorkflowAction.WITHDRAW, // Direct enum usage
+            fromState: proposal.state,
+            toState: ProjectState.WITHDRAWN,
+            actorId: context.userId,
+            actorName: actorDisplayName,
+            comment: reason || 'Rút hồ sơ đề tài',
+            timestamp: new Date(),
+          },
+        });
+
+        // Log audit
+        await this.auditService.logEvent({
+          action: AuditAction.PROPOSAL_WITHDRAW,
+          actorUserId: context.userId,
+          entityType: 'Proposal',
+          entityId: proposalId,
+          metadata: {
+            proposalCode: proposal.code,
+            fromState: proposal.state,
+            toState: ProjectState.WITHDRAWN,
+            previousHolder: currentHolderId,
+            reason,
+          },
+          ip: context.ip,
+          userAgent: context.userAgent,
+          requestId: context.requestId,
+        });
+
+        return { proposal: updated, workflowLog };
+      });
+
+      const transitionResult: TransitionResult = {
+        proposal: result.proposal,
+        workflowLog: result.workflowLog,
+        previousState: proposal.state,
+        currentState: ProjectState.WITHDRAWN,
+        holderUnit: proposal.facultyId,
+        holderUser: proposal.ownerId,
+      };
+
+      this.logger.log(
+        `Proposal ${proposal.code} withdrawn: ${proposal.state} → WITHDRAWN`,
+      );
+
+      // Send notification to previous holder (outside transaction)
+      // This would use NotificationService from Epic 8
+      // For now, just log it
+      if (currentHolderId) {
+        this.logger.log(
+          `TODO: Send notification to holder ${currentHolderId} for withdrawn proposal ${proposal.code}`,
+        );
+      }
+
+      return transitionResult;
+    };
+
+    if (context.idempotencyKey) {
+      const withdrawPromise = executeWithdraw();
+      this.idempotencyStore.set(context.idempotencyKey, withdrawPromise);
+      return withdrawPromise;
+    }
+
+    return executeWithdraw();
+  }
+
+  /**
+   * Reject Proposal (Review states → REJECTED)
+   * Story 9.2: Reject Action - Decision makers can reject proposals
+   *
+   * Epic 7/8 Retro Pattern:
+   * - NO `as unknown` casting
+   * - NO `as any` casting
+   * - Direct WorkflowAction enum usage
+   * - Proper interface typing
+   *
+   * @param proposalId - Proposal ID
+   * @param reasonCode - Reason code for rejection
+   * @param comment - Detailed explanation
+   * @param context - Transition context
+   * @returns Transition result
+   */
+  async rejectProposal(
+    proposalId: string,
+    reasonCode: RejectReasonCode,
+    comment: string,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    // Check idempotency
+    if (context.idempotencyKey) {
+      const cached = this.idempotencyStore.get(context.idempotencyKey);
+      if (cached) {
+        if (cached instanceof Promise) {
+          return cached;
+        }
+        this.logger.log(
+          `Idempotent request: ${context.idempotencyKey} - returning cached result`,
+        );
+        return cached;
+      }
+    }
+
+    // Fetch proposal with proper typing
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: { owner: true, faculty: true },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException('Đề tài không tồn tại');
+    }
+
+    // Define rejectable states (Story 9.2)
+    const REJECTABLE_STATES: ProjectState[] = [
+      ProjectState.FACULTY_REVIEW,
+      ProjectState.SCHOOL_SELECTION_REVIEW,
+      ProjectState.OUTLINE_COUNCIL_REVIEW,
+      ProjectState.CHANGES_REQUESTED,
+    ];
+
+    // State validation - Cannot reject terminal states or non-review states
+    if (!REJECTABLE_STATES.includes(proposal.state)) {
+      throw new BadRequestException(
+        'Không thể từ chối đề tài ở trạng thái này',
+      );
+    }
+
+    // Already rejected check
+    if (proposal.state === ProjectState.REJECTED) {
+      throw new BadRequestException('Đề tài đã bị từ chối trước đó');
+    }
+
+    // RBAC check - Validate user has permission to reject
+    if (!this.canReject(context.userRole, proposal.state)) {
+      throw new ForbiddenException(
+        'Bạn không có quyền từ chối đề tài ở trạng thái này',
+      );
+    }
+
+    // Get decision maker info for logging
+    const decisionMakerUnit = context.userFacultyId || context.userRole;
+
+    // Get user display name
+    const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+    const executeReject = async (): Promise<TransitionResult> => {
+      // Execute reject
+      const result = await this.prisma.$transaction(async (tx) => {
+        const updated = await tx.proposal.update({
+          where: { id: proposalId },
+          data: {
+            state: ProjectState.REJECTED,
+            holderUnit: decisionMakerUnit,
+            holderUser: context.userId,
+            rejectedAt: new Date(),
+            rejectedById: context.userId,
+          },
+        });
+
+        // Log workflow action
+        const workflowLog = await tx.workflowLog.create({
+          data: {
+            proposalId: proposal.id,
+            action: WorkflowAction.REJECT, // Direct enum, NO double cast
+            fromState: proposal.state,
+            toState: ProjectState.REJECTED,
+            actorId: context.userId,
+            actorName: actorDisplayName,
+            reasonCode,
+            comment,
+            timestamp: new Date(),
+          },
+        });
+
+        // Log audit
+        await this.auditService.logEvent({
+          action: AuditAction.PROPOSAL_REJECT,
+          actorUserId: context.userId,
+          entityType: 'Proposal',
+          entityId: proposalId,
+          metadata: {
+            proposalCode: proposal.code,
+            fromState: proposal.state,
+            toState: ProjectState.REJECTED,
+            reasonCode,
+            comment,
+          },
+          ip: context.ip,
+          userAgent: context.userAgent,
+          requestId: context.requestId,
+        });
+
+        return { proposal: updated, workflowLog };
+      });
+
+      const transitionResult: TransitionResult = {
+        proposal: result.proposal,
+        workflowLog: result.workflowLog,
+        previousState: proposal.state,
+        currentState: ProjectState.REJECTED,
+        holderUnit: decisionMakerUnit,
+        holderUser: context.userId,
+      };
+
+      this.logger.log(
+        `Proposal ${proposal.code} rejected: ${proposal.state} → REJECTED`,
+      );
+
+      // Send notification to PI (outside transaction)
+      // This would use NotificationService from Epic 8
+      this.logger.log(
+        `TODO: Send notification to PI ${proposal.ownerId} for rejected proposal ${proposal.code}`,
+      );
+
+      return transitionResult;
+    };
+
+    if (context.idempotencyKey) {
+      const rejectPromise = executeReject();
+      this.idempotencyStore.set(context.idempotencyKey, rejectPromise);
+      return rejectPromise;
+    }
+
+    return executeReject();
+  }
+
+  /**
+   * Helper method to check if user can reject a proposal in given state
+   * RBAC matrix for reject permissions (Story 9.2)
+   */
+  private canReject(userRole: string, proposalState: ProjectState): boolean {
+    const REJECT_PERMISSIONS: Record<string, ProjectState[]> = {
+      [UserRole.QUAN_LY_KHOA]: [
+        ProjectState.FACULTY_REVIEW,
+        ProjectState.CHANGES_REQUESTED,
+      ],
+      [UserRole.PHONG_KHCN]: [
+        ProjectState.FACULTY_REVIEW,
+        ProjectState.SCHOOL_SELECTION_REVIEW,
+        ProjectState.CHANGES_REQUESTED,
+      ],
+      [UserRole.THU_KY_HOI_DONG]: [ProjectState.OUTLINE_COUNCIL_REVIEW],
+      [UserRole.THANH_TRUNG]: [ProjectState.OUTLINE_COUNCIL_REVIEW],
+      [UserRole.BAN_GIAM_HOC]: [
+        ProjectState.FACULTY_REVIEW,
+        ProjectState.SCHOOL_SELECTION_REVIEW,
+        ProjectState.OUTLINE_COUNCIL_REVIEW,
+        ProjectState.CHANGES_REQUESTED,
+      ],
+      [UserRole.GIANG_VIEN]: [],
+      [UserRole.ADMIN]: [],
+      [UserRole.THU_KY_KHOA]: [],
+    };
+
+    const allowedStates = REJECT_PERMISSIONS[userRole] || [];
+    return allowedStates.includes(proposalState);
+  }
+
+  /**
+   * Pause Proposal (Non-terminal → PAUSED)
+   * Story 9.3: Pause Action - PHONG_KHCN can pause proposals
+   *
+   * Epic 7/8 Retro Pattern:
+   * - NO `as unknown` casting
+   * - NO `as any` casting
+   * - Direct WorkflowAction enum usage
+   * - Proper interface typing
+   *
+   * @param proposalId - Proposal ID
+   * @param reason - Reason for pausing
+   * @param expectedResumeAt - Optional expected resume date
+   * @param context - Transition context
+   * @returns Transition result
+   */
+  async pauseProposal(
+    proposalId: string,
+    reason: string,
+    expectedResumeAt: Date | undefined,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    // Check idempotency
+    if (context.idempotencyKey) {
+      const cached = this.idempotencyStore.get(context.idempotencyKey);
+      if (cached) {
+        if (cached instanceof Promise) {
+          return cached;
+        }
+        this.logger.log(
+          `Idempotent request: ${context.idempotencyKey} - returning cached result`,
+        );
+        return cached;
+      }
+    }
+
+    // Fetch proposal with proper typing
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: { owner: true, faculty: true },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException('Đề tài không tồn tại');
+    }
+
+    // Define terminal states (cannot pause)
+    const TERMINAL_STATES: ProjectState[] = [
+      ProjectState.COMPLETED,
+      ProjectState.CANCELLED,
+      ProjectState.WITHDRAWN,
+      ProjectState.REJECTED,
+    ];
+
+    // State validation - Cannot pause terminal states
+    if (TERMINAL_STATES.includes(proposal.state)) {
+      throw new BadRequestException(
+        'Không thể tạm dừng đề tài ở trạng thái này',
+      );
+    }
+
+    // Already paused check
+    if (proposal.state === ProjectState.PAUSED) {
+      throw new BadRequestException('Đề tài đang bị tạm dừng');
+    }
+
+    // Validate expected resume date is in the future
+    if (expectedResumeAt && expectedResumeAt <= new Date()) {
+      throw new BadRequestException(
+        'Ngày dự kiến tiếp tục phải trong tương lai',
+      );
+    }
+
+    // RBAC validation - Only PHONG_KHCN can pause
+    if (context.userRole !== UserRole.PHONG_KHCN) {
+      throw new ForbiddenException(
+        'Chỉ PKHCN mới có quyền tạm dừng/tiếp tục đề tài',
+      );
+    }
+
+    // Get user display name
+    const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+    // Build pause comment
+    const pauseComment = this.buildPauseComment(reason, expectedResumeAt);
+
+    const executePause = async (): Promise<TransitionResult> => {
+      // Execute pause
+      const result = await this.prisma.$transaction(async (tx) => {
+        const updated = await tx.proposal.update({
+          where: { id: proposalId },
+          data: {
+            state: ProjectState.PAUSED,
+            holderUnit: SPECIAL_UNIT_CODES.PHONG_KHCN,
+            holderUser: null,
+            pausedAt: new Date(),
+            pauseReason: reason,
+            expectedResumeAt,
+            // Store pre-pause state for resume
+            prePauseState: proposal.state,
+            prePauseHolderUnit: proposal.holderUnit,
+            prePauseHolderUser: proposal.holderUser,
+          },
+        });
+
+        // Log workflow action
+        const workflowLog = await tx.workflowLog.create({
+          data: {
+            proposalId: proposal.id,
+            action: WorkflowAction.PAUSE, // Direct enum, NO double cast
+            fromState: proposal.state,
+            toState: ProjectState.PAUSED,
+            actorId: context.userId,
+            actorName: actorDisplayName,
+            comment: pauseComment,
+            timestamp: new Date(),
+          },
+        });
+
+        // Log audit
+        await this.auditService.logEvent({
+          action: AuditAction.PROPOSAL_PAUSE,
+          actorUserId: context.userId,
+          entityType: 'Proposal',
+          entityId: proposalId,
+          metadata: {
+            proposalCode: proposal.code,
+            fromState: proposal.state,
+            toState: ProjectState.PAUSED,
+            reason,
+            expectedResumeAt: expectedResumeAt?.toISOString(),
+          },
+          ip: context.ip,
+          userAgent: context.userAgent,
+          requestId: context.requestId,
+        });
+
+        return { proposal: updated, workflowLog };
+      });
+
+      const transitionResult: TransitionResult = {
+        proposal: result.proposal,
+        workflowLog: result.workflowLog,
+        previousState: proposal.state,
+        currentState: ProjectState.PAUSED,
+        holderUnit: SPECIAL_UNIT_CODES.PHONG_KHCN,
+        holderUser: null,
+      };
+
+      this.logger.log(
+        `Proposal ${proposal.code} paused: ${proposal.state} → PAUSED`,
+      );
+
+      return transitionResult;
+    };
+
+    if (context.idempotencyKey) {
+      const pausePromise = executePause();
+      this.idempotencyStore.set(context.idempotencyKey, pausePromise);
+      return pausePromise;
+    }
+
+    return executePause();
+  }
+
+  /**
+   * Helper method to build pause comment
+   */
+  private buildPauseComment(reason: string, expectedResumeAt?: Date): string {
+    let comment = `Tạm dừng: ${reason}`;
+    if (expectedResumeAt) {
+      const formatted = expectedResumeAt.toLocaleDateString('vi-VN');
+      comment += `. Dự kiến tiếp tục: ${formatted}`;
+    }
+    return comment;
+  }
+
+  /**
+   * Resume Proposal (PAUSED → pre-pause state)
+   * Story 9.3: Resume Action - PHONG_KHCN can resume paused proposals
+   *
+   * Epic 7/8 Retro Pattern:
+   * - NO `as unknown` casting
+   * - NO `as any` casting
+   * - Direct WorkflowAction enum usage
+   * - Proper interface typing
+   *
+   * @param proposalId - Proposal ID
+   * @param comment - Optional comment when resuming
+   * @param context - Transition context
+   * @returns Transition result
+   */
+  async resumeProposal(
+    proposalId: string,
+    comment: string | undefined,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    // Check idempotency
+    if (context.idempotencyKey) {
+      const cached = this.idempotencyStore.get(context.idempotencyKey);
+      if (cached) {
+        if (cached instanceof Promise) {
+          return cached;
+        }
+        this.logger.log(
+          `Idempotent request: ${context.idempotencyKey} - returning cached result`,
+        );
+        return cached;
+      }
+    }
+
+    // Fetch proposal with pause tracking info
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: { owner: true, faculty: true },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException('Đề tài không tồn tại');
+    }
+
+    // Must be paused to resume
+    if (proposal.state !== ProjectState.PAUSED) {
+      throw new BadRequestException('Đề tài không ở trạng thái tạm dừng');
+    }
+
+    // Validate pre-pause state exists
+    if (!proposal.prePauseState) {
+      throw new BadRequestException(
+        'Không thể xác định trạng thái trước khi tạm dừng',
+      );
+    }
+
+    // RBAC validation - Only PHONG_KHCN can resume
+    if (context.userRole !== UserRole.PHONG_KHCN) {
+      throw new ForbiddenException(
+        'Chỉ PKHCN mới có quyền tạm dừng/tiếp tục đề tài',
+      );
+    }
+
+    const resumedAt = new Date();
+    let newSlaDeadline = proposal.slaDeadline;
+
+    // Recalculate SLA deadline if was paused (Story 9.3)
+    if (proposal.pausedAt && proposal.slaDeadline) {
+      const pausedDuration = resumedAt.getTime() - proposal.pausedAt.getTime();
+      newSlaDeadline = new Date(
+        proposal.slaDeadline.getTime() + pausedDuration,
+      );
+    }
+
+    // Get user display name
+    const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+    const executeResume = async (): Promise<TransitionResult> => {
+      // Execute resume - restore pre-pause state
+      const result = await this.prisma.$transaction(async (tx) => {
+        const updated = await tx.proposal.update({
+          where: { id: proposalId },
+          data: {
+            state: proposal.prePauseState,
+            holderUnit: proposal.prePauseHolderUnit,
+            holderUser: proposal.prePauseHolderUser,
+            slaDeadline: newSlaDeadline,
+            resumedAt,
+            pausedAt: null,
+            // Clear pause tracking fields
+            prePauseState: null,
+            prePauseHolderUnit: null,
+            prePauseHolderUser: null,
+          },
+        });
+
+        // Log workflow action
+        const workflowLog = await tx.workflowLog.create({
+          data: {
+            proposalId: proposal.id,
+            action: WorkflowAction.RESUME, // Direct enum, NO double cast
+            fromState: ProjectState.PAUSED,
+            toState: proposal.prePauseState!,
+            actorId: context.userId,
+            actorName: actorDisplayName,
+            comment: comment || 'Tiếp tục đề tài sau tạm dừng',
+            timestamp: resumedAt,
+          },
+        });
+
+        // Log audit
+        await this.auditService.logEvent({
+          action: AuditAction.PROPOSAL_RESUME,
+          actorUserId: context.userId,
+          entityType: 'Proposal',
+          entityId: proposalId,
+          metadata: {
+            proposalCode: proposal.code,
+            fromState: ProjectState.PAUSED,
+            toState: proposal.prePauseState,
+            newSlaDeadline: newSlaDeadline?.toISOString(),
+          },
+          ip: context.ip,
+          userAgent: context.userAgent,
+          requestId: context.requestId,
+        });
+
+        return { proposal: updated, workflowLog };
+      });
+
+      const transitionResult: TransitionResult = {
+        proposal: result.proposal,
+        workflowLog: result.workflowLog,
+        previousState: ProjectState.PAUSED,
+        currentState: proposal.prePauseState!,
+        holderUnit: proposal.prePauseHolderUnit,
+        holderUser: proposal.prePauseHolderUser,
+      };
+
+      this.logger.log(
+        `Proposal ${proposal.code} resumed: PAUSED → ${proposal.prePauseState}`,
+      );
+
+      return transitionResult;
+    };
+
+    if (context.idempotencyKey) {
+      const resumePromise = executeResume();
+      this.idempotencyStore.set(context.idempotencyKey, resumePromise);
+      return resumePromise;
+    }
+
+    return executeResume();
   }
 }

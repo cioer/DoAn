@@ -1,0 +1,39 @@
+{
+  "extends": ["nx"],
+  "overrides": [
+    {
+      "files": ["*.ts", "*.tsx"],
+      "rules": {
+        // Epic 9 Retro Learnings: Ban all unsafe type casts
+        "@typescript-eslint/no-explicit-any": "error",
+        "@typescript-eslint/no-unsafe-argument": "error",
+        "@typescript-eslint/no-unsafe-assignment": "error",
+        "@typescript-eslint/no-unsafe-call": "error",
+        "@typescript-eslint/no-unsafe-member-access": "error",
+        "@typescript-eslint/no-unsafe-return": "error",
+
+        // Disallow type assertions with 'as' that hide type safety issues
+        "@typescript-eslint/consistent-type-assertions": [
+          "error",
+          {
+            "assertionStyle": "never",
+            "objectLiteralTypeAssertions": "allow-as-parameter"
+          }
+        ],
+
+        // Explicit ban on 'as any' and 'as unknown' patterns
+        "no-restricted-syntax": [
+          "error",
+          {
+            "message": "Do not use 'as unknown' casts - define proper interfaces instead. See Epic 9 retrospective.",
+            "selector": "TSAsExpression > TSUnknownKeyword"
+          },
+          {
+            "message": "Do not use 'as any' casts - define proper types instead. See Epic 9 retrospective.",
+            "selector": "TSAsExpression[type.type='Identifier'][type.name='any']"
+          }
+        ]
+      }
+    }
+  ]
+}
