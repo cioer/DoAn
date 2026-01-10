@@ -18,7 +18,9 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const user = await authApi.login(email, password);
+      const response = await authApi.login(email, password);
+      // Extract the user from response (handles both direct user and { user, actingAs } format)
+      const user = response.user || response;
       setUser(user);
       navigate('/'); // Redirect to default landing page
     } catch (err: any) {

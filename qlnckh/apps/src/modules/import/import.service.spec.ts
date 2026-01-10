@@ -22,34 +22,34 @@ import {
 // Manual mocks
 const mockPrisma = {
   user: {
-    findUnique: jest.fn(),
-    findFirst: jest.fn(),
-    create: jest.fn(),
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    create: vi.fn(),
   },
   proposal: {
-    findFirst: jest.fn(),
-    create: jest.fn(),
-    count: jest.fn(),
+    findFirst: vi.fn(),
+    create: vi.fn(),
+    count: vi.fn(),
   },
   faculty: {
-    findUnique: jest.fn(),
-    findFirst: jest.fn(),
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
   },
   workflowLog: {
-    create: jest.fn(),
+    create: vi.fn(),
   },
-  $transaction: jest.fn((callback) => callback(mockPrisma)),
+  $transaction: vi.fn((callback) => callback(mockPrisma)),
 };
 
 const mockAuditService = {
-  logEvent: jest.fn().mockResolvedValue(undefined),
+  logEvent: vi.fn().mockResolvedValue(undefined),
 };
 
 const mockExcelParserService = {
-  parseUserImportFile: jest.fn(),
-  parseProposalImportFile: jest.fn(),
-  mapRole: jest.fn(),
-  mapState: jest.fn(),
+  parseUserImportFile: vi.fn(),
+  parseProposalImportFile: vi.fn(),
+  mapRole: vi.fn(),
+  mapState: vi.fn(),
 };
 
 describe('ImportService', () => {
@@ -101,7 +101,7 @@ describe('ImportService', () => {
       mockExcelParserService as any,
       mockAuditService as any,
     );
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Default mock responses
     mockPrisma.$transaction.mockImplementation((callback) => callback(mockPrisma));

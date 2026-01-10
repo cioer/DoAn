@@ -13,6 +13,7 @@ import {
   ImportResult,
   ImportError,
 } from './dto/import-result.dto';
+import { ImportEntityType } from './dto/import-entity-type.enum';
 import {
   UserImportRow,
   UserImportValidationResult,
@@ -39,10 +40,29 @@ interface ImportContext {
  * Epic 9 Retro: NO as unknown casting - proper type conversion
  */
 function rowToErrorRecord(row: UserImportRow | ProposalImportRow): Record<string, unknown> {
-  return {
-    ...(row as Record<string, unknown>),
-    _lineNumber: row._lineNumber,
-  };
+  if ('email' in row) {
+    // UserImportRow
+    const userRow = row as UserImportRow;
+    return {
+      email: userRow.email,
+      displayName: userRow.displayName,
+      role: userRow.role,
+      facultyId: userRow.facultyId,
+      _lineNumber: userRow._lineNumber,
+    };
+  } else {
+    // ProposalImportRow
+    const proposalRow = row as ProposalImportRow;
+    return {
+      ownerId: proposalRow.ownerId,
+      title: proposalRow.title,
+      facultyCode: proposalRow.facultyCode,
+      state: proposalRow.state,
+      researchField: proposalRow.researchField,
+      budget: proposalRow.budget,
+      _lineNumber: proposalRow._lineNumber,
+    };
+  }
 }
 
 /**
@@ -215,7 +235,7 @@ export class ImportService {
     );
 
     return {
-      entityType: 'users',
+      entityType: ImportEntityType.USERS,
       total: rows.length,
       success: successCount,
       failed: errors.length,
@@ -382,7 +402,7 @@ export class ImportService {
     );
 
     return {
-      entityType: 'proposals',
+      entityType: ImportEntityType.PROPOSALS,
       total: rows.length,
       success: successCount,
       failed: errors.length,

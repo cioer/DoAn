@@ -1,6 +1,6 @@
 import { Controller, Get, Patch, Post, HttpCode, HttpStatus, Param, Body, UseGuards, Req, UseInterceptors } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { EvaluationService } from './evaluations.service';
 import { IdempotencyInterceptor } from '../../common/interceptors';
 import {
@@ -9,11 +9,15 @@ import {
   GetOrCreateEvaluationResponse,
   UpdateEvaluationResponse,
   ErrorResponseDto,
+  GetEvaluationResultsResponse,
 } from './dto/evaluation.dto';
 import {
   SubmitEvaluationRequestDto,
   SubmitEvaluationResponseDto,
 } from './dto/submit-evaluation.dto';
+import { Permission } from '../rbac/permissions.enum';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { PermissionsGuard } from '../rbac/guards/permissions.guard';
 
 /**
  * User object attached to request by JWT guard
@@ -208,6 +212,67 @@ export class EvaluationController {
         proposalId: result.proposal.id,
         proposalState: result.proposal.state,
         submittedAt: result.evaluation.updatedAt,
+      },
+    };
+  }
+
+  /**
+   * GET /api/evaluations/:proposalId/results
+   * GIANG_VIEN Feature: Get evaluation results for proposal owners
+   * Allows proposal owners to view finalized evaluation results
+   *
+   * @param proposalId - Proposal ID
+   * @param req - Request with user info
+   * @returns Finalized evaluation with evaluator details
+   */
+  @Get(':proposalId/results')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(Permission.VIEW_EVALUATION_RESULTS)
+  @ApiOperation({
+    summary: 'Lấy kết quả đánh giá đề tài',
+    description: 'Chủ đề tài có thể xem kết quả đánh giá đã hoàn tất của đề tài.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Evaluation results retrieved successfully',
+    type: GetEvaluationResultsResponse,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user is not the proposal owner',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal or evaluation not found',
+    type: ErrorResponseDto,
+  })
+  async getEvaluationResults(
+    @Param('proposalId') proposalId: string,
+    @Req() req: RequestWithUser,
+  ): Promise<GetEvaluationResultsResponse> {
+    const evaluation = await this.evaluationService.getEvaluationResultsForOwner(
+      proposalId,
+      req.user.id,
+    );
+
+    return {
+      success: true,
+      data: {
+        id: evaluation.id,
+        proposalId: evaluation.proposalId,
+        evaluatorId: evaluation.evaluatorId,
+        state: evaluation.state,
+        formData: evaluation.formData as Record<string, unknown>,
+        createdAt: evaluation.createdAt,
+        updatedAt: evaluation.updatedAt,
+        evaluator: evaluation.evaluator ? {
+          id: evaluation.evaluator.id,
+          displayName: evaluation.evaluator.displayName,
+          email: evaluation.evaluator.email,
+          role: evaluation.evaluator.role,
+        } : undefined,
       },
     };
   }

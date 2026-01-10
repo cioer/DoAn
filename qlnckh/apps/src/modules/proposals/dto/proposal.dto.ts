@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsOptional, IsObject, IsUUID } from 'class-validator';
-import { ProjectState } from '@prisma/client';
+import { ProjectState, UserRole } from '@prisma/client';
 
 /**
  * Base Proposal DTO
@@ -73,6 +73,21 @@ export class ProposalWithTemplateDto extends ProposalDto {
     code: string;
     name: string;
     version: string;
+  } | null;
+
+  @ApiProperty({ description: 'Owner user details', required: false })
+  owner?: {
+    id: string;
+    email: string;
+    displayName: string;
+    role?: UserRole;
+  } | null;
+
+  @ApiProperty({ description: 'Faculty details', required: false })
+  faculty?: {
+    id: string;
+    code: string;
+    name: string;
   } | null;
 }
 

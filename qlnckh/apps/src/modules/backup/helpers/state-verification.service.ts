@@ -151,7 +151,7 @@ export class StateVerificationService {
     });
 
     // Start with DRAFT as initial state
-    let currentState = ProjectState.DRAFT;
+    let currentState: ProjectState = ProjectState.DRAFT;
 
     // Apply each transition in sequence
     for (const log of logs) {

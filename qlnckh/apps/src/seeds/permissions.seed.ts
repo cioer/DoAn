@@ -13,7 +13,13 @@ export const PERMISSIONS: Permission[] = [
   Permission.DEMO_SWITCH_PERSONA,
   Permission.DEMO_RESET,
   Permission.CALENDAR_MANAGE,
+  Permission.DASHBOARD_VIEW,
   Permission.AUDIT_VIEW,
+  Permission.PROPOSAL_CREATE,
+  Permission.PROPOSAL_EDIT,
+  Permission.VIEW_EVALUATION_RESULTS,
+  Permission.EXPORT_PROPOSAL_PDF,
+  Permission.FORM_TEMPLATE_IMPORT,
 ];
 
 /**
@@ -24,7 +30,13 @@ export const PERMISSION_DISPLAY_NAMES: Record<Permission, string> = {
   [Permission.DEMO_SWITCH_PERSONA]: 'Demo: Chuyển persona',
   [Permission.DEMO_RESET]: 'Demo: Reset dữ liệu',
   [Permission.CALENDAR_MANAGE]: 'Quản lý lịch làm việc',
+  [Permission.DASHBOARD_VIEW]: 'Xem dashboard',
   [Permission.AUDIT_VIEW]: 'Xem audit log',
+  [Permission.PROPOSAL_CREATE]: 'Tạo đề tài mới',
+  [Permission.PROPOSAL_EDIT]: 'Sửa đề tài',
+  [Permission.VIEW_EVALUATION_RESULTS]: 'Xem kết quả đánh giá',
+  [Permission.EXPORT_PROPOSAL_PDF]: 'Xuất đề tài ra PDF',
+  [Permission.FORM_TEMPLATE_IMPORT]: 'Import biểu mẫu từ Word',
 };
 
 /**

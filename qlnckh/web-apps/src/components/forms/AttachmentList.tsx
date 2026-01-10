@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { Download, FileText, RefreshCw, Trash2, Lock, Loader2 } from 'lucide-react';
 import { Attachment, attachmentsApi } from '../../lib/api/attachments';
+import { Alert, Button } from '../ui';
 
 /**
  * AttachmentList Component (Story 2.4, 2.5)
@@ -130,25 +131,23 @@ export function AttachmentList({
       {/* Header with total size */}
       <div className="flex justify-between items-center">
         <h3 className="font-medium text-sm">Tài liệu đính kèm</h3>
-        <span className={`text-sm ${isOverLimit ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
+        <span className={`text-sm ${isOverLimit ? 'text-error-600 font-semibold' : 'text-gray-600'}`}>
           {formatFileSize(totalSize)} / 50 MB
         </span>
       </div>
 
-      {/* Warning when over limit */}
+      {/* Warning when over limit - using Alert component */}
       {isOverLimit && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-3 py-2 rounded text-sm flex items-start gap-2">
-          <span>⚠️</span>
-          <span>Tổng dung lượng đã vượt giới hạn (50MB/proposal)</span>
-        </div>
+        <Alert variant="warning" className="text-sm">
+          Tổng dung lượng đã vượt giới hạn (50MB/proposal)
+        </Alert>
       )}
 
-      {/* Error message */}
+      {/* Error message - using Alert component */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-3 py-2 rounded text-sm flex items-start gap-2">
-          <span>❌</span>
-          <span>{error.replace(/^[A-Z_]+:\s*/, '')}</span>
-        </div>
+        <Alert variant="error" className="text-sm">
+          {error.replace(/^[A-Z_]+:\s*/, '')}
+        </Alert>
       )}
 
       {/* Empty state */}
@@ -189,13 +188,13 @@ export function AttachmentList({
                 </div>
               </div>
 
-              {/* Action buttons */}
+              {/* Action buttons - using Button component for icon buttons */}
               <div className="flex items-center gap-1">
                 {/* Download button - always available */}
                 <a
                   href={attachmentsApi.getDownloadUrl(attachment)}
                   download={attachment.fileName}
-                  className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                  className="p-2 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
                   title="Tải xuống"
                 >
                   <Download className="h-4 w-4" />
@@ -203,34 +202,32 @@ export function AttachmentList({
 
                 {/* Replace button - DRAFT only */}
                 {isDraft && (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="xxs"
                     onClick={() => handleReplaceClick(attachment.id)}
                     disabled={!!replacingId || !!deletingId}
-                    className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    isLoading={isReplacingThis}
+                    className="p-2 text-gray-600 hover:text-success-600 hover:bg-success-50"
                     title="Thay thế tài liệu"
                   >
-                    {isReplacingThis ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4" />
-                    )}
-                  </button>
+                    {!isReplacingThis && <RefreshCw className="h-4 w-4" />}
+                  </Button>
                 )}
 
                 {/* Delete button - DRAFT only */}
                 {isDraft && (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="xxs"
                     onClick={() => handleDeleteClick(attachment.id, attachment.fileName)}
                     disabled={!!replacingId || !!deletingId}
-                    className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    isLoading={isDeletingThis}
+                    className="p-2 text-gray-600 hover:text-error-600 hover:bg-error-50"
                     title="Xóa tài liệu"
                   >
-                    {isDeletingThis ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                  </button>
+                    {!isDeletingThis && <Trash2 className="h-4 w-4" />}
+                  </Button>
                 )}
 
                 {/* Lock icon for non-DRAFT */}
@@ -248,20 +245,20 @@ export function AttachmentList({
         })}
       </div>
 
-      {/* Replace progress indicator */}
+      {/* Replace progress indicator - using Alert component */}
       {replacingId && (
-        <div className="bg-blue-50 border border-blue-200 text-blue-800 px-3 py-2 rounded text-sm">
+        <Alert variant="info" className="text-sm">
           <div className="flex items-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin" />
             <span>Đang thay thế tài liệu... {replaceProgress}%</span>
           </div>
-          <div className="w-full bg-blue-200 rounded-full h-1.5 mt-2">
+          <div className="w-full bg-primary-200 rounded-full h-1.5 mt-2">
             <div
-              className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+              className="bg-primary-600 h-1.5 rounded-full transition-all duration-300"
               style={{ width: `${replaceProgress}%` }}
             />
           </div>
-        </div>
+        </Alert>
       )}
     </div>
   );

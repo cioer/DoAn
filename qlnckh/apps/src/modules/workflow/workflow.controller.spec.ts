@@ -89,28 +89,28 @@ describe('WorkflowController', () => {
   beforeEach(() => {
     // Create mock service
     mockService = {
-      getWorkflowLogs: jest.fn(),
-      approveFacultyReview: jest.fn(),
-      returnFacultyReview: jest.fn(),
+      getWorkflowLogs: vi.fn(),
+      approveFacultyReview: vi.fn(),
+      returnFacultyReview: vi.fn(),
     };
 
     // Create mock PrismaService
     mockPrisma = {
       proposal: {
-        findUnique: jest.fn(),
-        findMany: jest.fn(),
-        count: jest.fn(),
+        findUnique: vi.fn(),
+        findMany: vi.fn(),
+        count: vi.fn(),
       },
     };
 
     // Create mock SlaService
     mockSlaService = {
-      addBusinessDays: jest.fn(),
+      addBusinessDays: vi.fn(),
     };
 
     // Manually create controller with mock services - bypass DI
     controller = new WorkflowController(mockService, mockPrisma, mockSlaService);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should be defined', () => {

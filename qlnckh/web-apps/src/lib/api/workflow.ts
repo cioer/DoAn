@@ -198,10 +198,80 @@ export function generateIdempotencyKey(): string {
 }
 
 /**
+ * Reject Reason Codes (Story 9.2: Reject Action)
+ */
+export const REJECT_REASON_CODES = {
+  NOT_SCIENTIFIC: 'NOT_SCIENTIFIC',
+  NOT_FEASIBLE: 'NOT_FEASIBLE',
+  BUDGET_UNREASONABLE: 'BUDGET_UNREASONABLE',
+  NOT_COMPLIANT: 'NOT_COMPLIANT',
+  OTHER: 'OTHER',
+} as const;
+
+export type RejectReasonCode = (typeof REJECT_REASON_CODES)[keyof typeof REJECT_REASON_CODES];
+
+export const REJECT_REASON_LABELS: Record<RejectReasonCode, string> = {
+  NOT_SCIENTIFIC: 'Nội dung không có tính khoa học',
+  NOT_FEASIBLE: 'Phương pháp không khả thi',
+  BUDGET_UNREASONABLE: 'Kinh phí không hợp lý',
+  NOT_COMPLIANT: 'Không tuân thủ quy định',
+  OTHER: 'Khác',
+};
+
+/**
+ * Cancel Proposal Request (Story 9.1)
+ */
+export interface CancelProposalRequest {
+  proposalId: string;
+  idempotencyKey: string;
+  reason?: string;
+}
+
+/**
+ * Withdraw Proposal Request (Story 9.1)
+ */
+export interface WithdrawProposalRequest {
+  proposalId: string;
+  idempotencyKey: string;
+  reason?: string;
+}
+
+/**
+ * Reject Proposal Request (Story 9.2)
+ */
+export interface RejectProposalRequest {
+  proposalId: string;
+  idempotencyKey: string;
+  reasonCode: RejectReasonCode;
+  comment: string;
+}
+
+/**
+ * Pause Proposal Request (Story 9.3)
+ */
+export interface PauseProposalRequest {
+  proposalId: string;
+  idempotencyKey: string;
+  reason: string;
+  expectedResumeAt?: string;
+}
+
+/**
+ * Resume Proposal Request (Story 9.3)
+ */
+export interface ResumeProposalRequest {
+  proposalId: string;
+  idempotencyKey: string;
+}
+
+/**
  * Workflow API Client
  *
  * Story 4.1: Faculty Approve Action
  * Story 4.2: Faculty Return Action
+ * Story 9.1: Cancel/Withdraw Actions
+ * Story 9.2: Reject Action
+ * Story 9.3: Pause/Resume Actions
  */
 export const workflowApi = {
   /**
@@ -411,5 +481,273 @@ export const workflowApi = {
    */
   downloadRevisionPdf: async (proposalId: string): Promise<void> => {
     await downloadRevisionPdf(proposalId);
+  },
+
+  /**
+   * Cancel Proposal (DRAFT → CANCELLED)
+   * Story 9.1: Cancel Action - Owner can cancel DRAFT proposals
+   *
+   * @param proposalId - Proposal ID to cancel
+   * @param idempotencyKey - UUID v4 idempotency key
+   * @param reason - Optional reason for cancellation
+   * @returns Transition result with proposal state and workflow log
+   * @throws 400 if proposal not in DRAFT state
+   * @throws 403 if user not owner of proposal
+   * @throws 404 if proposal not found
+   * @throws 409 if idempotency key was already used
+   */
+  cancelProposal: async (
+    proposalId: string,
+    idempotencyKey: string,
+    reason?: string,
+  ): Promise<TransitionResult> => {
+    const response = await apiClient.post<{ success: true; data: TransitionResult }>(
+      `/proposals/${proposalId}/cancel`,
+      { reason },
+      {
+        headers: {
+          'X-Idempotency-Key': idempotencyKey,
+        },
+      },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Withdraw Proposal (Before APPROVED → WITHDRAWN)
+   * Story 9.1: Withdraw Action - Owner can withdraw before approval
+   *
+   * @param proposalId - Proposal ID to withdraw
+   * @param idempotencyKey - UUID v4 idempotency key
+   * @param reason - Optional reason for withdrawal
+   * @returns Transition result with proposal state and workflow log
+   * @throws 400 if proposal state >= APPROVED
+   * @throws 403 if user not owner of proposal
+   * @throws 404 if proposal not found
+   * @throws 409 if idempotency key was already used
+   */
+  withdrawProposal: async (
+    proposalId: string,
+    idempotencyKey: string,
+    reason?: string,
+  ): Promise<TransitionResult> => {
+    const response = await apiClient.post<{ success: true; data: TransitionResult }>(
+      `/proposals/${proposalId}/withdraw`,
+      { reason },
+      {
+        headers: {
+          'X-Idempotency-Key': idempotencyKey,
+        },
+      },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Reject Proposal (Review State → REJECTED)
+   * Story 9.2: Reject Action - Decision makers can reject proposals
+   *
+   * @param proposalId - Proposal ID to reject
+   * @param idempotencyKey - UUID v4 idempotency key
+   * @param reasonCode - Standardized reason code enum
+   * @param comment - Required comment explaining rejection
+   * @returns Transition result with proposal state and workflow log
+   * @throws 400 if proposal in terminal state
+   * @throws 403 if user lacks permission for current state
+   * @throws 404 if proposal not found
+   * @throws 409 if idempotency key was already used
+   */
+  rejectProposal: async (
+    proposalId: string,
+    idempotencyKey: string,
+    reasonCode: RejectReasonCode,
+    comment: string,
+  ): Promise<TransitionResult> => {
+    const response = await apiClient.post<{ success: true; data: TransitionResult }>(
+      `/proposals/${proposalId}/reject`,
+      { reasonCode, comment },
+      {
+        headers: {
+          'X-Idempotency-Key': idempotencyKey,
+        },
+      },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Pause Proposal (Active State → PAUSED)
+   * Story 9.3: Pause Action - PHONG_KHCN can pause proposals
+   *
+   * @param proposalId - Proposal ID to pause
+   * @param idempotencyKey - UUID v4 idempotency key
+   * @param reason - Required reason for pausing
+   * @param expectedResumeAt - Optional expected resume date
+   * @returns Transition result with proposal state and workflow log
+   * @throws 400 if proposal in terminal state
+   * @throws 403 if user lacks PHONG_KHCN role
+   * @throws 404 if proposal not found
+   * @throws 409 if idempotency key was already used
+   */
+  pauseProposal: async (
+    proposalId: string,
+    idempotencyKey: string,
+    reason: string,
+    expectedResumeAt?: string,
+  ): Promise<TransitionResult> => {
+    const response = await apiClient.post<{ success: true; data: TransitionResult }>(
+      `/proposals/${proposalId}/pause`,
+      { reason, expectedResumeAt },
+      {
+        headers: {
+          'X-Idempotency-Key': idempotencyKey,
+        },
+      },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Resume Proposal (PAUSED → Previous State)
+   * Story 9.3: Resume Action - PHONG_KHCN can resume paused proposals
+   *
+   * @param proposalId - Proposal ID to resume
+   * @param idempotencyKey - UUID v4 idempotency key
+   * @returns Transition result with proposal state and workflow log
+   * @throws 400 if proposal not in PAUSED state
+   * @throws 403 if user lacks PHONG_KHCN role
+   * @throws 404 if proposal not found
+   * @throws 409 if idempotency key was already used
+   */
+  resumeProposal: async (
+    proposalId: string,
+    idempotencyKey: string,
+  ): Promise<TransitionResult> => {
+    const response = await apiClient.post<{ success: true; data: TransitionResult }>(
+      `/proposals/${proposalId}/resume`,
+      {},
+      {
+        headers: {
+          'X-Idempotency-Key': idempotencyKey,
+        },
+      },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Approve Council Review (OUTLINE_COUNCIL_REVIEW → APPROVED)
+   * BAN_GIAM_HOC: Final approval - proposal moves to APPROVED state
+   *
+   * @param proposalId - Proposal ID to approve
+   * @param idempotencyKey - UUID v4 idempotency key
+   * @returns Transition result with proposal state and workflow log
+   * @throws 400 if proposal not in OUTLINE_COUNCIL_REVIEW state
+   * @throws 403 if user lacks BAN_GIAM_HOC role
+   * @throws 404 if proposal not found
+   * @throws 409 if idempotency key was already used
+   */
+  approveCouncilReview: async (
+    proposalId: string,
+    idempotencyKey: string,
+  ): Promise<TransitionResult> => {
+    const response = await apiClient.post<{ success: true; data: TransitionResult }>(
+      `/workflow/${proposalId}/approve-council`,
+      { proposalId, idempotencyKey },
+      {
+        headers: {
+          'X-Idempotency-Key': idempotencyKey,
+        },
+      },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Return Council Review (OUTLINE_COUNCIL_REVIEW → CHANGES_REQUESTED)
+   * BAN_GIAM_HOC: Return proposal for changes with reason
+   *
+   * @param proposalId - Proposal ID to return
+   * @param idempotencyKey - UUID v4 idempotency key
+   * @param reason - Return reason text
+   * @returns Transition result with proposal state and workflow log
+   * @throws 400 if proposal not in OUTLINE_COUNCIL_REVIEW state
+   * @throws 403 if user lacks BAN_GIAM_HOC role
+   * @throws 404 if proposal not found
+   * @throws 409 if idempotency key was already used
+   */
+  returnCouncilReview: async (
+    proposalId: string,
+    idempotencyKey: string,
+    reason: string,
+  ): Promise<TransitionResult> => {
+    const response = await apiClient.post<{ success: true; data: TransitionResult }>(
+      `/workflow/${proposalId}/return-council`,
+      { proposalId, reason, idempotencyKey },
+      {
+        headers: {
+          'X-Idempotency-Key': idempotencyKey,
+        },
+      },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Accept School Review (SCHOOL_ACCEPTANCE_REVIEW → HANDOVER)
+   * BAN_GIAM_HOC: Final acceptance - proposal moves to HANDOVER state
+   *
+   * @param proposalId - Proposal ID to accept
+   * @param idempotencyKey - UUID v4 idempotency key
+   * @returns Transition result with proposal state and workflow log
+   * @throws 400 if proposal not in SCHOOL_ACCEPTANCE_REVIEW state
+   * @throws 403 if user lacks BAN_GIAM_HOC role
+   * @throws 404 if proposal not found
+   * @throws 409 if idempotency key was already used
+   */
+  acceptSchoolReview: async (
+    proposalId: string,
+    idempotencyKey: string,
+  ): Promise<TransitionResult> => {
+    const response = await apiClient.post<{ success: true; data: TransitionResult }>(
+      `/workflow/${proposalId}/accept-school`,
+      { proposalId, idempotencyKey },
+      {
+        headers: {
+          'X-Idempotency-Key': idempotencyKey,
+        },
+      },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Return School Review (SCHOOL_ACCEPTANCE_REVIEW → CHANGES_REQUESTED)
+   * BAN_GIAM_HOC: Return proposal for changes before final acceptance
+   *
+   * @param proposalId - Proposal ID to return
+   * @param idempotencyKey - UUID v4 idempotency key
+   * @param reason - Return reason text
+   * @returns Transition result with proposal state and workflow log
+   * @throws 400 if proposal not in SCHOOL_ACCEPTANCE_REVIEW state
+   * @throws 403 if user lacks BAN_GIAM_HOC role
+   * @throws 404 if proposal not found
+   * @throws 409 if idempotency key was already used
+   */
+  returnSchoolReview: async (
+    proposalId: string,
+    idempotencyKey: string,
+    reason: string,
+  ): Promise<TransitionResult> => {
+    const response = await apiClient.post<{ success: true; data: TransitionResult }>(
+      `/workflow/${proposalId}/return-school`,
+      { proposalId, reason, idempotencyKey },
+      {
+        headers: {
+          'X-Idempotency-Key': idempotencyKey,
+        },
+      },
+    );
+    return response.data.data;
   },
 };

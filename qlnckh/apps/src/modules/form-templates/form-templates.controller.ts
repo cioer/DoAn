@@ -9,14 +9,20 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiConsumes,
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { FormTemplatesService } from './form-templates.service';
+import { WordParserService } from './word-parser.service';
 import {
   FormTemplateDto,
   FormTemplateWithSectionsDto,
@@ -33,7 +39,10 @@ import { RolesGuard } from '../rbac/guards/roles.guard';
 @Controller('form-templates')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class FormTemplatesController {
-  constructor(private readonly formTemplatesService: FormTemplatesService) {}
+  constructor(
+    private readonly formTemplatesService: FormTemplatesService,
+    private readonly wordParserService: WordParserService,
+  ) {}
 
   /**
    * GET /api/form-templates - List all active form templates
@@ -48,14 +57,30 @@ export class FormTemplatesController {
   @ApiResponse({
     status: 200,
     description: 'List of form templates',
-    type: [FormTemplateWithSectionsDto],
+    schema: {
+      example: {
+        success: true,
+        data: [
+          {
+            id: 'uuid',
+            code: 'MAU_01B',
+            name: 'Đề tài Nghiên cứu Khoa học cấp trường',
+            description: 'Mẫu đề tài NCKH cấp trường đầy đủ',
+            version: 'v1.0',
+            isActive: true,
+            sections: [],
+          },
+        ],
+      },
+    },
   })
   @ApiResponse({
     status: 401,
     description: 'Unauthorized',
   })
-  async findAll(): Promise<FormTemplateWithSectionsDto[]> {
-    return this.formTemplatesService.findAll();
+  async findAll() {
+    const data = await this.formTemplatesService.findAll();
+    return { success: true, data };
   }
 
   /**
@@ -71,7 +96,20 @@ export class FormTemplatesController {
   @ApiResponse({
     status: 200,
     description: 'Form template details',
-    type: FormTemplateWithSectionsDto,
+    schema: {
+      example: {
+        success: true,
+        data: {
+          id: 'uuid',
+          code: 'MAU_01B',
+          name: 'Đề tài Nghiên cứu Khoa học cấp trường',
+          description: 'Mẫu đề tài NCKH cấp trường đầy đủ',
+          version: 'v1.0',
+          isActive: true,
+          sections: [],
+        },
+      },
+    },
   })
   @ApiResponse({
     status: 404,
@@ -81,8 +119,9 @@ export class FormTemplatesController {
     status: 401,
     description: 'Unauthorized',
   })
-  async findOne(@Param('id') id: string): Promise<FormTemplateWithSectionsDto> {
-    return this.formTemplatesService.findOne(id);
+  async findOne(@Param('id') id: string) {
+    const data = await this.formTemplatesService.findOne(id);
+    return { success: true, data };
   }
 
   /**
@@ -143,6 +182,84 @@ export class FormTemplatesController {
   })
   async create(@Body() dto: CreateFormTemplateDto): Promise<FormTemplateWithSectionsDto> {
     return this.formTemplatesService.create(dto);
+  }
+
+  /**
+   * POST /api/form-templates/import - Import form templates from Word document
+   * Admin only
+   */
+  @Post('import')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Import form templates from Word',
+    description: 'Import form templates from a Word .docx document (admin only). The document should contain form templates with structure like "Mẫu X: Template Name"',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Templates imported successfully',
+    schema: {
+      example: {
+        success: true,
+        message: 'Đã nhập 5 biểu mẫu thành công',
+        data: {
+          imported: 5,
+          failed: 0,
+          templates: [
+            { code: 'MAU_1A', name: 'Đề tài NCKH', sectionsCount: 8 },
+          ],
+          errors: [],
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - Invalid file or document format',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin only',
+  })
+  async importFromWord(@UploadedFile() file: any) {
+    if (!file) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'NO_FILE',
+          message: 'Vui lòng tải lên file Word (.docx)',
+        },
+      });
+    }
+
+    // Validate file extension
+    if (!file.originalname.toLowerCase().endsWith('.docx')) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'INVALID_FILE_TYPE',
+          message: 'Chỉ chấp nhận file Word (.docx)',
+        },
+      });
+    }
+
+    // Parse Word document
+    const parsedTemplates = await this.wordParserService.parseFormTemplates(file.buffer);
+
+    // Import templates to database
+    const result = await this.formTemplatesService.importFromWord(parsedTemplates);
+
+    return {
+      success: true,
+      message: `Đã nhập ${result.imported} biểu mẫu thành công${result.failed > 0 ? ` (${result.failed} thất bại)` : ''}`,
+      data: result,
+    };
   }
 
   /**

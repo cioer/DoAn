@@ -63,7 +63,7 @@ export class PdfService {
       where: { id: proposalId },
       include: {
         owner: {
-          select: { id: true, email: true, name: true },
+          select: { id: true, email: true, displayName: true },
         },
         template: true,
       },
@@ -691,7 +691,7 @@ export class PdfService {
         code: true,
         title: true,
         owner: {
-          select: { id: true, email: true, name: true },
+          select: { id: true, email: true, displayName: true },
         },
       },
     });
@@ -786,6 +786,35 @@ export class PdfService {
       select: { code: true },
     });
     return proposal?.code || 'proposal';
+  }
+
+  /**
+   * Get proposal for export with ownership verification (GIANG_VIEN Feature)
+   * Fetches minimal proposal data needed for export authorization
+   *
+   * @param proposalId - Proposal UUID
+   * @returns Proposal with code and ownerId
+   * @throws NotFoundException if proposal not found
+   */
+  async getProposalForExport(proposalId: string): Promise<{
+    id: string;
+    code: string;
+    ownerId: string;
+  }> {
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: {
+        id: true,
+        code: true,
+        ownerId: true,
+      },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException(`Không tìm thấy đề tài ${proposalId}`);
+    }
+
+    return proposal;
   }
 
   /**
@@ -1157,7 +1186,7 @@ export class PdfService {
         evaluator: {
           select: {
             id: true,
-            name: true,
+            displayName: true,
             email: true,
           },
         },

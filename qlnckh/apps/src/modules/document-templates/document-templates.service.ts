@@ -123,11 +123,12 @@ export class DocumentTemplatesService {
     // Save file to disk BEFORE transaction (Epic 6 retro fix)
     // This prevents orphaned files if transaction rolls back
     let template: DocumentTemplate;
+    let result: UploadResult;
     try {
       await fs.writeFile(filePath, file.buffer);
 
       // Atomic transaction following Epic 6 pattern
-      const result = await this.prisma.$transaction(async (tx) => {
+      result = await this.prisma.$transaction(async (tx) => {
         // If activating, deactivate other templates of same type
         if (isActive) {
           await tx.documentTemplate.updateMany({

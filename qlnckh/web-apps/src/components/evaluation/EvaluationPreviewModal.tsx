@@ -16,8 +16,9 @@
  */
 
 import { useState } from 'react';
-import { X, CheckCircle, AlertCircle } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import { EvaluationFormData, generateIdempotencyKey, evaluationApi } from '../../lib/api/evaluations';
+import { Dialog, DialogBody, DialogFooter, Button, Alert } from '../ui';
 
 export interface EvaluationPreviewModalProps {
   isOpen: boolean;
@@ -199,86 +200,51 @@ export function EvaluationPreviewModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
-          <h3 className="text-lg font-semibold dark:text-gray-100">
-            Xem trước khi nộp
-          </h3>
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+    <Dialog
+      isOpen={isOpen}
+      onClose={handleCancel}
+      title="Xem trước khi nộp"
+      size="lg"
+    >
+      <DialogBody className="flex-1 overflow-y-auto">
+        {renderPreviewContent()}
 
-        {/* Content - Force light theme for PDF preview */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {renderPreviewContent()}
+        {/* Error Message - using Alert component */}
+        {errorMessage && (
+          <Alert variant="error" className="mt-4">
+            {errorMessage}
+          </Alert>
+        )}
 
-          {/* Error Message */}
-          {errorMessage && (
-            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
-                <div>
-                  <h4 className="font-semibold text-sm text-red-800 dark:text-red-200">
-                    Lỗi
-                  </h4>
-                  <p className="mt-1 text-sm text-red-700 dark:text-red-300">{errorMessage}</p>
-                </div>
-              </div>
+        {/* Success Message - using Alert component */}
+        {submitState === 'success' && (
+          <Alert variant="success" className="mt-4">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4" />
+              <span>Đã nộp thành công!</span>
             </div>
-          )}
+          </Alert>
+        )}
+      </DialogBody>
 
-          {/* Success Message */}
-          {submitState === 'success' && (
-            <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-                <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                  Đã nộp thành công!
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-4 border-t dark:border-gray-700">
-          <button
-            type="button"
-            onClick={handleCancel}
-            disabled={submitState === 'submitting' || submitState === 'success'}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600"
-          >
-            Quay lại sửa
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={submitState === 'submitting' || submitState === 'success'}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {submitState === 'submitting' ? (
-              <>
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Đang nộp...
-              </>
-            ) : submitState === 'success' ? (
-              <>
-                <CheckCircle className="h-4 w-4" />
-                Đã nộp
-              </>
-            ) : (
-              'Xác nhận và nộp'
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
+      <DialogFooter>
+        <Button
+          variant="secondary"
+          onClick={handleCancel}
+          disabled={submitState === 'submitting' || submitState === 'success'}
+        >
+          Quay lại sửa
+        </Button>
+        <Button
+          variant="primary"
+          onClick={handleSubmit}
+          isLoading={submitState === 'submitting'}
+          disabled={submitState === 'success'}
+          leftIcon={submitState === 'success' ? <CheckCircle className="h-4 w-4" /> : undefined}
+        >
+          {submitState === 'submitting' ? 'Đang nộp...' : submitState === 'success' ? 'Đã nộp' : 'Xác nhận và nộp'}
+        </Button>
+      </DialogFooter>
+    </Dialog>
   );
 }

@@ -93,7 +93,7 @@ export class ExcelParserService {
    */
   async parseUserImportFile(buffer: Buffer): Promise<UserImportRow[]> {
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer);
+    await workbook.xlsx.load(buffer as any);
 
     const worksheet = workbook.worksheets[0];
     if (!worksheet) {
@@ -173,7 +173,7 @@ export class ExcelParserService {
    */
   async parseProposalImportFile(buffer: Buffer): Promise<ProposalImportRow[]> {
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer);
+    await workbook.xlsx.load(buffer as any);
 
     const worksheet = workbook.worksheets[0];
     if (!worksheet) {

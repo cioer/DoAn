@@ -17,7 +17,7 @@
 
 # METADATA
 # ========
-generated: "2026-01-02"
+generated: "2026-01-07"
 project: "DoAn"
 project_type: "bmad-method"
 selected_track: "bmad-method"
@@ -31,43 +31,36 @@ workflow_path: "_bmad/bmm/workflows/workflow-status/paths/method-brownfield.yaml
 
 workflow_status:
   # Phase 0 - Documentation (Conditional)
-  document-project: conditional
-  # Purpose: Understand existing codebase before planning
+  document-project: "_bmad-output/project-context.md"
+  # Status: COMPLETED - Project documentation already exists
 
   # Phase 1 - Analysis (Optional)
   brainstorm-project: "_bmad-output/analysis/brainstorming-session-2026-01-02.md"
-  # Status: COMPLETED - User selected during workflow-init
+  # Status: COMPLETED
+
   research: "_bmad-output/planning-artifacts/research/technical-rbac-workflow-audit-research-2026-01-02.md"
-  # Status: NEXT - User selected during workflow-init
+  # Status: COMPLETED
 
   # Phase 2 - Planning
-  prd: required
-  # Agent: pm
-  # Command: /bmad:bmm:workflows:create-prd
+  prd: "_bmad-output/planning-artifacts/prd.md"
+  # Status: COMPLETED
 
-  create-ux-design: conditional
-  # Agent: ux-designer
-  # Condition: if_has_ui - Determined after PRD
+  create-ux-design: "_bmad-output/planning-artifacts/ux-design-specification-part-aa.md"
+  # Status: COMPLETED - Multiple parts: part-aa, part-ab
 
   # Phase 3 - Solutioning
-  create-architecture: required
-  # Agent: architect
-  # Command: /bmad:bmm:workflows:create-architecture
+  create-architecture: "_bmad-output/planning-artifacts/architecture.md"
+  # Status: COMPLETED
 
-  create-epics-and-stories: required
-  # Agent: pm
-  # Command: /bmad:bmm:workflows:create-epics-and-stories
+  create-epics-and-stories: "_bmad-output/planning-artifacts/epics.md"
+  # Status: COMPLETED
 
-  test-design: optional
-  # Agent: tea
-  # Command: /bmad:bmm:workflows:testarch-test-design
+  test-design: skipped
+  # Status: SKIPPED - Optional workflow
 
-  implementation-readiness: required
-  # Agent: architect
-  # Command: /bmad:bmm:workflows:check-implementation-readiness
+  implementation-readiness: "_bmad-output/planning-artifacts/implementation-readiness-report-2026-01-04.md"
+  # Status: COMPLETED
 
   # Phase 4 - Implementation
-  sprint-planning: required
-  # Agent: sm
-  # Command: /bmad:bmm:workflows:sprint-planning
-  # Note: Creates sprint plan - subsequent work tracked there
+  sprint-planning: "_bmad-output/implementation-artifacts/sprint-status.yaml"
+  # Status: COMPLETED - All 10 epics implemented

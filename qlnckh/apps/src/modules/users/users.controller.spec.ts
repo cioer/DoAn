@@ -36,22 +36,22 @@ describe('UsersController', () => {
   beforeEach(() => {
     // Create mock service
     mockUsersService = {
-      createUser: jest.fn().mockResolvedValue({
+      createUser: vi.fn().mockResolvedValue({
         user: mockUser,
         temporaryPassword: mockTempPassword,
       }),
-      getUsers: jest.fn().mockResolvedValue({
+      getUsers: vi.fn().mockResolvedValue({
         users: [mockUser],
         meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
       }),
-      getUserById: jest.fn().mockResolvedValue(mockUser),
-      updateUser: jest.fn().mockResolvedValue(mockUser),
-      softDeleteUser: jest.fn().mockResolvedValue(mockUser),
+      getUserById: vi.fn().mockResolvedValue(mockUser),
+      updateUser: vi.fn().mockResolvedValue(mockUser),
+      softDeleteUser: vi.fn().mockResolvedValue(mockUser),
     };
 
     // Manually create controller with mock service - bypass DI
     controller = new UsersController(mockUsersService);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should be defined', () => {

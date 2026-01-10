@@ -70,7 +70,7 @@ export class AuditService {
           actingAsUserId: dto.actingAsUserId || null,
           entityType: dto.entityType || null,
           entityId: dto.entityId || null,
-          metadata: dto.metadata ?? Prisma.JsonNull,
+          metadata: (dto.metadata ?? Prisma.JsonNull) as any,
           ip: dto.ip || null,
           userAgent: dto.userAgent || null,
           requestId: dto.requestId || null,
@@ -135,10 +135,10 @@ export class AuditService {
     if (from_date || to_date) {
       where.occurredAt = {};
       if (from_date) {
-        (where.occurredAt as Prisma.AuditEventWhereInput['occurredAt']).gte = new Date(from_date);
+        (where.occurredAt as { gte?: Date; lte?: Date }).gte = new Date(from_date);
       }
       if (to_date) {
-        (where.occurredAt as Prisma.AuditEventWhereInput['occurredAt']).lte = new Date(to_date);
+        (where.occurredAt as { gte?: Date; lte?: Date }).lte = new Date(to_date);
       }
     }
 
@@ -469,12 +469,14 @@ export class AuditService {
       });
     });
 
-    // Convert to array
-    const timeline = Object.entries(timelineMap).map(([date, events]) => ({
-      date,
-      count: events.length,
-      events,
-    }));
+    // Convert to array and sort by date descending
+    const timeline = Object.entries(timelineMap)
+      .map(([date, events]) => ({
+        date,
+        count: events.length,
+        events,
+      }))
+      .sort((a, b) => b.date.localeCompare(a.date));
 
     return { timeline };
   }
@@ -514,10 +516,10 @@ export class AuditService {
     if (from_date || to_date) {
       where.occurredAt = {};
       if (from_date) {
-        (where.occurredAt as Prisma.AuditEventWhereInput['occurredAt']).gte = new Date(from_date);
+        (where.occurredAt as { gte?: Date; lte?: Date }).gte = new Date(from_date);
       }
       if (to_date) {
-        (where.occurredAt as Prisma.AuditEventWhereInput['occurredAt']).lte = new Date(to_date);
+        (where.occurredAt as { gte?: Date; lte?: Date }).lte = new Date(to_date);
       }
     }
 

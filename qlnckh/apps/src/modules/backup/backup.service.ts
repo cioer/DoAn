@@ -97,6 +97,13 @@ export class BackupService {
   ): Promise<BackupFile> {
     this.ensureBackupsDirectory();
 
+    // Validate file is not empty
+    if (!file.buffer || file.buffer.length === 0) {
+      throw new BadRequestException(
+        'File rỗng. Vui lòng chọn file có nội dung.',
+      );
+    }
+
     // Validate file size (max 500MB)
     const maxSize = 500 * 1024 * 1024;
     if (file.buffer.length > maxSize) {

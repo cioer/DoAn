@@ -34,17 +34,17 @@ describe('FormTemplatesController', () => {
   beforeEach(() => {
     // Create mock service
     mockService = {
-      findAll: jest.fn(),
-      findOne: jest.fn(),
-      findSections: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      remove: jest.fn(),
+      findAll: vi.fn(),
+      findOne: vi.fn(),
+      findSections: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
     };
 
     // Manually create controller with mock service - bypass DI
     controller = new FormTemplatesController(mockService);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should be defined', () => {

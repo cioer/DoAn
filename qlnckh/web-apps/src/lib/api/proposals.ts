@@ -221,10 +221,8 @@ export const proposalsApi = {
    * Get proposal by ID
    */
   getProposalById: async (id: string): Promise<Proposal> => {
-    const response = await apiClient.get<{ success: true; data: Proposal }>(
-      `/proposals/${id}`,
-    );
-    return response.data.data;
+    const response = await apiClient.get<Proposal>(`/proposals/${id}`);
+    return response.data; // Backend returns proposal directly, not wrapped
   },
 
   /**

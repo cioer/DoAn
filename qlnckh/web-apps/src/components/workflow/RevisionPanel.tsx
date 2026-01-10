@@ -12,11 +12,13 @@
  * - "Nộp lại" button enabled when ≥1 checkbox ticked (Story 4.5)
  * - Resubmit functionality with confirmation and error handling (Story 4.5)
  * - "Xuất PDF yêu cầu sửa" button (Story 4.6)
+ * - Uses UI components (Button)
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { CheckCircle, AlertTriangle, Loader2, Send, Download } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Send, Download } from 'lucide-react';
 import { workflowApi, CANONICAL_SECTIONS, WorkflowLog, generateIdempotencyKey, downloadRevisionPdf } from '@/lib/api/workflow';
+import { Button } from '../ui';
 
 export interface RevisionPanelProps {
   proposalId: string;
@@ -51,7 +53,7 @@ function getSectionLabels(sectionIds: string[]): Array<{ id: string; label: stri
       const section = CANONICAL_SECTIONS.find((s) => s.id === id);
       return section ? { id: section.id, label: section.label } : null;
     })
-    .filter((item): item is { id: string; label: string } => item !== null);
+    .filter((item) => item !== null) as Array<{ id: string; label: string }>;
 }
 
 /**
@@ -79,36 +81,40 @@ function SectionItem({
   onScrollToSection,
 }: SectionItemProps) {
   return (
-    <div className={`flex items-start gap-3 p-3 rounded-md border transition-colors ${isChecked ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200 hover:border-gray-300'}`}>
+    <div className={`flex items-start gap-3 p-3 rounded-md border transition-colors ${isChecked ? 'bg-success-50 border-success-200' : 'bg-white border-gray-200 hover:border-gray-300'}`}>
       <input
         type="checkbox"
         id={`section-${sectionId}`}
         checked={isChecked}
         onChange={() => onToggle(sectionId)}
-        className="w-4 h-4 mt-1 text-green-600 border-gray-300 rounded focus:ring-2 focus:ring-green-500"
+        className="w-4 h-4 mt-1 text-success-600 border-gray-300 rounded focus:ring-2 focus:ring-success-500"
       />
       <div className="flex-1 min-w-0">
         <label
           htmlFor={`section-${sectionId}`}
-          className="block font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
+          className="block font-medium text-gray-900 cursor-pointer hover:text-primary-600 transition-colors"
         >
           {sectionLabel}
         </label>
         <button
           type="button"
           onClick={() => onScrollToSection(sectionId)}
-          className="text-xs text-blue-600 hover:text-blue-700 mt-1 underline"
+          className="text-xs text-primary-600 hover:text-primary-700 mt-1 underline"
         >
           Xem trong form →
         </button>
       </div>
       {isChecked && (
-        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+        <CheckCircle className="w-5 h-5 text-success-600 flex-shrink-0 mt-0.5" />
       )}
     </div>
   );
 }
 
+/**
+ * Revision Panel Component
+ * - Uses UI components (Button)
+ */
 export function RevisionPanel({
   proposalId,
   proposalState,
@@ -240,9 +246,9 @@ export function RevisionPanel({
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
         // Add highlight effect
-        element.classList.add('ring-4', 'ring-blue-400', 'ring-opacity-50');
+        element.classList.add('ring-4', 'ring-primary-400', 'ring-opacity-50');
         setTimeout(() => {
-          element.classList.remove('ring-4', 'ring-blue-400', 'ring-opacity-50');
+          element.classList.remove('ring-4', 'ring-primary-400', 'ring-opacity-50');
         }, 2000);
       }
     },
@@ -331,7 +337,7 @@ export function RevisionPanel({
   if (loading) {
     return (
       <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4 flex items-center gap-3">
-        <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+        <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
         <p className="text-sm text-gray-600">Đang tải thông tin yêu cầu sửa...</p>
       </div>
     );
@@ -340,9 +346,9 @@ export function RevisionPanel({
   // Error state - still show minimal panel
   if (error || !returnLog) {
     return (
-      <div className="bg-white border border-amber-200 rounded-lg p-4 mb-4">
+      <div className="bg-white border border-warning-200 rounded-lg p-4 mb-4">
         <div className="flex items-start gap-3 mb-3">
-          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="w-5 h-5 text-warning-600 flex-shrink-0 mt-0.5" />
           <div>
             <h3 className="font-medium text-gray-900">Cần sửa các phần:</h3>
             <p className="text-sm text-gray-600 mt-1">
@@ -369,26 +375,18 @@ export function RevisionPanel({
           </span>
         </div>
 
-        {/* Story 4.6: Download PDF Button */}
-        <button
-          type="button"
+        {/* Story 4.6: Download PDF Button - using Button component */}
+        <Button
+          variant="ghost"
+          size="xs"
           onClick={handleDownloadPdf}
+          isLoading={downloadingPdf}
           disabled={downloadingPdf}
-          className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+          leftIcon={<Download className="w-3.5 h-3.5" />}
           title="Xuất PDF yêu cầu sửa"
         >
-          {downloadingPdf ? (
-            <>
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              Đang tải...
-            </>
-          ) : (
-            <>
-              <Download className="w-3.5 h-3.5" />
-              Xuất PDF
-            </>
-          )}
-        </button>
+          Xuất PDF
+        </Button>
       </div>
 
       {/* Section Items */}
@@ -410,59 +408,54 @@ export function RevisionPanel({
       )}
 
       {/* AC6: Warning Message */}
-      <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
-        <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-        <p className="text-sm text-amber-800">
+      <div className="flex items-start gap-2 p-3 bg-warning-50 border border-warning-200 rounded-md">
+        <AlertTriangle className="w-4 h-4 text-warning-600 flex-shrink-0 mt-0.5" />
+        <p className="text-sm text-warning-800">
           Nộp lại sẽ giữ nguyên lịch sử; không quay về DRAFT.
         </p>
       </div>
 
-      {/* Story 4.5: Resubmit Button */}
+      {/* Story 4.5: Resubmit Success Message */}
       {resubmitSuccess && (
-        <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
-          <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-green-800">
+        <div className="mt-4 p-3 bg-success-50 border border-success-200 rounded-md flex items-start gap-2">
+          <CheckCircle className="w-4 h-4 text-success-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-success-800">
             Đã nộp lại hồ sơ thành công! Đang chuyển về lại cho người reviewing...
           </p>
         </div>
       )}
 
+      {/* Resubmit Error Message */}
       {resubmitError && (
-        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
-          <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-red-800">{resubmitError}</p>
+        <div className="mt-4 p-3 bg-error-50 border border-error-200 rounded-md flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 text-error-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-error-800">{resubmitError}</p>
         </div>
       )}
 
+      {/* PDF Error Message */}
       {pdfError && (
-        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
-          <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-red-800">{pdfError}</p>
+        <div className="mt-4 p-3 bg-error-50 border border-error-200 rounded-md flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 text-error-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-error-800">{pdfError}</p>
         </div>
       )}
 
+      {/* Story 4.5: Resubmit Button - using Button component */}
       <div className="mt-4 flex justify-end">
-        <button
-          type="button"
+        <Button
+          variant="primary"
+          size="sm"
           onClick={handleResubmit}
+          isLoading={resubmitting}
           disabled={checkedSections.length === 0 || resubmitting || sectionItems.length === 0}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
+          leftIcon={<Send className="w-4 h-4" />}
           title={sectionItems.length === 0 ? 'Không có phần nào cần sửa' : undefined}
         >
-          {resubmitting ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Đang nộp...
-            </>
-          ) : (
-            <>
-              <Send className="w-4 h-4" />
-              {sectionItems.length > 0
-                ? `Nộp lại (${checkedSections.length}/${sectionItems.length} đã sửa)`
-                : 'Nộp lại'}
-            </>
-          )}
-        </button>
+          {sectionItems.length > 0
+            ? `Nộp lại (${checkedSections.length}/${sectionItems.length} đã sửa)`
+            : 'Nộp lại'}
+        </Button>
       </div>
     </div>
   );

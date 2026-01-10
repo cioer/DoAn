@@ -11,20 +11,20 @@ describe('DemoService', () => {
   // Manual mocks - bypass DI
   const mockPrisma = {
     user: {
-      findUnique: jest.fn(),
+      findUnique: vi.fn(),
     },
   };
 
   const mockRbac = {
-    getUserPermissions: jest.fn(),
+    getUserPermissions: vi.fn(),
   };
 
   const mockAudit = {
-    logEvent: jest.fn(),
+    logEvent: vi.fn(),
   };
 
   const mockConfig = {
-    get: jest.fn(),
+    get: vi.fn(),
   };
 
   beforeEach(() => {
@@ -36,7 +36,7 @@ describe('DemoService', () => {
       mockConfig as any,
       mockAudit as any,
     );
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('isDemoModeEnabled', () => {

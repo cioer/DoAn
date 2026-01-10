@@ -50,6 +50,17 @@ story_location: "_bmad-output/implementation-artifacts/stories"
 # - Fixed filename collision bug in docx.service.ts
 # - All fixes follow Epic 6 retro patterns
 
+# Epic 9 Implementation 2026-01-07:
+# - All 3 stories implemented (9-1: Cancel/Withdraw, 9-2: Reject, 9-3: Pause/Resume)
+# - Schema updated with exception tracking fields (cancelledAt, withdrawnAt, rejectedAt, pausedAt, etc.)
+# - 5 exception service methods added to WorkflowService (cancelProposal, withdrawProposal, rejectProposal, pauseProposal, resumeProposal)
+# - 5 exception endpoints added to WorkflowController
+# - 44 unit tests added for Epic 9 exception actions (130 total tests passing)
+# - Epic 8 retro patterns followed: NO 'as unknown' casts, direct WorkflowAction enum usage, proper interface typing
+# - RBAC properly implemented for all exception actions
+# - Vietnamese localization for all error messages
+# - Proper audit logging for all exception actions
+
 development_status:
   # ========================================
   # EPIC 1: Foundation + Demo Operator (8 stories)
@@ -135,44 +146,65 @@ development_status:
   7-1-document-export-completion-refinement: done
   7-2-template-upload-plus-registry: done
   7-3-docx-generation-plus-sha-256-plus-manifest-plus-retention-plus-rbac-download-plus-verify: done
-  epic-7-retrospective: optional
+  epic-7-retrospective: done  # Completed 2026-01-07 - Found 27 issues (6 critical), all fixed. Epic 6 patterns violated but corrected in review.
 
   # ========================================
   # EPIC 8: Bulk Actions & Reports (4 stories)
   # ========================================
-  epic-8: backlog
-  8-1-bulk-assign-gan-holder-user-hang-loat: backlog
-  8-2-bulk-remind-preview-plus-dry-run-plus-execute: backlog
-  8-3-export-excel-per-filter: backlog
-  8-4-morning-check-dashboard-kpi-plus-overdue-list: backlog
-  epic-8-retrospective: optional
+  epic-8: done
+  8-1-bulk-assign-gan-holder-user-hang-loat: done
+  8-2-bulk-remind-preview-plus-dry-run-plus-execute: done
+  8-3-export-excel-per-filter: done
+  8-4-morning-check-dashboard-kpi-plus-overdue-list: done
+  epic-8-retrospective: done  # Completed 2026-01-07 - Grade: A-, 3 issues fixed (vs 27 in Epic 7), 86 tests written (vs 0 in Epic 7), 89% reduction in violations
 
   # ========================================
   # EPIC 9: Exceptions (Pause/Cancel/Withdraw/Reject) (3 stories)
   # ========================================
-  epic-9: backlog
-  9-1-cancel-withdraw-actions: backlog
-  9-2-reject-action: backlog
-  9-3-pause-resume-pkhcn-only: backlog
-  epic-9-retrospective: optional
+  epic-9: done
+  9-1-cancel-withdraw-actions: done
+  9-2-reject-action: done
+  9-3-pause-resume-pkhcn-only: done
+  epic-9-retrospective: done  # Completed 2026-01-07 - Grade: A+, 0 casting violations (perfect), 130 tests passing
 
   # ========================================
-  # EPIC 10: Admin & System Configuration (6 stories)
+  # EPIC 10: System Utilities (6 stories)
   # ========================================
-  epic-10: backlog
-  10-1-import-excel-users-proposals: backlog
-  10-2-export-excel-full-dump: backlog
-  10-3-system-health-dashboard: backlog
-  10-4-full-audit-log-viewer: backlog
-  10-5-holiday-management-full-crud: backlog
-  10-6-db-restore-plus-recompute-verify-state: backlog
-  epic-10-retrospective: optional
+  epic-10: done
+  10-1-import-excel-users-proposals: done
+  10-2-export-excel-full-dump: done
+  10-3-system-health-dashboard: done
+  10-4-full-audit-log-viewer: done
+  10-5-holiday-management-full-crud: done
+  10-6-db-restore-plus-recompute-verify-state: done
+  epic-10-retrospective: done  # Completed 2026-01-07 - Grade: B+, 7 type safety violations (Epic 9 retro), 1 SQL injection pattern, 3 design issues. ~4,500 LOC reviewed.
+
+  # ========================================
+  # EPIC 11: Missing UI Features (E2E Test Fixes) (5 stories)
+  # ========================================
+  # Based on E2E test results identifying missing UI components needed for complete user experience
+  # Implementation 2026-01-08:
+  # - 11-1: Logout button added to Header, E2E test 6/6 passed
+  # - 11-2: Dashboard with KPI cards created, RoleGuard added, E2E test 4/4 passed
+  epic-11: in-progress
+  11-1-logout-button-header: done
+  11-2-dashboard-kpi-metrics: done
+  11-3-proposal-listing-page: ready-for-dev
+  11-4-proposal-create-edit-form: ready-for-dev
+  11-5-file-upload-attachments: ready-for-dev
+
+# ========================================
+# PROJECT-LEVEL RETROSPECTIVE
+# ========================================
+project-retrospective-epics-1-9: done  # Completed 2026-01-07 - Synthesized patterns across all 9 epics, Grade: A, identified key trends: type safety violations 27→0, tests 0→130+, 89% reduction in code issues
 
 # ========================================
 # STATISTICS
 # ========================================
-# Total Epics: 10
-# Total Stories: 57
-# Stories Done: 26
-# Epics In Progress: 0
-# Epics Done: 7
+# Total Epics: 11
+# Total Stories: 62
+# Stories Done: 59
+# Stories Ready for Dev: 3
+# Epics In Progress: 1
+# Epics Done: 10
+# Retrospectives Completed: 11 (10 epic retrospectives + 1 project retrospective)

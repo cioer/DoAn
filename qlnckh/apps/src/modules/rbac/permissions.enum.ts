@@ -18,8 +18,24 @@ export enum Permission {
   // Calendar
   CALENDAR_MANAGE = 'CALENDAR_MANAGE',
 
+  // Dashboard (Story 11.2)
+  DASHBOARD_VIEW = 'DASHBOARD_VIEW',
+
   // Audit
   AUDIT_VIEW = 'AUDIT_VIEW',
+
+  // Proposal Permissions (GIANG_VIEN Features)
+  PROPOSAL_CREATE = 'PROPOSAL_CREATE',
+  PROPOSAL_EDIT = 'PROPOSAL_EDIT',
+
+  // Evaluation Results (GIANG_VIEN Feature - View own evaluation results)
+  VIEW_EVALUATION_RESULTS = 'VIEW_EVALUATION_RESULTS',
+
+  // Export Proposal PDF (GIANG_VIEN Feature)
+  EXPORT_PROPOSAL_PDF = 'EXPORT_PROPOSAL_PDF',
+
+  // Form Template Management (ADMIN)
+  FORM_TEMPLATE_IMPORT = 'FORM_TEMPLATE_IMPORT',
 }
 
 /**

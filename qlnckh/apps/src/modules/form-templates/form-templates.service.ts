@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 // PrismaService is exported from AuthModule - consider moving to shared module in future refactor
 import { PrismaService } from '../auth/prisma.service';
 import { SectionId } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import {
   FormTemplateDto,
   FormTemplateWithSectionsDto,
@@ -9,12 +10,17 @@ import {
   UpdateFormTemplateDto,
   FormSectionDto,
 } from './dto';
+import type { ParsedFormTemplate, FormTemplateImportResult } from './word-parser.service';
+import { WordParserService } from './word-parser.service';
 
 @Injectable()
 export class FormTemplatesService {
   private readonly logger = new Logger(FormTemplatesService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly wordParserService: WordParserService,
+  ) {}
 
   /**
    * Get all active form templates
@@ -100,7 +106,7 @@ export class FormTemplatesService {
                 component: section.component,
                 displayOrder: section.displayOrder,
                 isRequired: section.isRequired ?? false,
-                config: section.config ?? null,
+                config: (section.config ?? Prisma.JsonNull) as Prisma.InputJsonValue,
               })),
             }
           : undefined,
@@ -165,6 +171,114 @@ export class FormTemplatesService {
     });
 
     this.logger.log(`Deleted form template: ${existing.code}`);
+  }
+
+  /**
+   * Import form templates from parsed Word document
+   * Creates new templates or updates existing ones by code
+   */
+  async importFromWord(
+    parsedTemplates: ParsedFormTemplate[],
+  ): Promise<FormTemplateImportResult> {
+    const result: FormTemplateImportResult = {
+      success: true,
+      templates: [],
+      errors: [],
+      total: parsedTemplates.length,
+      imported: 0,
+      failed: 0,
+    };
+
+    for (const parsed of parsedTemplates) {
+      try {
+        // Validate template
+        const validation = this.wordParserService.validateTemplate(parsed);
+        if (!validation.valid) {
+          result.errors.push({
+            templateCode: parsed.code,
+            message: validation.errors.join(', '),
+          });
+          result.failed++;
+          continue;
+        }
+
+        // Check if template already exists
+        const existing = await this.prisma.formTemplate.findUnique({
+          where: { code: parsed.code },
+        });
+
+        if (existing) {
+          // Update existing template
+          await this.prisma.formSection.deleteMany({
+            where: { templateId: existing.id },
+          });
+
+          await this.prisma.formTemplate.update({
+            where: { id: existing.id },
+            data: {
+              name: parsed.name,
+              description: parsed.description,
+              version: parsed.version || 'v1.0',
+              projectType: parsed.projectType,
+              sections: {
+                create: parsed.sections.map(section => ({
+                  sectionId: section.sectionId as SectionId,
+                  label: section.label,
+                  component: section.component,
+                  displayOrder: section.displayOrder,
+                  isRequired: section.isRequired ?? false,
+                  config: (section.config ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+                })),
+              },
+            },
+          });
+
+          this.logger.log(`Updated form template from Word: ${parsed.code}`);
+        } else {
+          // Create new template
+          await this.prisma.formTemplate.create({
+            data: {
+              code: parsed.code,
+              name: parsed.name,
+              description: parsed.description,
+              version: parsed.version || 'v1.0',
+              projectType: parsed.projectType,
+              isActive: true,
+              sections: {
+                create: parsed.sections.map(section => ({
+                  sectionId: section.sectionId as SectionId,
+                  label: section.label,
+                  component: section.component,
+                  displayOrder: section.displayOrder,
+                  isRequired: section.isRequired ?? false,
+                  config: (section.config ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+                })),
+              },
+            },
+          });
+
+          this.logger.log(`Created form template from Word: ${parsed.code}`);
+        }
+
+        result.templates.push({
+          code: parsed.code,
+          name: parsed.name,
+          sectionsCount: parsed.sections.length,
+        });
+        result.imported++;
+      } catch (error) {
+        this.logger.error(`Error importing template ${parsed.code}:`, error);
+        result.errors.push({
+          templateCode: parsed.code,
+          message: error instanceof Error ? error.message : 'Unknown error',
+        });
+        result.failed++;
+      }
+    }
+
+    result.success = result.failed === 0;
+
+    return result;
   }
 
   /**

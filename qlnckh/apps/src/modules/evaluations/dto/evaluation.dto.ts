@@ -124,3 +124,61 @@ export class ErrorResponseDto {
     message: string;
   };
 }
+
+/**
+ * Evaluator Info DTO (GIANG_VIEN Feature)
+ */
+export class EvaluatorInfoDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  displayName: string;
+
+  @ApiProperty()
+  email: string;
+
+  @ApiProperty()
+  role: string;
+}
+
+/**
+ * Evaluation Results DTO (GIANG_VIEN Feature)
+ * Extended evaluation DTO with evaluator information
+ */
+export class EvaluationResultsDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  proposalId: string;
+
+  @ApiProperty()
+  evaluatorId: string;
+
+  @ApiProperty({ enum: EvaluationState })
+  state: EvaluationState;
+
+  @ApiProperty()
+  formData: Record<string, unknown>;
+
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty()
+  updatedAt: Date;
+
+  @ApiProperty({ type: EvaluatorInfoDto })
+  evaluator?: EvaluatorInfoDto;
+}
+
+/**
+ * Get Evaluation Results Response DTO (GIANG_VIEN Feature)
+ */
+export class GetEvaluationResultsResponse {
+  @ApiProperty()
+  success: true;
+
+  @ApiProperty()
+  data: EvaluationResultsDto;
+}

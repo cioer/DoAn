@@ -1,6 +1,21 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 /**
+ * Multer file interface
+ */
+export interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  destination: string;
+  filename: string;
+  path: string;
+  buffer: Buffer;
+}
+
+/**
  * Replace Attachment DTO
  * Used for replacing files in proposals (Story 2.5)
  */
@@ -10,7 +25,7 @@ export class ReplaceAttachmentDto {
     type: 'string',
     format: 'binary',
   })
-  file!: Express.Multer.File;
+  file!: MulterFile;
 }
 
 /**

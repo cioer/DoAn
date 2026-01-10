@@ -243,7 +243,7 @@ export const Idempotency = (
   return (
     target: any,
     propertyKey: string | symbol,
-    descriptor: PropertyDescriptor | number,
+    descriptor?: PropertyDescriptor | number,
   ) => {
     // Handle both PropertyDescriptor (method decorator) and number (parameter decorator)
     const descriptorValue =

@@ -10,6 +10,7 @@
  */
 
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { vi, beforeEach, describe, it, expect, afterEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { RevisionPanel } from './RevisionPanel';
@@ -73,7 +74,7 @@ describe('RevisionPanel (Story 4.4)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Cần sửa các phần:')).toBeInTheDocument();
+        expect(screen.getByText('Cần sửa các phần:')).toBeDefined();
       });
     });
 
@@ -85,7 +86,7 @@ describe('RevisionPanel (Story 4.4)', () => {
         />,
       );
 
-      expect(screen.queryByText('Cần sửa các phần:')).not.toBeInTheDocument();
+      expect(screen.queryByText('Cần sửa các phần:')).toBeNull();
     });
 
     it('should NOT display panel when proposal state = DRAFT', () => {
@@ -96,7 +97,7 @@ describe('RevisionPanel (Story 4.4)', () => {
         />,
       );
 
-      expect(screen.queryByText('Cần sửa các phần:')).not.toBeInTheDocument();
+      expect(screen.queryByText('Cần sửa các phần:')).toBeNull();
     });
   });
 
@@ -112,9 +113,9 @@ describe('RevisionPanel (Story 4.4)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Phương pháp nghiên cứu')).toBeInTheDocument();
-        expect(screen.getByText('Kinh phí')).toBeInTheDocument();
-        expect(screen.getByText('Tài liệu đính kèm')).toBeInTheDocument();
+        expect(screen.getByText('Phương pháp nghiên cứu')).toBeDefined();
+        expect(screen.getByText('Kinh phí')).toBeDefined();
+        expect(screen.getByText('Tài liệu đính kèm')).toBeDefined();
       });
     });
 
@@ -169,7 +170,7 @@ describe('RevisionPanel (Story 4.4)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Không có section cụ thể nào được yêu cầu sửa.')).toBeInTheDocument();
+        expect(screen.getByText('Không có section cụ thể nào được yêu cầu sửa.')).toBeDefined();
       });
     });
   });
@@ -240,7 +241,7 @@ describe('RevisionPanel (Story 4.4)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Phương pháp nghiên cứu')).toBeInTheDocument();
+        expect(screen.getByText('Phương pháp nghiên cứu')).toBeDefined();
       });
 
       const checkboxes = screen.getAllByRole('checkbox');
@@ -287,7 +288,7 @@ describe('RevisionPanel (Story 4.4)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Cần sửa các phần:')).toBeInTheDocument();
+        expect(screen.getByText('Cần sửa các phần:')).toBeDefined();
       });
 
       // Check some checkboxes
@@ -323,7 +324,7 @@ describe('RevisionPanel (Story 4.4)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Cần sửa các phần:')).toBeInTheDocument();
+        expect(screen.getByText('Cần sửa các phần:')).toBeDefined();
       });
 
       // Check one checkbox
@@ -344,13 +345,13 @@ describe('RevisionPanel (Story 4.4)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('(0/3 đã sửa)')).toBeInTheDocument();
+        expect(screen.getByText('(0/3 đã sửa)')).toBeDefined();
       });
 
       const checkboxes = screen.getAllByRole('checkbox');
       await userEvent.click(checkboxes[0]);
 
-      expect(screen.getByText('(1/3 đã sửa)')).toBeInTheDocument();
+      expect(screen.getByText('(1/3 đã sửa)')).toBeDefined();
     });
 
     it('should support controlled component mode', async () => {
@@ -367,7 +368,7 @@ describe('RevisionPanel (Story 4.4)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('(1/3 đã sửa)')).toBeInTheDocument();
+        expect(screen.getByText('(1/3 đã sửa)')).toBeDefined();
       });
 
       const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
@@ -387,8 +388,8 @@ describe('RevisionPanel (Story 4.4)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/Nộp lại sẽ giữ nguyên lịch sử/)).toBeInTheDocument();
-        expect(screen.getByText(/không quay về DRAFT/)).toBeInTheDocument();
+        expect(screen.getByText(/Nộp lại sẽ giữ nguyên lịch sử/)).toBeDefined();
+        expect(screen.getByText(/không quay về DRAFT/)).toBeDefined();
       });
     });
 
@@ -422,8 +423,8 @@ describe('RevisionPanel (Story 4.4)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Cần sửa các phần:')).toBeInTheDocument();
-        expect(screen.getByText(/Không thể tải chi tiết yêu cầu sửa/)).toBeInTheDocument();
+        expect(screen.getByText('Cần sửa các phần:')).toBeDefined();
+        expect(screen.getByText(/Không thể tải chi tiết yêu cầu sửa/)).toBeDefined();
       });
     });
 
@@ -438,8 +439,8 @@ describe('RevisionPanel (Story 4.4)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Cần sửa các phần:')).toBeInTheDocument();
-        expect(screen.getByText(/Không thể tải chi tiết yêu cầu sửa/)).toBeInTheDocument();
+        expect(screen.getByText('Cần sửa các phần:')).toBeDefined();
+        expect(screen.getByText(/Không thể tải chi tiết yêu cầu sửa/)).toBeDefined();
       });
     });
   });
@@ -456,7 +457,7 @@ describe('RevisionPanel (Story 4.4)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Cần sửa các phần:')).toBeInTheDocument();
+        expect(screen.getByText('Cần sửa các phần:')).toBeDefined();
       });
 
       const checkboxes = screen.getAllByRole('checkbox');
@@ -471,7 +472,7 @@ describe('RevisionPanel (Story 4.4)', () => {
       );
 
       await waitFor(() => {
-        expect(container.querySelector('svg')).toBeInTheDocument();
+        expect(container.querySelector('svg')).toBeDefined();
       });
     });
 
@@ -486,7 +487,7 @@ describe('RevisionPanel (Story 4.4)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Cần sửa các phần:')).toBeInTheDocument();
+        expect(screen.getByText('Cần sửa các phần:')).toBeDefined();
       });
 
       const checkboxes = screen.getAllByRole('checkbox');

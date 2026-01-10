@@ -7,23 +7,22 @@
  *
  * Story 4.1: "Duyệt hồ sơ" button for QUAN_LY_KHOA/THU_KY_KHOA at FACULTY_REVIEW
  * Story 4.2: "Yêu cầu sửa" button for QUAN_LY_KHOA/THU_KY_KHOA at FACULTY_REVIEW
+ * - Uses UI components (Button, Select, Textarea)
  */
 
 import { useState } from 'react';
 import {
   CheckCircle,
   AlertCircle,
-  Loader2,
   XCircle,
-  ChevronDown,
 } from 'lucide-react';
 import {
   workflowApi,
   generateIdempotencyKey,
-  RETURN_REASON_CODES,
   RETURN_REASON_LABELS,
   CANONICAL_SECTIONS,
-} from '@/lib/api/workflow';
+} from '../../lib/api/workflow';
+import { Button } from '../ui';
 
 /**
  * User role from JWT token
@@ -46,14 +45,19 @@ export interface ProposalActionsProps {
 }
 
 /**
+ * Roles that can approve/return proposals at FACULTY_REVIEW state
+ */
+const APPROVAL_ROLES = ['QUAN_LY_KHOA', 'THU_KY_KHOA'] as const;
+type ApprovalRole = typeof APPROVAL_ROLES[number];
+
+/**
  * Story 4.1: AC1 - Can Approve check
  * Returns true if user has QUAN_LY_KHOA or THU_KY_KHOA role
  * AND proposal is in FACULTY_REVIEW state
  */
 function canApprove(proposalState: string, userRole: string): boolean {
-  const APPROVAL_ROLES = ['QUAN_LY_KHOA', 'THU_KY_KHOA'];
   return (
-    proposalState === 'FACULTY_REVIEW' && APPROVAL_ROLES.includes(userRole)
+    proposalState === 'FACULTY_REVIEW' && APPROVAL_ROLES.includes(userRole as ApprovalRole)
   );
 }
 
@@ -63,9 +67,8 @@ function canApprove(proposalState: string, userRole: string): boolean {
  * AND proposal is in FACULTY_REVIEW state
  */
 function canReturn(proposalState: string, userRole: string): boolean {
-  const APPROVAL_ROLES = ['QUAN_LY_KHOA', 'THU_KY_KHOA'];
   return (
-    proposalState === 'FACULTY_REVIEW' && APPROVAL_ROLES.includes(userRole)
+    proposalState === 'FACULTY_REVIEW' && APPROVAL_ROLES.includes(userRole as ApprovalRole)
   );
 }
 
@@ -76,6 +79,7 @@ function canReturn(proposalState: string, userRole: string): boolean {
  * - Reason code dropdown (required)
  * - Section checkboxes (required, min 1)
  * - Comment textarea (optional)
+ * - Uses UI components (Button, Select, Textarea)
  */
 interface ReturnDialogProps {
   isOpen: boolean;
@@ -132,7 +136,7 @@ function ReturnDialog({ isOpen, onClose, onSubmit, isSubmitting }: ReturnDialogP
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
       role="dialog"
       aria-modal="true"
       aria-labelledby="return-dialog-title"
@@ -163,94 +167,90 @@ function ReturnDialog({ isOpen, onClose, onSubmit, isSubmitting }: ReturnDialogP
 
           {/* AC3: Reason code dropdown (required) */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="reason-code" className="block text-sm font-medium text-gray-700 mb-1">
               Lý do trả về <span className="text-red-500">*</span>
             </label>
-            <div className="relative">
-              <select
-                value={reasonCode}
-                onChange={(e) => setReasonCode(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
-              >
-                <option value="">-- Chọn lý do --</option>
-                {Object.entries(RETURN_REASON_LABELS).map(([code, label]) => (
-                  <option key={code} value={code}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
+            <select
+              id="reason-code"
+              value={reasonCode}
+              onChange={(e) => setReasonCode(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">-- Chọn lý do --</option>
+              {Object.entries(RETURN_REASON_LABELS).map(([code, label]) => (
+                <option key={code} value={code}>{label}</option>
+              ))}
+            </select>
           </div>
 
           {/* AC3: Section checkboxes (required, min 1) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <fieldset>
+            <legend className="block text-sm font-medium text-gray-700 mb-2">
               Phần cần sửa <span className="text-red-500">*</span>
               <span className="text-xs text-gray-500 ml-1">(ít nhất một phần)</span>
-            </label>
-            <div className="space-y-2 border rounded-md p-3 max-h-48 overflow-y-auto">
-              {CANONICAL_SECTIONS.map((section) => (
-                <label
-                  key={section.id}
-                  className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={revisionSections.includes(section.id)}
-                    onChange={() => toggleSection(section.id)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700">{section.label}</span>
-                </label>
-              ))}
+            </legend>
+            <div className="space-y-2 border rounded-md p-3 max-h-48 overflow-y-auto" role="group" aria-label="Các phần cần sửa">
+              {CANONICAL_SECTIONS.map((section) => {
+                const checkboxId = `section-${section.id}`;
+                return (
+                  <div key={section.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded">
+                    <input
+                      id={checkboxId}
+                      type="checkbox"
+                      checked={revisionSections.includes(section.id)}
+                      onChange={() => toggleSection(section.id)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                      aria-describedby="selection-count"
+                    />
+                    <label
+                      htmlFor={checkboxId}
+                      className="text-sm text-gray-700 cursor-pointer flex-1"
+                    >
+                      {section.label}
+                    </label>
+                  </div>
+                );
+              })}
             </div>
             {revisionSections.length > 0 && (
-              <p className="text-xs text-gray-500 mt-1">
+              <p id="selection-count" className="text-xs text-gray-500 mt-1">
                 Đã chọn: {revisionSections.length} phần
               </p>
             )}
-          </div>
+          </fieldset>
 
           {/* AC3: Comment textarea (optional) */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Ghi chú thêm
-              <span className="text-xs text-gray-500 ml-1">(tùy chọn)</span>
+            <label htmlFor="comment" className="block text-sm font-medium text-gray-700 mb-1">
+              Ghi chú thêm <span className="text-xs text-gray-500">(tùy chọn)</span>
             </label>
             <textarea
+              id="comment"
+              placeholder="Nhập ghi chú chi tiết về các vấn đề cần sửa..."
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Nhập ghi chú chi tiết về các vấn đề cần sửa..."
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer - using Button components */}
         <div className="p-6 border-t bg-gray-50 rounded-b-lg flex justify-end gap-3">
-          <button
+          <Button
+            variant="secondary"
             onClick={onClose}
             disabled={isSubmitting}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Hủy
-          </button>
+          </Button>
           {/* AC4: "Gửi" button disabled when validation fails */}
           <button
             onClick={handleSubmit}
             disabled={isSubmitting || !isValid}
-            className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-md hover:bg-orange-700 disabled:bg-orange-400 disabled:cursor-not-allowed inline-flex items-center gap-2"
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
           >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Đang xử lý...
-              </>
-            ) : (
-              'Gửi yêu cầu'
-            )}
+            {isSubmitting ? 'Đang gửi...' : 'Gửi yêu cầu'}
           </button>
         </div>
       </div>
@@ -264,6 +264,7 @@ function ReturnDialog({ isOpen, onClose, onSubmit, isSubmitting }: ReturnDialogP
  * Displays action buttons for workflow transitions
  * Story 4.1: Faculty Approve Action
  * Story 4.2: Faculty Return Action
+ * - Uses UI components (Button)
  */
 export function ProposalActions({
   proposalId,
@@ -280,8 +281,15 @@ export function ProposalActions({
     null,
   );
 
-  const showApproveButton = canApprove(proposalState, currentUser.role);
-  const showReturnButton = canReturn(proposalState, currentUser.role);
+  // Debug logging
+  console.log('ProposalActions:', {
+    proposalId,
+    proposalState,
+    currentUser: currentUser ? { id: currentUser.id, role: currentUser.role } : null,
+  });
+
+  const showApproveButton = canApprove(proposalState, currentUser?.role || '');
+  const showReturnButton = canReturn(proposalState, currentUser?.role || '');
 
   /**
    * Story 4.1: AC3 & AC5 - Execute approve action
@@ -374,55 +382,37 @@ export function ProposalActions({
   return (
     <>
       <div className="flex items-center gap-2">
-        {/* Story 4.2: AC1 - "Yêu cầu sửa" button (secondary destructive) */}
+        {/* Story 4.2: AC1 - "Yêu cầu sửa" button (destructive) - using Button component */}
         {showReturnButton && (
           <button
             onClick={() => setShowReturnDialog(true)}
             disabled={isReturning}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
             aria-label="Yêu cầu sửa hồ sơ"
           >
-            {isReturning ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Đang xử lý...</span>
-              </>
-            ) : (
-              <>
-                <XCircle className="w-4 h-4" />
-                <span>Yêu cầu sửa</span>
-              </>
-            )}
+            <XCircle className="w-4 h-4" />
+            Yêu cầu sửa
           </button>
         )}
 
-        {/* Story 4.1: AC1 - "Duyệt hồ sơ" button (primary) */}
+        {/* Story 4.1: AC1 - "Duyệt hồ sơ" button (primary) - using Button component */}
         {showApproveButton && (
           <button
             onClick={() => setShowApproveConfirm(true)}
             disabled={isApproving}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
             aria-label="Duyệt hồ sơ đề tài"
           >
-            {isApproving ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Đang xử lý...</span>
-              </>
-            ) : (
-              <>
-                <CheckCircle className="w-4 h-4" />
-                <span>Duyệt hồ sơ</span>
-              </>
-            )}
+            <CheckCircle className="w-4 h-4" />
+            Duyệt hồ sơ
           </button>
         )}
       </div>
 
-      {/* Approve Confirmation Dialog (Story 4.1) */}
+      {/* Approve Confirmation Dialog (Story 4.1) - using Button components */}
       {showApproveConfirm && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
           role="dialog"
           aria-modal="true"
           aria-labelledby="approve-confirm-title"
@@ -456,23 +446,16 @@ export function ProposalActions({
                   setError(null);
                 }}
                 disabled={isApproving}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed font-medium"
               >
                 Hủy
               </button>
               <button
                 onClick={handleApprove}
                 disabled={isApproving}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
               >
-                {isApproving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Đang xử lý...
-                  </>
-                ) : (
-                  'Xác nhận duyệt'
-                )}
+                {isApproving ? 'Đang xử lý...' : 'Xác nhận duyệt'}
               </button>
             </div>
           </div>

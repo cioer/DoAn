@@ -43,7 +43,7 @@ import {
 import { RequireRoles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UserRole, ProjectState, SectionId } from '@prisma/client';
-import { AuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../rbac/guards/roles.guard';
 import { IdempotencyInterceptor } from '../../common/interceptors';
 import { DossierExportService, DossierPackType } from './dossier-export.service';
@@ -54,13 +54,14 @@ import { DossierExportService, DossierPackType } from './dossier-export.service'
 interface RequestUser {
   id: string;
   email: string;
+  displayName?: string;
   role: UserRole;
   facultyId: string | null;
 }
 
 @ApiTags('proposals')
 @Controller('proposals')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @UseInterceptors(IdempotencyInterceptor)
 @ApiBearerAuth()
 export class ProposalsController {
@@ -218,7 +219,13 @@ export class ProposalsController {
   @ApiResponse({
     status: 200,
     description: 'Danh sách đề tài đã lọc',
-    type: PaginatedProposalsDto,
+    schema: {
+      type: 'object',
+      properties: {
+        data: { type: 'array', items: { $ref: '#/components/schemas/ProposalWithTemplateDto' } },
+        meta: { type: 'object' },
+      },
+    },
   })
   async findAllWithFilters(
     @Query('ownerId') ownerId?: string,
@@ -535,7 +542,13 @@ export class ProposalsController {
   @ApiResponse({
     status: 200,
     description: 'Danh sách đề tài trong hàng chờ',
-    type: PaginatedProposalsDto,
+    schema: {
+      type: 'object',
+      properties: {
+        data: { type: 'array', items: { $ref: '#/components/schemas/ProposalWithTemplateDto' } },
+        meta: { type: 'object' },
+      },
+    },
   })
   async findMyQueue(
     @CurrentUser() user: RequestUser,

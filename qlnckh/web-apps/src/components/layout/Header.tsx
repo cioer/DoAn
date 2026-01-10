@@ -1,19 +1,24 @@
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
+import { Permission } from '../../shared/types/permissions';
 import { PersonaDropdown } from '../demo/PersonaDropdown';
 import { ResetDemoButton } from '../demo/ResetDemoButton';
+import { Button } from '../ui';
 
 /**
  * Header Component
  *
  * Top navigation bar with:
  * - App title/logo
+ * - Navigation links
  * - User info
  * - Persona dropdown (demo mode only)
  * - Reset demo button (demo mode only)
  * - Logout button
  */
 export function Header() {
-  const { user, actingAs, isAuthenticated, logout, getEffectiveUser } = useAuthStore();
+  const navigate = useNavigate();
+  const { user, actingAs, isAuthenticated, logout, getEffectiveUser, hasPermission } = useAuthStore();
 
   if (!isAuthenticated) {
     return null;
@@ -21,6 +26,14 @@ export function Header() {
 
   const effectiveUser = getEffectiveUser();
   const displayName = effectiveUser?.displayName || 'Người dùng';
+
+  // Check navigation permissions
+  const canViewDashboard = effectiveUser?.role === 'PHONG_KHCN' || effectiveUser?.role === 'ADMIN';
+  const canViewCalendar = hasPermission(Permission.CALENDAR_MANAGE);
+  const canViewBulkOps = effectiveUser?.role === 'PHONG_KHCN' || effectiveUser?.role === 'ADMIN';
+  const canViewAuditLog = hasPermission(Permission.AUDIT_VIEW);
+  const canViewFormTemplates = hasPermission(Permission.FORM_TEMPLATE_IMPORT);
+  const canViewImport = effectiveUser?.role === 'ADMIN'; // Story 10.1: Import Excel - ADMIN only
 
   const handleLogout = async () => {
     try {
@@ -35,11 +48,75 @@ export function Header() {
     <header className="bg-white border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Left side: App title */}
-          <div className="flex items-center gap-4">
+          {/* Left side: App title and Navigation */}
+          <div className="flex items-center gap-6">
             <h1 className="text-xl font-bold text-gray-900">
               Hệ thống Quản lý NCKH
             </h1>
+
+            {/* Navigation links */}
+            <nav className="hidden md:flex items-center gap-4">
+              <button
+                onClick={() => navigate('/proposals')}
+                className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+              >
+                Đề tài
+              </button>
+
+              {canViewDashboard && (
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                >
+                  Dashboard
+                </button>
+              )}
+
+              {canViewCalendar && (
+                <button
+                  onClick={() => navigate('/calendar')}
+                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                >
+                  Lịch làm việc
+                </button>
+              )}
+
+              {canViewBulkOps && (
+                <button
+                  onClick={() => navigate('/bulk-operations')}
+                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                >
+                  Tác vụ hàng loạt
+                </button>
+              )}
+
+              {canViewAuditLog && (
+                <button
+                  onClick={() => navigate('/audit')}
+                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                >
+                  Nhật ký
+                </button>
+              )}
+
+              {canViewFormTemplates && (
+                <button
+                  onClick={() => navigate('/form-templates')}
+                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                >
+                  Biểu mẫu
+                </button>
+              )}
+
+              {canViewImport && (
+                <button
+                  onClick={() => navigate('/admin/import')}
+                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                >
+                  Import
+                </button>
+              )}
+            </nav>
           </div>
 
           {/* Right side: User info, Persona dropdown, Reset Demo button, Logout */}
@@ -60,14 +137,14 @@ export function Header() {
               )}
             </div>
 
-            {/* Logout button */}
-            <button
-              type="button"
+            {/* Logout button - using Button component */}
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={handleLogout}
-              className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               Đăng xuất
-            </button>
+            </Button>
           </div>
         </div>
       </div>

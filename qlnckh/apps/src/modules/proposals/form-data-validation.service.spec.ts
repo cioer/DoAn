@@ -4,10 +4,10 @@ import { SectionId } from '@prisma/client';
 // Manual mock - bypass PrismaService type
 const mockPrisma = {
   formTemplate: {
-    findFirst: jest.fn(),
+    findFirst: vi.fn(),
   },
   formSection: {
-    findMany: jest.fn(),
+    findMany: vi.fn(),
   },
 };
 
@@ -56,7 +56,7 @@ describe('FormDataValidationService', () => {
   beforeEach(() => {
     // Manually create service with mock prisma
     service = new FormDataValidationService(mockPrisma as any);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should be defined', () => {

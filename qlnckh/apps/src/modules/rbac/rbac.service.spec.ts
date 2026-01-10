@@ -8,14 +8,14 @@ describe('RbacService', () => {
   // Manual mock - bypass DI
   const mockPrisma = {
     rolePermission: {
-      findMany: jest.fn(),
+      findMany: vi.fn(),
     },
   };
 
   beforeEach(() => {
     // Manually create service with mock prisma - bypass DI
     service = new RbacService(mockPrisma as any);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should be defined', () => {

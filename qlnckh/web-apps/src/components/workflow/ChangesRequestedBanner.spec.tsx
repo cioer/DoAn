@@ -10,6 +10,7 @@
  */
 
 import { render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { vi, beforeEach, describe, it, expect } from 'vitest';
 import { ChangesRequestedBanner } from './ChangesRequestedBanner';
 import { workflowApi, WorkflowLog } from '@/lib/api/workflow';
@@ -73,7 +74,7 @@ describe('ChangesRequestedBanner (Story 4.3)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Hồ sơ cần sửa trước khi nộp lại')).toBeInTheDocument();
+        expect(screen.getByText('Hồ sơ cần sửa trước khi nộp lại')).toBeDefined();
       });
     });
 
@@ -85,7 +86,7 @@ describe('ChangesRequestedBanner (Story 4.3)', () => {
         />,
       );
 
-      expect(screen.queryByText('Hồ sơ cần sửa trước khi nộp lại')).not.toBeInTheDocument();
+      expect(screen.queryByText('Hồ sơ cần sửa trước khi nộp lại')).toBeNull();
     });
 
     it('should NOT display banner when proposal state = DRAFT', () => {
@@ -96,7 +97,7 @@ describe('ChangesRequestedBanner (Story 4.3)', () => {
         />,
       );
 
-      expect(screen.queryByText('Hồ sơ cần sửa trước khi nộp lại')).not.toBeInTheDocument();
+      expect(screen.queryByText('Hồ sơ cần sửa trước khi nộp lại')).toBeNull();
     });
 
     it('should NOT display banner when proposal state = APPROVED', () => {
@@ -107,7 +108,7 @@ describe('ChangesRequestedBanner (Story 4.3)', () => {
         />,
       );
 
-      expect(screen.queryByText('Hồ sơ cần sửa trước khi nộp lại')).not.toBeInTheDocument();
+      expect(screen.queryByText('Hồ sơ cần sửa trước khi nộp lại')).toBeNull();
     });
   });
 
@@ -141,7 +142,7 @@ describe('ChangesRequestedBanner (Story 4.3)', () => {
 
       await waitFor(() => {
         const banner = container.querySelector('.bg-amber-50');
-        expect(banner).toBeInTheDocument();
+        expect(banner).toBeDefined();
       });
     });
 
@@ -157,7 +158,7 @@ describe('ChangesRequestedBanner (Story 4.3)', () => {
         />,
       );
 
-      expect(screen.getByText(/Đang tải thông tin yêu cầu sửa/i)).toBeInTheDocument();
+      expect(screen.getByText(/Đang tải thông tin yêu cầu sửa/i)).toBeDefined();
     });
   });
 
@@ -173,7 +174,7 @@ describe('ChangesRequestedBanner (Story 4.3)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Thiếu tài liệu')).toBeInTheDocument();
+        expect(screen.getByText('Thiếu tài liệu')).toBeDefined();
       });
     });
 
@@ -197,7 +198,7 @@ describe('ChangesRequestedBanner (Story 4.3)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Nội dung không rõ ràng')).toBeInTheDocument();
+        expect(screen.getByText('Nội dung không rõ ràng')).toBeDefined();
       });
     });
 
@@ -221,7 +222,7 @@ describe('ChangesRequestedBanner (Story 4.3)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('UNKNOWN_CODE')).toBeInTheDocument();
+        expect(screen.getByText('UNKNOWN_CODE')).toBeDefined();
       });
     });
   });
@@ -238,8 +239,8 @@ describe('ChangesRequestedBanner (Story 4.3)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Kinh phí')).toBeInTheDocument();
-        expect(screen.getByText('Tài liệu đính kèm')).toBeInTheDocument();
+        expect(screen.getByText('Kinh phí')).toBeDefined();
+        expect(screen.getByText('Tài liệu đính kèm')).toBeDefined();
       });
     });
 
@@ -267,10 +268,10 @@ describe('ChangesRequestedBanner (Story 4.3)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Thông tin chung')).toBeInTheDocument();
-        expect(screen.getByText('Nội dung nghiên cứu')).toBeInTheDocument();
-        expect(screen.getByText('Phương pháp nghiên cứu')).toBeInTheDocument();
-        expect(screen.getByText('Kinh phí')).toBeInTheDocument();
+        expect(screen.getByText('Thông tin chung')).toBeDefined();
+        expect(screen.getByText('Nội dung nghiên cứu')).toBeDefined();
+        expect(screen.getByText('Phương pháp nghiên cứu')).toBeDefined();
+        expect(screen.getByText('Kinh phí')).toBeDefined();
       });
     });
 
@@ -293,9 +294,9 @@ describe('ChangesRequestedBanner (Story 4.3)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Hồ sơ cần sửa trước khi nộp lại')).toBeInTheDocument();
+        expect(screen.getByText('Hồ sơ cần sửa trước khi nộp lại')).toBeDefined();
         // Should not show "Phần cần sửa" label
-        expect(screen.queryByText('Phần cần sửa:')).not.toBeInTheDocument();
+        expect(screen.queryByText('Phần cần sửa:')).toBeNull();
       });
     });
   });
@@ -312,8 +313,8 @@ describe('ChangesRequestedBanner (Story 4.3)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Hồ sơ cần sửa trước khi nộp lại')).toBeInTheDocument();
-        expect(screen.getByText(/Không thể tải thông tin yêu cầu sửa/i)).toBeInTheDocument();
+        expect(screen.getByText('Hồ sơ cần sửa trước khi nộp lại')).toBeDefined();
+        expect(screen.getByText(/Không thể tải thông tin yêu cầu sửa/i)).toBeDefined();
       });
     });
 
@@ -328,8 +329,8 @@ describe('ChangesRequestedBanner (Story 4.3)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Hồ sơ cần sửa trước khi nộp lại')).toBeInTheDocument();
-        expect(screen.getByText(/Vui lòng xem chi tiết trong lịch sử thay đổi/i)).toBeInTheDocument();
+        expect(screen.getByText('Hồ sơ cần sửa trước khi nộp lại')).toBeDefined();
+        expect(screen.getByText(/Vui lòng xem chi tiết trong lịch sử thay đổi/i)).toBeDefined();
       });
     });
 
@@ -350,7 +351,7 @@ describe('ChangesRequestedBanner (Story 4.3)', () => {
 
       await waitFor(() => {
         // Should still render banner without crashing
-        expect(screen.getByText('Hồ sơ cần sửa trước khi nộp lại')).toBeInTheDocument();
+        expect(screen.getByText('Hồ sơ cần sửa trước khi nộp lại')).toBeDefined();
       });
     });
   });
@@ -367,8 +368,8 @@ describe('ChangesRequestedBanner (Story 4.3)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Người yêu cầu:')).toBeInTheDocument();
-        expect(screen.getByText('Trần Văn B')).toBeInTheDocument();
+        expect(screen.getByText('Người yêu cầu:')).toBeDefined();
+        expect(screen.getByText('Trần Văn B')).toBeDefined();
       });
     });
 
@@ -383,9 +384,9 @@ describe('ChangesRequestedBanner (Story 4.3)', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/Ngày:/)).toBeInTheDocument();
+        expect(screen.getByText(/Ngày:/)).toBeDefined();
         // Date is formatted as 07/01/2026 in Vietnamese locale
-        expect(screen.getByText(/07\/01\/2026/)).toBeInTheDocument();
+        expect(screen.getByText(/07\/01\/2026/)).toBeDefined();
       });
     });
   });

@@ -1,19 +1,13 @@
 import { useState, useEffect } from 'react';
+import { CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { proposalsApi, FacultyDecision } from '../../lib/api/proposals';
+import { Button } from '../ui';
+import { Textarea } from '../ui';
+import { Label } from '../ui';
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
   DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { CheckCircle2, XCircle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { proposalsApi, FacultyDecision } from '@/lib/api/proposals';
+} from '../ui';
 
 interface FacultyAcceptanceDecisionModalProps {
   open: boolean;
@@ -42,151 +36,137 @@ export function FacultyAcceptanceDecisionModal({
   proposalTitle,
   onSuccess,
 }: FacultyAcceptanceDecisionModalProps) {
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [decision, setDecision] = useState<FacultyDecision | null>(null);
   const [comments, setComments] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   // Reset form when modal opens
   useEffect(() => {
     if (open) {
       setDecision(null);
       setComments('');
+      setError(null);
     }
   }, [open]);
 
   const handleSubmit = async () => {
     if (!decision) {
-      toast({
-        title: 'Thiếu thông tin',
-        description: 'Vui lòng chọn quyết định nghiệm thu.',
-        variant: 'destructive',
-      });
+      setError('Vui lòng chọn quyết định nghiệm thu.');
       return;
     }
 
     if (decision === FacultyDecision.KHONG_DAT && !comments.trim()) {
-      toast({
-        title: 'Thiếu thông tin',
-        description: 'Vui lòng nhập lý do không đạt.',
-        variant: 'destructive',
-      });
+      setError('Vui lòng nhập lý do không đạt.');
       return;
     }
 
+    setError(null);
     setIsLoading(true);
     try {
       await proposalsApi.submitFacultyDecision(proposalId, {
         decision,
         comments: comments || undefined,
       });
-      toast({
-        title:
-          decision === FacultyDecision.DAT
-            ? 'Đã duyệt nghiệm thu'
-            : 'Đã trả về',
-        description:
-          decision === FacultyDecision.DAT
-            ? 'Đề tài đã được chuyển lên cấp Trường.'
-            : 'Đề tài đã được trả về chủ nhiệm.',
-      });
       onOpenChange(false);
       onSuccess?.();
     } catch (error: any) {
-      toast({
-        title: 'Không thể ra quyết định',
-        description: error.response?.data?.error?.message || 'Đã có lỗi xảy ra.',
-        variant: 'destructive',
-      });
+      setError(error.response?.data?.error?.message || 'Đã có lỗi xảy ra.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Nghiệm thu cấp Khoa</DialogTitle>
-          <DialogDescription className="truncate">
-            {proposalTitle}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-6 py-4">
-          {/* Decision */}
-          <div className="space-y-3">
-            <Label>
-              Quyết định nghiệm thu <span className="text-red-500">*</span>
-            </Label>
-            <RadioGroup
-              value={decision || ''}
-              onValueChange={(value) => setDecision(value as FacultyDecision)}
-            >
-              <div className="flex items-center space-x-2 border p-3 rounded-lg hover:bg-accent cursor-pointer">
-                <RadioGroupItem value={FacultyDecision.DAT} id="dat" />
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-                <label
-                  htmlFor="dat"
-                  className="flex-1 cursor-pointer font-medium"
-                >
-                  Đạt
-                </label>
-              </div>
-              <div className="flex items-center space-x-2 border p-3 rounded-lg hover:bg-accent cursor-pointer">
-                <RadioGroupItem value={FacultyDecision.KHONG_DAT} id="khong-dat" />
-                <XCircle className="h-5 w-5 text-red-600" />
-                <label
-                  htmlFor="khong-dat"
-                  className="flex-1 cursor-pointer font-medium"
-                >
-                  Không đạt
-                </label>
-              </div>
-            </RadioGroup>
+    <Dialog
+      isOpen={open}
+      onClose={() => onOpenChange(false)}
+      title="Nghiệm thu cấp Khoa"
+      description={proposalTitle}
+      size="md"
+    >
+      <div className="space-y-6">
+        {/* Error message */}
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-red-700">{error}</p>
           </div>
+        )}
 
-          {/* Comments */}
+        {/* Decision */}
+        <div className="space-y-3">
+          <Label>
+            Quyết định nghiệm thu <span className="text-red-500">*</span>
+          </Label>
           <div className="space-y-2">
-            <Label htmlFor="comments">
-              {decision === FacultyDecision.KHONG_DAT
-                ? 'Lý do không đạt'
-                : 'Ý kiến đánh giá'}
-              {decision === FacultyDecision.KHONG_DAT && (
-                <span className="text-red-500">*</span>
-              )}
-            </Label>
-            <Textarea
-              id="comments"
-              placeholder={
-                decision === FacultyDecision.KHONG_DAT
-                  ? 'Nhập lý do không đạt...'
-                  : 'Nhập ý kiến đánh giá (tùy chọn)...'
-              }
-              value={comments}
-              onChange={(e) => setComments(e.target.value)}
-              rows={3}
-            />
+            <label className="flex items-center space-x-2 border p-3 rounded-lg hover:bg-accent cursor-pointer">
+              <input
+                type="radio"
+                name="decision"
+                value={FacultyDecision.DAT}
+                checked={decision === FacultyDecision.DAT}
+                onChange={(e) => setDecision(e.target.value as FacultyDecision)}
+                className="w-4 h-4 text-blue-600"
+              />
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <span className="flex-1 font-medium">Đạt</span>
+            </label>
+            <label className="flex items-center space-x-2 border p-3 rounded-lg hover:bg-accent cursor-pointer">
+              <input
+                type="radio"
+                name="decision"
+                value={FacultyDecision.KHONG_DAT}
+                checked={decision === FacultyDecision.KHONG_DAT}
+                onChange={(e) => setDecision(e.target.value as FacultyDecision)}
+                className="w-4 h-4 text-blue-600"
+              />
+              <XCircle className="h-5 w-5 text-red-600" />
+              <span className="flex-1 font-medium">Không đạt</span>
+            </label>
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Hủy
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={isLoading || !decision}
-            variant={decision === FacultyDecision.KHONG_DAT ? 'destructive' : 'default'}
-          >
-            {isLoading
-              ? 'Đang xử lý...'
-              : decision === FacultyDecision.DAT
-                ? 'Duyệt đạt'
-                : 'Trả về'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+        {/* Comments */}
+        <div className="space-y-2">
+          <Label htmlFor="comments">
+            {decision === FacultyDecision.KHONG_DAT
+              ? 'Lý do không đạt'
+              : 'Ý kiến đánh giá'}
+            {decision === FacultyDecision.KHONG_DAT && (
+              <span className="text-red-500">*</span>
+            )}
+          </Label>
+          <Textarea
+            id="comments"
+            placeholder={
+              decision === FacultyDecision.KHONG_DAT
+                ? 'Nhập lý do không đạt...'
+                : 'Nhập ý kiến đánh giá (tùy chọn)...'
+            }
+            value={comments}
+            onChange={(e) => setComments(e.target.value)}
+            rows={3}
+          />
+        </div>
+      </div>
+
+      <DialogFooter>
+        <Button variant="outline" onClick={() => onOpenChange(false)}>
+          Hủy
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          disabled={isLoading || !decision}
+          variant={decision === FacultyDecision.KHONG_DAT ? 'destructive' : 'default'}
+        >
+          {isLoading
+            ? 'Đang xử lý...'
+            : decision === FacultyDecision.DAT
+              ? 'Duyệt đạt'
+              : 'Trả về'}
+        </Button>
+      </DialogFooter>
     </Dialog>
   );
 }

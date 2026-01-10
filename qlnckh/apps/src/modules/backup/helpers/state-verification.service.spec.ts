@@ -15,13 +15,13 @@ import { ProjectState, WorkflowAction } from '@prisma/client';
 // Manual mock
 const mockPrisma = {
   proposal: {
-    findMany: jest.fn(),
-    findFirst: jest.fn(),
-    update: jest.fn(),
+    findMany: vi.fn(),
+    findFirst: vi.fn(),
+    update: vi.fn(),
   },
   workflowLog: {
-    findMany: jest.fn(),
-    findFirst: jest.fn(),
+    findMany: vi.fn(),
+    findFirst: vi.fn(),
   },
 };
 
@@ -72,7 +72,7 @@ describe('StateVerificationService', () => {
 
   beforeEach(() => {
     service = new StateVerificationService(mockPrisma as any);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('AC1: Verify State Integrity', () => {

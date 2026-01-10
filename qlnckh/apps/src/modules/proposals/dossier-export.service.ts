@@ -52,6 +52,7 @@ interface DossierExportResult {
  */
 interface RequestContext {
   userId: string;
+  userDisplayName?: string;
   ip?: string;
   userAgent?: string;
   requestId?: string;
@@ -232,7 +233,7 @@ export class DossierExportService {
   ): void {
     const isOwner = proposal.ownerId === userId;
     const isFacultyMember = userRole === UserRole.QUAN_LY_KHOA;
-    const isSchoolAdmin = [UserRole.PHONG_KHCN, UserRole.THU_KY_HOI_DONG, UserRole.ADMIN].includes(userRole);
+    const isSchoolAdmin = [UserRole.PHONG_KHCN, UserRole.THU_KY_HOI_DONG, UserRole.ADMIN].includes(userRole as any);
 
     switch (packType) {
       case DossierPackType.FACULTY_ACCEPTANCE:
@@ -593,7 +594,10 @@ export class DossierExportService {
   private translateState(state: ProjectState): string {
     const stateMap: Record<ProjectState, string> = {
       [ProjectState.DRAFT]: 'Nháp',
-      [ProjectState.PENDING_REVIEW]: 'Chờ duyệt',
+      [ProjectState.FACULTY_REVIEW]: 'Xét duyệt Khoa',
+      [ProjectState.SCHOOL_SELECTION_REVIEW]: 'Chọn Hội đồng',
+      [ProjectState.OUTLINE_COUNCIL_REVIEW]: 'Họp Hội đồng',
+      [ProjectState.CHANGES_REQUESTED]: 'Yêu cầu sửa',
       [ProjectState.APPROVED]: 'Đã duyệt',
       [ProjectState.REJECTED]: 'Đã từ chối',
       [ProjectState.IN_PROGRESS]: 'Đang thực hiện',

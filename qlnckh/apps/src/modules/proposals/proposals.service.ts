@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../auth/prisma.service';
-import { ProjectState, SectionId, UserRole, WorkflowAction } from '@prisma/client';
+import { ProjectState, SectionId, UserRole, WorkflowAction, Prisma } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-action.enum';
 import {
@@ -26,6 +26,7 @@ import { deepMergeFormData } from './helpers/form-data.helper';
  */
 interface RequestContext {
   userId: string;
+  userDisplayName?: string;
   ip?: string;
   userAgent?: string;
   requestId?: string;
@@ -676,7 +677,7 @@ export class ProposalsService {
       completedDate: Date | null;
       templateId: string | null;
       templateVersion: string | null;
-      formData: Record<string, unknown> | null;
+      formData: Prisma.JsonValue | null;
       createdAt: Date;
       updatedAt: Date;
       deletedAt: Date | null;
@@ -815,7 +816,7 @@ export class ProposalsService {
     // Use mapToDtoWithTemplate with filtered form_data
     const dto = this.mapToDtoWithTemplate({
       ...proposal,
-      formData: Object.keys(filteredFormData).length > 0 ? filteredFormData : null,
+      formData: (Object.keys(filteredFormData).length > 0 ? filteredFormData : null) as Prisma.JsonValue,
     });
 
     return dto;
@@ -1570,7 +1571,7 @@ export class ProposalsService {
 
     // Log audit event
     await this.auditService.logEvent({
-      action: isAccept ? 'FACULTY_ACCEPT' : 'FACULTY_REJECT' as AuditAction,
+      action: isAccept ? AuditAction.FACULTY_ACCEPT : 'FACULTY_REJECT' as AuditAction,
       actorUserId: userId,
       entityType: 'proposal',
       entityId: proposalId,
@@ -1624,7 +1625,7 @@ export class ProposalsService {
 
     // Check role: only PHONG_KHCN, THU_KY_HOI_DONG, or ADMIN can perform school acceptance
     const allowedRoles = [UserRole.PHONG_KHCN, UserRole.THU_KY_HOI_DONG, UserRole.ADMIN];
-    if (!allowedRoles.includes(userRole)) {
+    if (!allowedRoles.includes(userRole as any)) {
       throw new ForbiddenException({
         success: false,
         error: {
@@ -1734,7 +1735,7 @@ export class ProposalsService {
 
     // Log audit event
     await this.auditService.logEvent({
-      action: isAccept ? 'SCHOOL_ACCEPT' : 'SCHOOL_REJECT' as AuditAction,
+      action: isAccept ? AuditAction.SCHOOL_ACCEPT : 'SCHOOL_REJECT' as AuditAction,
       actorUserId: userId,
       entityType: 'proposal',
       entityId: proposalId,
@@ -2061,7 +2062,7 @@ export class ProposalsService {
     // Check access: QUAN_LY_KHOA, owner, PHONG_KHCN, ADMIN
     const allowedRoles = [UserRole.QUAN_LY_KHOA, UserRole.PHONG_KHCN, UserRole.ADMIN];
     const isOwner = proposal.ownerId === userId;
-    const hasAccess = allowedRoles.includes(userRole) || isOwner;
+    const hasAccess = allowedRoles.includes(userRole as any) || isOwner;
 
     if (!hasAccess) {
       throw new ForbiddenException({
@@ -2125,7 +2126,7 @@ export class ProposalsService {
     // Check access: PHONG_KHCN, THU_KY_HOI_DONG, ADMIN, owner
     const allowedRoles = [UserRole.PHONG_KHCN, UserRole.THU_KY_HOI_DONG, UserRole.ADMIN];
     const isOwner = proposal.ownerId === userId;
-    const hasAccess = allowedRoles.includes(userRole) || isOwner;
+    const hasAccess = allowedRoles.includes(userRole as any) || isOwner;
 
     if (!hasAccess) {
       throw new ForbiddenException({

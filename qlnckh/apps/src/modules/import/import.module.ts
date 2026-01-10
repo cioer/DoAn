@@ -4,6 +4,7 @@ import { ImportService } from './import.service';
 import { ExcelParserService } from './helpers/excel-parser.service';
 import { PrismaService } from '../auth/prisma.service';
 import { AuditModule } from '../audit/audit.module';
+import { RbacModule } from '../rbac/rbac.module';
 
 /**
  * Import Module
@@ -21,7 +22,7 @@ import { AuditModule } from '../audit/audit.module';
  * - File operations OUTSIDE transactions
  */
 @Module({
-  imports: [AuditModule],
+  imports: [AuditModule, RbacModule],
   controllers: [ImportController],
   providers: [ImportService, ExcelParserService, PrismaService],
   exports: [ImportService, ExcelParserService],

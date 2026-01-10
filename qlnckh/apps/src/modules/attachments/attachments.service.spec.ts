@@ -13,30 +13,30 @@ import { AuditAction } from '../audit/audit-action.enum';
 // Manual mock - bypass DI (following pattern from proposals.service.spec.ts)
 const mockPrismaService = {
   attachment: {
-    create: jest.fn(),
-    findMany: jest.fn(),
-    findFirst: jest.fn(),
-    findUnique: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-    aggregate: jest.fn(),
+    create: vi.fn(),
+    findMany: vi.fn(),
+    findFirst: vi.fn(),
+    findUnique: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    aggregate: vi.fn(),
   },
   proposal: {
-    findUnique: jest.fn(),
+    findUnique: vi.fn(),
   },
-  $transaction: jest.fn(),
+  $transaction: vi.fn(),
 };
 
 // Mock Audit Service
 const mockAuditService = {
-  logEvent: jest.fn().mockResolvedValue(undefined),
+  logEvent: vi.fn().mockResolvedValue(undefined),
 };
 
 // Mock fs promises
 jest.mock('fs', () => ({
   promises: {
-    mkdir: jest.fn().mockResolvedValue(undefined),
-    writeFile: jest.fn().mockResolvedValue(undefined),
+    mkdir: vi.fn().mockResolvedValue(undefined),
+    writeFile: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -58,7 +58,7 @@ describe('AttachmentsService', () => {
       .spyOn(service as any, 'saveFileToDisk')
       .mockResolvedValue(undefined);
 
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {

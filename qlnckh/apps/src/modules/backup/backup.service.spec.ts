@@ -18,23 +18,23 @@ import { ProjectState } from '@prisma/client';
 // Manual mock
 const mockPrisma = {
   proposal: {
-    count: jest.fn(),
-    findMany: jest.fn(),
-    findFirst: jest.fn(),
-    update: jest.fn(),
+    count: vi.fn(),
+    findMany: vi.fn(),
+    findFirst: vi.fn(),
+    update: vi.fn(),
   },
   workflowLog: {
-    findMany: jest.fn(),
+    findMany: vi.fn(),
   },
 };
 
 const mockAuditService = {
-  logEvent: jest.fn().mockResolvedValue(undefined),
+  logEvent: vi.fn().mockResolvedValue(undefined),
 };
 
 const mockStateVerificationService = {
-  verifyStateIntegrity: jest.fn(),
-  autoCorrectStates: jest.fn(),
+  verifyStateIntegrity: vi.fn(),
+  autoCorrectStates: vi.fn(),
 };
 
 describe('BackupService', () => {
@@ -50,7 +50,7 @@ describe('BackupService', () => {
       mockAuditService as any,
       mockStateVerificationService as any,
     );
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('AC1, AC2: List Backups', () => {
@@ -125,6 +125,8 @@ describe('BackupService', () => {
     beforeEach(() => {
       mockPrisma.proposal.count.mockResolvedValue(5);
       mockPrisma.$queryRaw?.mockResolvedValue?.([{ count: 1 }]);
+      // Mock executeRestore to prevent immediate execution in tests
+      vi.spyOn(service as any, 'executeRestore').mockResolvedValue(undefined);
     });
 
     it('should start restore job', async () => {
@@ -178,16 +180,52 @@ describe('BackupService', () => {
   });
 
   describe('AC7: Restore Verification', () => {
+    let executeRestoreSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      // Set up executeRestore mock before each test
+      executeRestoreSpy = vi.spyOn(service as any, 'executeRestore').mockResolvedValue(undefined);
+    });
+
+    afterEach(() => {
+      // Restore the original method after each test
+      executeRestoreSpy.mockRestore();
+    });
+
     it('should verify restore after completion', async () => {
+      // Clear the executeRestore mock to allow actual execution
+      executeRestoreSpy.mockRestore();
+      // Re-spy to track calls but allow real execution
+      vi.spyOn(service as any, 'executeRestore').mockImplementation(function (this: unknown, ...args: unknown[]) {
+        // Call the original implementation via the prototype
+        return Object.getPrototypeOf(service).executeRestore.apply(this, args);
+      });
+
       mockPrisma.proposal.count.mockResolvedValue(10);
       mockPrisma.$queryRaw?.mockResolvedValue?.([{ count: 1 }]);
 
-      // This happens in the executeRestore method
-      // After restore, it verifies with proposal count
+      // Trigger restore
+      const jobId = await service.restoreDatabase('backup-file.sql', 'admin-1');
+
+      // Wait for async execution to complete
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      const job = await service.getRestoreJob(jobId);
+
+      // Verify job completed successfully
+      expect(job?.status).toBe('completed');
       expect(mockPrisma.proposal.count).toHaveBeenCalled();
     });
 
     it('should fail verification if no proposals found', async () => {
+      // Clear the executeRestore mock to allow actual execution
+      executeRestoreSpy.mockRestore();
+      // Re-spy to track calls but allow real execution
+      vi.spyOn(service as any, 'executeRestore').mockImplementation(function (this: unknown, ...args: unknown[]) {
+        // Call the original implementation via the prototype
+        return Object.getPrototypeOf(service).executeRestore.apply(this, args);
+      });
+
       mockPrisma.proposal.count.mockResolvedValue(0);
       mockPrisma.$queryRaw?.mockResolvedValue?.([{ count: 0 }]);
 
@@ -195,7 +233,7 @@ describe('BackupService', () => {
       const jobId = await service.restoreDatabase('backup-file.sql', 'admin-1');
 
       // Wait a bit for async execution
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       const job = await service.getRestoreJob(jobId);
 

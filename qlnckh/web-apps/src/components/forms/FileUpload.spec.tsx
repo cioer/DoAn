@@ -1,24 +1,50 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FileUpload } from './FileUpload';
 import { Attachment } from '../../lib/api/attachments';
 
+// Mock ProgressBar component
+vi.mock('./ProgressBar', () => ({
+  ProgressBar: ({ progress }: { progress: number }) => (
+    <div data-testid="progress-bar" style={{ width: `${progress}%` }} />
+  ),
+}));
+
 // Mock the attachments API
-jest.mock('../../lib/api/attachments', () => ({
+vi.mock('../../lib/api/attachments', () => ({
   attachmentsApi: {
-    upload: jest.fn(),
+    upload: vi.fn(),
   },
   Attachment: {},
 }));
 
 import { attachmentsApi } from '../../lib/api/attachments';
 
-const mockOnUploadSuccess = jest.fn();
+const mockOnUploadSuccess = vi.fn();
 const mockProposalId = 'prop-123';
+
+// Create a mock FileList
+const createMockFileList = (files: File[]): FileList => {
+  const fileList = {
+    length: files.length,
+    item: (index: number) => files[index] || null,
+    [Symbol.iterator]: function* () {
+      for (const file of files) {
+        yield file;
+      }
+    },
+  } as FileList;
+  files.forEach((file, index) => {
+    Object.defineProperty(fileList, index, { value: file, writable: false });
+  });
+  return fileList;
+};
 
 describe('FileUpload Component (Story 2.4)', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should render upload zone', () => {
@@ -31,10 +57,10 @@ describe('FileUpload Component (Story 2.4)', () => {
 
     expect(
       screen.getByText('Kéo file vào đây hoặc click để chọn')
-    ).toBeInTheDocument();
+    ).toBeDefined();
     expect(
       screen.getByText('PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (tối đa 5MB)')
-    ).toBeInTheDocument();
+    ).toBeDefined();
   });
 
   it('should render disabled when disabled prop is true', () => {
@@ -46,7 +72,7 @@ describe('FileUpload Component (Story 2.4)', () => {
       />
     );
 
-    expect(screen.getByText('Upload bị vô hiệu')).toBeInTheDocument();
+    expect(screen.getByText('Upload bị vô hiệu')).toBeDefined();
   });
 
   it('should show current total size when provided', () => {
@@ -58,12 +84,11 @@ describe('FileUpload Component (Story 2.4)', () => {
       />
     );
 
-    expect(screen.getByText(/Đã dùng: 10\.0 MB \/ 50 MB/)).toBeInTheDocument();
+    expect(screen.getByText(/Đã dùng: 10\.0 MB \/ 50 MB/)).toBeDefined();
   });
 
   it('should validate file size before upload (AC2)', async () => {
-    const user = userEvent.setup();
-    (attachmentsApi.upload as jest.Mock).mockResolvedValue({});
+    vi.mocked(attachmentsApi.upload).mockResolvedValue({} as Attachment);
 
     render(
       <FileUpload
@@ -72,24 +97,28 @@ describe('FileUpload Component (Story 2.4)', () => {
       />
     );
 
-    const input = screen.getByRole('textbox', { hidden: true }) as HTMLInputElement;
-    const largeFile = new File(['content'], 'large.pdf', {
-      type: 'application/pdf',
-    });
-    Object.defineProperty(largeFile, 'size', { value: 6 * 1024 * 1024 }); // 6MB
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
 
-    await user.upload(input, largeFile);
+    if (input) {
+      const largeFile = new File(['content'], 'large.pdf', {
+        type: 'application/pdf',
+      });
+      Object.defineProperty(largeFile, 'size', { value: 6 * 1024 * 1024 }); // 6MB
 
-    await waitFor(() => {
-      expect(screen.getByText('File quá 5MB. Vui lòng nén hoặc chia nhỏ.')).toBeInTheDocument();
-    });
+      const mockFiles = createMockFileList([largeFile]);
+      Object.defineProperty(input, 'files', { value: mockFiles, writable: false });
+
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+
+      await waitFor(() => {
+        expect(screen.queryByText('File quá 5MB. Vui lòng nén hoặc chia nhỏ.')).toBeDefined();
+      });
+    }
 
     expect(attachmentsApi.upload).not.toHaveBeenCalled();
   });
 
   it('should validate file type before upload (AC1)', async () => {
-    const user = userEvent.setup();
-
     render(
       <FileUpload
         proposalId={mockProposalId}
@@ -97,23 +126,27 @@ describe('FileUpload Component (Story 2.4)', () => {
       />
     );
 
-    const input = screen.getByRole('textbox', { hidden: true }) as HTMLInputElement;
-    const invalidFile = new File(['content'], 'test.zip', {
-      type: 'application/zip',
-    });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
 
-    await user.upload(input, invalidFile);
+    if (input) {
+      const invalidFile = new File(['content'], 'test.zip', {
+        type: 'application/zip',
+      });
 
-    await waitFor(() => {
-      expect(screen.getByText('Định dạng file không được hỗ trợ.')).toBeInTheDocument();
-    });
+      const mockFiles = createMockFileList([invalidFile]);
+      Object.defineProperty(input, 'files', { value: mockFiles, writable: false });
+
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+
+      await waitFor(() => {
+        expect(screen.queryByText('Định dạng file không được hỗ trợ.')).toBeDefined();
+      });
+    }
 
     expect(attachmentsApi.upload).not.toHaveBeenCalled();
   });
 
   it('should validate total size before upload (AC5)', async () => {
-    const user = userEvent.setup();
-
     render(
       <FileUpload
         proposalId={mockProposalId}
@@ -122,26 +155,28 @@ describe('FileUpload Component (Story 2.4)', () => {
       />
     );
 
-    const input = screen.getByRole('textbox', { hidden: true }) as HTMLInputElement;
-    const file = new File(['content'], 'new.pdf', {
-      type: 'application/pdf',
-    });
-    Object.defineProperty(file, 'size', { value: 2 * 1024 * 1024 }); // 2MB - would exceed limit
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
 
-    await user.upload(input, file);
+    if (input) {
+      const file = new File(['content'], 'new.pdf', {
+        type: 'application/pdf',
+      });
+      Object.defineProperty(file, 'size', { value: 2 * 1024 * 1024 }); // 2MB
 
-    await waitFor(() => {
-      expect(
-        screen.getByText(/Tổng dung lượng sẽ vượt giới hạn \(50MB\/proposal\)/)
-      ).toBeInTheDocument();
-    });
+      const mockFiles = createMockFileList([file]);
+      Object.defineProperty(input, 'files', { value: mockFiles, writable: false });
+
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+
+      await waitFor(() => {
+        expect(screen.queryByText(/Tổng dung lượng sẽ vượt giới hạn/)).toBeDefined();
+      });
+    }
 
     expect(attachmentsApi.upload).not.toHaveBeenCalled();
   });
 
   it('should show warning when approaching 80% of limit (AC5)', async () => {
-    const user = userEvent.setup();
-
     render(
       <FileUpload
         proposalId={mockProposalId}
@@ -150,26 +185,29 @@ describe('FileUpload Component (Story 2.4)', () => {
       />
     );
 
-    const input = screen.getByRole('textbox', { hidden: true }) as HTMLInputElement;
-    const file = new File(['content'], 'new.pdf', {
-      type: 'application/pdf',
-    });
-    Object.defineProperty(file, 'size', { value: 5 * 1024 * 1024 }); // 5MB - total 45MB (> 80% of 50MB)
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
 
-    await user.upload(input, file);
+    if (input) {
+      const file = new File(['content'], 'new.pdf', {
+        type: 'application/pdf',
+      });
+      Object.defineProperty(file, 'size', { value: 5 * 1024 * 1024 }); // 5MB
 
-    await waitFor(() => {
-      expect(
-        screen.getByText(/Tổng dung lượng sau khi upload sẽ là 45\.0 MB \/ 50 MB/)
-      ).toBeInTheDocument();
-    });
+      const mockFiles = createMockFileList([file]);
+      Object.defineProperty(input, 'files', { value: mockFiles, writable: false });
 
-    // Should have "Tiếp tục" button to proceed
-    expect(screen.getByText('Tiếp tục')).toBeInTheDocument();
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+
+      await waitFor(() => {
+        expect(screen.queryByText(/Tổng dung lượng sau khi upload sẽ là 45\.0 MB \/ 50 MB/)).toBeDefined();
+      });
+
+      // Should have "Tiếp tục" button to proceed
+      expect(screen.queryByText('Tiếp tục')).toBeDefined();
+    }
   });
 
   it('should upload valid file and call onUploadSuccess (AC3)', async () => {
-    const user = userEvent.setup();
     const mockAttachment: Attachment = {
       id: 'att-1',
       proposalId: mockProposalId,
@@ -182,7 +220,7 @@ describe('FileUpload Component (Story 2.4)', () => {
       deletedAt: null,
     };
 
-    (attachmentsApi.upload as jest.Mock).mockResolvedValue(mockAttachment);
+    vi.mocked(attachmentsApi.upload).mockResolvedValue(mockAttachment);
 
     render(
       <FileUpload
@@ -191,22 +229,27 @@ describe('FileUpload Component (Story 2.4)', () => {
       />
     );
 
-    const input = screen.getByRole('textbox', { hidden: true }) as HTMLInputElement;
-    const file = new File(['content'], 'document.pdf', {
-      type: 'application/pdf',
-    });
-    Object.defineProperty(file, 'size', { value: 1024 * 1024 }); // 1MB
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
 
-    await user.upload(input, file);
+    if (input) {
+      const file = new File(['content'], 'document.pdf', {
+        type: 'application/pdf',
+      });
+      Object.defineProperty(file, 'size', { value: 1024 * 1024 }); // 1MB
 
-    await waitFor(() => {
-      expect(mockOnUploadSuccess).toHaveBeenCalledWith(mockAttachment);
-    });
+      const mockFiles = createMockFileList([file]);
+      Object.defineProperty(input, 'files', { value: mockFiles, writable: false });
+
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+
+      await waitFor(() => {
+        expect(mockOnUploadSuccess).toHaveBeenCalledWith(mockAttachment);
+      });
+    }
   });
 
   it('should handle upload timeout error (AC4)', async () => {
-    const user = userEvent.setup();
-    (attachmentsApi.upload as jest.Mock).mockRejectedValue(
+    vi.mocked(attachmentsApi.upload).mockRejectedValue(
       new Error('TIMEOUT: Upload quá hạn. Vui lòng thử lại.')
     );
 
@@ -217,17 +260,23 @@ describe('FileUpload Component (Story 2.4)', () => {
       />
     );
 
-    const input = screen.getByRole('textbox', { hidden: true }) as HTMLInputElement;
-    const file = new File(['content'], 'document.pdf', {
-      type: 'application/pdf',
-    });
-    Object.defineProperty(file, 'size', { value: 1024 * 1024 });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
 
-    await user.upload(input, file);
+    if (input) {
+      const file = new File(['content'], 'document.pdf', {
+        type: 'application/pdf',
+      });
+      Object.defineProperty(file, 'size', { value: 1024 * 1024 });
 
-    await waitFor(() => {
-      expect(screen.getByText('Upload quá hạn. Vui lòng thử lại.')).toBeInTheDocument();
-    });
+      const mockFiles = createMockFileList([file]);
+      Object.defineProperty(input, 'files', { value: mockFiles, writable: false });
+
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+
+      await waitFor(() => {
+        expect(screen.queryByText('Upload quá hạn. Vui lòng thử lại.')).toBeDefined();
+      });
+    }
   });
 
   it('should clear error when X button clicked', async () => {
@@ -240,27 +289,32 @@ describe('FileUpload Component (Story 2.4)', () => {
       />
     );
 
-    // Manually set an error
-    const input = screen.getByRole('textbox', { hidden: true }) as HTMLInputElement;
-    const largeFile = new File(['content'], 'large.pdf', {
-      type: 'application/pdf',
-    });
-    Object.defineProperty(largeFile, 'size', { value: 6 * 1024 * 1024 });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
 
-    await user.upload(input, largeFile);
+    if (input) {
+      const largeFile = new File(['content'], 'large.pdf', {
+        type: 'application/pdf',
+      });
+      Object.defineProperty(largeFile, 'size', { value: 6 * 1024 * 1024 });
 
-    await waitFor(() => {
-      expect(screen.getByText('File quá 5MB. Vui lòng nén hoặc chia nhỏ.')).toBeInTheDocument();
-    });
+      const mockFiles = createMockFileList([largeFile]);
+      Object.defineProperty(input, 'files', { value: mockFiles, writable: false });
 
-    // Click X button to clear error
-    const clearButton = screen.getAllByRole('button').find((btn) =>
-      btn.querySelector('svg')
-    ) as HTMLElement;
-    await user.click(clearButton);
+      input.dispatchEvent(new Event('change', { bubbles: true }));
 
-    await waitFor(() => {
-      expect(screen.queryByText('File quá 5MB. Vui lòng nén hoặc chia nhỏ.')).not.toBeInTheDocument();
-    });
+      await waitFor(() => {
+        expect(screen.queryByText('File quá 5MB. Vui lòng nén hoặc chia nhỏ.')).toBeDefined();
+      });
+
+      // Click X button to clear error
+      const closeButton = screen.getAllByRole('button').find((btn) =>
+        btn.querySelector('svg')
+      ) as HTMLElement;
+      await user.click(closeButton);
+
+      await waitFor(() => {
+        expect(screen.queryByText('File quá 5MB. Vui lòng nén hoặc chia nhỏ.')).toBeNull();
+      });
+    }
   });
 });

@@ -14,12 +14,21 @@ const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.DEMO_SWITCH_PERSONA,
     Permission.DEMO_RESET,
     Permission.CALENDAR_MANAGE,
+    Permission.DASHBOARD_VIEW,
+    Permission.AUDIT_VIEW,
+    Permission.FORM_TEMPLATE_IMPORT, // Form template import from Word
   ],
   PHONG_KHCN: [
     Permission.CALENDAR_MANAGE,
+    Permission.DASHBOARD_VIEW,
   ],
   GIANG_VIEN: [
+    Permission.PROPOSAL_CREATE,
+    Permission.PROPOSAL_EDIT,
     Permission.DEMO_SWITCH_PERSONA,
+    Permission.VIEW_EVALUATION_RESULTS,    // GIANG_VIEN Feature: View evaluation results
+    Permission.EXPORT_PROPOSAL_PDF,        // GIANG_VIEN Feature: Export proposal to PDF
+    Permission.DASHBOARD_VIEW,             // GIANG_VIEN Feature: Personal dashboard
   ],
   QUAN_LY_KHOA: [
     Permission.DEMO_SWITCH_PERSONA,

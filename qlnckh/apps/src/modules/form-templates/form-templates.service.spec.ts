@@ -7,15 +7,15 @@ describe('FormTemplatesService', () => {
   // Manual mock - bypass DI
   const mockPrisma = {
     formTemplate: {
-      findMany: jest.fn(),
-      findFirst: jest.fn(),
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
     },
     formSection: {
-      findMany: jest.fn(),
+      findMany: vi.fn(),
     },
   };
 
@@ -60,7 +60,7 @@ describe('FormTemplatesService', () => {
   beforeEach(() => {
     // Manually create service with mock prisma - bypass DI
     service = new FormTemplatesService(mockPrisma as any);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should be defined', () => {

@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import {
   ProjectState,
   WorkflowAction,
@@ -25,6 +25,7 @@ import {
   getMyProposalsFilter,
   getOverdueProposalsFilter,
 } from './helpers/holder-rules.helper';
+import { RejectReasonCode } from './enums/reject-reason-code.enum';
 
 /**
  * Workflow Service Tests
@@ -35,27 +36,27 @@ import {
 // Manual mock - bypass DI (Epic 2 pattern)
 const mockPrisma = {
   proposal: {
-    findUnique: jest.fn(),
-    update: jest.fn(),
+    findUnique: vi.fn(),
+    update: vi.fn(),
   },
   user: {
-    findUnique: jest.fn(),
+    findUnique: vi.fn(),
   },
   workflowLog: {
-    create: jest.fn(),
+    create: vi.fn(),
   },
-  $transaction: jest.fn(),
+  $transaction: vi.fn(),
 };
 
 const mockAuditService = {
-  logEvent: jest.fn().mockResolvedValue(undefined),
+  logEvent: vi.fn().mockResolvedValue(undefined),
 };
 
 // Story 3.3: SlaService mock
 // Story 3.6: Added calculateDeadlineWithCutoff
 const mockSlaService = {
-  calculateDeadline: jest.fn(),
-  calculateDeadlineWithCutoff: jest.fn(),
+  calculateDeadline: vi.fn(),
+  calculateDeadlineWithCutoff: vi.fn(),
 };
 
 describe('WorkflowService', () => {
@@ -119,7 +120,7 @@ describe('WorkflowService', () => {
       mockAuditService as any,
       mockSlaService as any, // Story 3.3: SlaService
     );
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Mock getUserDisplayName response (M4 fix)
     mockPrisma.user.findUnique.mockResolvedValue({
@@ -1089,7 +1090,7 @@ describe('WorkflowService', () => {
 
     it('AC3.1: should set slaStartDate to current time on submit', async () => {
       const testDate = new Date('2026-01-06T10:00:00');
-      jest.spyOn(Date, 'now').mockReturnValue(testDate.getTime());
+      vi.spyOn(Date, 'now').mockReturnValue(testDate.getTime());
 
       await service.submitProposal('proposal-1', mockContext);
 
@@ -1268,6 +1269,930 @@ describe('WorkflowService', () => {
       // Verify the result has correct time
       expect(result.proposal.slaDeadline?.getHours()).toBe(17);
       expect(result.proposal.slaDeadline?.getMinutes()).toBe(0);
+    });
+  });
+
+  // ============================================================
+  // Epic 9: Exception Action Tests (Stories 9.1, 9.2, 9.3)
+  // ============================================================
+
+  describe('Story 9.1: Cancel Proposal (DRAFT → CANCELLED)', () => {
+    const draftProposal = {
+      ...mockProposal,
+      state: ProjectState.DRAFT,
+    };
+
+    const ownerContext: TransitionContext = {
+      userId: 'user-1',
+      userRole: 'GIANG_VIEN',
+      userFacultyId: 'faculty-1',
+    };
+
+    beforeEach(() => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(draftProposal);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...draftProposal,
+          state: ProjectState.CANCELLED,
+          holderUnit: 'faculty-1',
+          holderUser: 'user-1',
+          cancelledAt: new Date(),
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
+          id: 'log-cancel',
+          proposalId: 'proposal-1',
+          action: WorkflowAction.CANCEL,
+          fromState: ProjectState.DRAFT,
+          toState: ProjectState.CANCELLED,
+          actorId: 'user-1',
+          actorName: 'Test User',
+          comment: 'Hủy đề tài',
+          timestamp: new Date(),
+        });
+        return await callback(mockPrisma as any);
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        displayName: 'Test User',
+      });
+    });
+
+    it('AC1: should cancel DRAFT proposal successfully', async () => {
+      const result = await service.cancelProposal('proposal-1', undefined, ownerContext);
+
+      expect(result.currentState).toBe(ProjectState.CANCELLED);
+      expect(result.previousState).toBe(ProjectState.DRAFT);
+      expect(result.holderUnit).toBe('faculty-1');
+      expect(result.holderUser).toBe('user-1');
+    });
+
+    it('AC2: should set cancelledAt timestamp', async () => {
+      await service.cancelProposal('proposal-1', undefined, ownerContext);
+
+      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
+        where: { id: 'proposal-1' },
+        data: expect.objectContaining({
+          cancelledAt: expect.any(Date),
+        }),
+      });
+    });
+
+    it('AC3: should create workflow log with CANCEL action', async () => {
+      await service.cancelProposal('proposal-1', 'Không còn nhu cầu', ownerContext);
+
+      expect(mockPrisma.workflowLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          action: WorkflowAction.CANCEL,
+          fromState: ProjectState.DRAFT,
+          toState: ProjectState.CANCELLED,
+          comment: 'Không còn nhu cầu',
+        }),
+      });
+    });
+
+    it('AC4: should only allow owner to cancel', async () => {
+      const nonOwnerContext: TransitionContext = {
+        ...ownerContext,
+        userId: 'user-2',
+      };
+
+      await expect(
+        service.cancelProposal('proposal-1', undefined, nonOwnerContext),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('AC5: should reject cancel if not in DRAFT state', async () => {
+      const nonDraftProposal = {
+        ...mockProposal,
+        state: ProjectState.FACULTY_REVIEW,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(nonDraftProposal);
+
+      await expect(
+        service.cancelProposal('proposal-1', undefined, ownerContext),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('AC6: should log audit event', async () => {
+      await service.cancelProposal('proposal-1', 'Test reason', ownerContext);
+
+      expect(mockAuditService.logEvent).toHaveBeenCalledWith({
+        action: 'PROPOSAL_CANCEL',
+        actorUserId: 'user-1',
+        entityType: 'Proposal',
+        entityId: 'proposal-1',
+        metadata: expect.objectContaining({
+          reason: 'Test reason',
+        }),
+      });
+    });
+  });
+
+  describe('Story 9.1: Withdraw Proposal (Review states → WITHDRAWN)', () => {
+    const facultyReviewProposal = {
+      ...mockProposal,
+      state: ProjectState.FACULTY_REVIEW,
+      holderUnit: 'faculty-1',
+    };
+
+    const ownerContext: TransitionContext = {
+      userId: 'user-1',
+      userRole: 'GIANG_VIEN',
+      userFacultyId: 'faculty-1',
+    };
+
+    beforeEach(() => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(facultyReviewProposal);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...facultyReviewProposal,
+          state: ProjectState.WITHDRAWN,
+          holderUnit: 'faculty-1',
+          holderUser: 'user-1',
+          withdrawnAt: new Date(),
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
+          id: 'log-withdraw',
+          proposalId: 'proposal-1',
+          action: WorkflowAction.WITHDRAW,
+          fromState: ProjectState.FACULTY_REVIEW,
+          toState: ProjectState.WITHDRAWN,
+          actorId: 'user-1',
+          actorName: 'Test User',
+          comment: 'Rút hồ sơ',
+          timestamp: new Date(),
+        });
+        return await callback(mockPrisma as any);
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        displayName: 'Test User',
+      });
+    });
+
+    it('AC1: should withdraw from FACULTY_REVIEW successfully', async () => {
+      const result = await service.withdrawProposal('proposal-1', undefined, ownerContext);
+
+      expect(result.currentState).toBe(ProjectState.WITHDRAWN);
+      expect(result.previousState).toBe(ProjectState.FACULTY_REVIEW);
+    });
+
+    it('AC2: should withdraw from SCHOOL_SELECTION_REVIEW successfully', async () => {
+      const schoolReviewProposal = {
+        ...mockProposal,
+        state: ProjectState.SCHOOL_SELECTION_REVIEW,
+        holderUnit: 'PHONG_KHCN',
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(schoolReviewProposal);
+
+      const result = await service.withdrawProposal('proposal-1', undefined, ownerContext);
+
+      expect(result.currentState).toBe(ProjectState.WITHDRAWN);
+      expect(result.previousState).toBe(ProjectState.SCHOOL_SELECTION_REVIEW);
+    });
+
+    it('AC3: should withdraw from OUTLINE_COUNCIL_REVIEW successfully', async () => {
+      const councilReviewProposal = {
+        ...mockProposal,
+        state: ProjectState.OUTLINE_COUNCIL_REVIEW,
+        holderUnit: 'council-1',
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(councilReviewProposal);
+
+      const result = await service.withdrawProposal('proposal-1', undefined, ownerContext);
+
+      expect(result.currentState).toBe(ProjectState.WITHDRAWN);
+      expect(result.previousState).toBe(ProjectState.OUTLINE_COUNCIL_REVIEW);
+    });
+
+    it('AC4: should withdraw from CHANGES_REQUESTED successfully', async () => {
+      const changesRequestedProposal = {
+        ...mockProposal,
+        state: ProjectState.CHANGES_REQUESTED,
+        holderUnit: 'faculty-1',
+        holderUser: 'user-1',
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(changesRequestedProposal);
+
+      const result = await service.withdrawProposal('proposal-1', undefined, ownerContext);
+
+      expect(result.currentState).toBe(ProjectState.WITHDRAWN);
+      expect(result.previousState).toBe(ProjectState.CHANGES_REQUESTED);
+    });
+
+    it('AC5: should NOT allow withdraw from IN_PROGRESS (after APPROVED)', async () => {
+      const inProgressProposal = {
+        ...mockProposal,
+        state: ProjectState.IN_PROGRESS,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(inProgressProposal);
+
+      await expect(
+        service.withdrawProposal('proposal-1', undefined, ownerContext),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('AC6: should only allow owner to withdraw', async () => {
+      const nonOwnerContext: TransitionContext = {
+        ...ownerContext,
+        userId: 'user-2',
+      };
+
+      await expect(
+        service.withdrawProposal('proposal-1', undefined, nonOwnerContext),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('AC7: should set withdrawnAt timestamp', async () => {
+      await service.withdrawProposal('proposal-1', undefined, ownerContext);
+
+      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
+        where: { id: 'proposal-1' },
+        data: expect.objectContaining({
+          withdrawnAt: expect.any(Date),
+        }),
+      });
+    });
+
+    it('AC8: should log audit event', async () => {
+      await service.withdrawProposal('proposal-1', 'Test reason', ownerContext);
+
+      expect(mockAuditService.logEvent).toHaveBeenCalledWith({
+        action: 'PROPOSAL_WITHDRAW',
+        actorUserId: 'user-1',
+        entityType: 'Proposal',
+        entityId: 'proposal-1',
+        metadata: expect.objectContaining({
+          reason: 'Test reason',
+        }),
+      });
+    });
+  });
+
+  describe('Story 9.2: Reject Proposal (Review states → REJECTED)', () => {
+    const facultyReviewProposal = {
+      ...mockProposal,
+      state: ProjectState.FACULTY_REVIEW,
+    };
+
+    const managerContext: TransitionContext = {
+      userId: 'manager-1',
+      userRole: 'QUAN_LY_KHOA',
+      userFacultyId: 'faculty-1',
+    };
+
+    beforeEach(() => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(facultyReviewProposal);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...facultyReviewProposal,
+          state: ProjectState.REJECTED,
+          holderUnit: 'faculty-1',
+          holderUser: 'manager-1',
+          rejectedAt: new Date(),
+          rejectedById: 'manager-1',
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
+          id: 'log-reject',
+          proposalId: 'proposal-1',
+          action: WorkflowAction.REJECT,
+          fromState: ProjectState.FACULTY_REVIEW,
+          toState: ProjectState.REJECTED,
+          actorId: 'manager-1',
+          actorName: 'Manager',
+          reasonCode: RejectReasonCode.NOT_SCIENTIFIC,
+          comment: 'Nội dung không đạt yêu cầu',
+          timestamp: new Date(),
+        });
+        return await callback(mockPrisma as any);
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        displayName: 'Manager',
+      });
+    });
+
+    it('AC1: QUAN_LY_KHOA can reject from FACULTY_REVIEW', async () => {
+      const result = await service.rejectProposal(
+        'proposal-1',
+        RejectReasonCode.NOT_SCIENTIFIC,
+        'Nội dung không đạt yêu cầu',
+        managerContext,
+      );
+
+      expect(result.currentState).toBe(ProjectState.REJECTED);
+      expect(result.previousState).toBe(ProjectState.FACULTY_REVIEW);
+    });
+
+    it('AC2: PHONG_KHCN can reject from FACULTY_REVIEW', async () => {
+      const phongKHNCContext: TransitionContext = {
+        ...managerContext,
+        userRole: 'PHONG_KHCN',
+      };
+
+      const result = await service.rejectProposal(
+        'proposal-1',
+        RejectReasonCode.NOT_FEASIBLE,
+        'Không khả thi',
+        phongKHNCContext,
+      );
+
+      expect(result.currentState).toBe(ProjectState.REJECTED);
+    });
+
+    it('AC3: BAN_GIAM_HOC can reject from any review state', async () => {
+      const banGiamHocContext: TransitionContext = {
+        ...managerContext,
+        userRole: 'BAN_GIAM_HOC',
+      };
+
+      // Test OUTLINE_COUNCIL_REVIEW
+      const councilReviewProposal = {
+        ...mockProposal,
+        state: ProjectState.OUTLINE_COUNCIL_REVIEW,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(councilReviewProposal);
+
+      const result = await service.rejectProposal(
+        'proposal-1',
+        RejectReasonCode.BUDGET_UNREASONABLE,
+        'Kinh phí quá cao',
+        banGiamHocContext,
+      );
+
+      expect(result.currentState).toBe(ProjectState.REJECTED);
+    });
+
+    it('AC4: THU_KY_HOI_DONG can reject from OUTLINE_COUNCIL_REVIEW', async () => {
+      const councilReviewProposal = {
+        ...mockProposal,
+        state: ProjectState.OUTLINE_COUNCIL_REVIEW,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(councilReviewProposal);
+
+      const secretaryContext: TransitionContext = {
+        ...managerContext,
+        userRole: 'THU_KY_HOI_DONG',
+      };
+
+      const result = await service.rejectProposal(
+        'proposal-1',
+        RejectReasonCode.NOT_COMPLIANT,
+        'Không phù hợp quy định',
+        secretaryContext,
+      );
+
+      expect(result.currentState).toBe(ProjectState.REJECTED);
+    });
+
+    it('AC5: should reject if user lacks permission for current state', async () => {
+      const giangVienContext: TransitionContext = {
+        ...managerContext,
+        userRole: 'GIANG_VIEN',
+      };
+
+      await expect(
+        service.rejectProposal(
+          'proposal-1',
+          RejectReasonCode.OTHER,
+          'Test',
+          giangVienContext,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('AC6: should NOT allow reject from IN_PROGRESS or APPROVED', async () => {
+      const approvedProposal = {
+        ...mockProposal,
+        state: ProjectState.APPROVED,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(approvedProposal);
+
+      await expect(
+        service.rejectProposal(
+          'proposal-1',
+          RejectReasonCode.OTHER,
+          'Test',
+          managerContext,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('AC7: should set rejectedAt and rejectedById', async () => {
+      await service.rejectProposal(
+        'proposal-1',
+        RejectReasonCode.NOT_SCIENTIFIC,
+        'Test',
+        managerContext,
+      );
+
+      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
+        where: { id: 'proposal-1' },
+        data: expect.objectContaining({
+          rejectedAt: expect.any(Date),
+          rejectedById: 'manager-1',
+        }),
+      });
+    });
+
+    it('AC8: should store reasonCode and comment in workflow log', async () => {
+      await service.rejectProposal(
+        'proposal-1',
+        RejectReasonCode.NOT_SCIENTIFIC,
+        'Nội dung không đạt yêu cầu khoa học',
+        managerContext,
+      );
+
+      expect(mockPrisma.workflowLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          reasonCode: RejectReasonCode.NOT_SCIENTIFIC,
+          comment: 'Nội dung không đạt yêu cầu khoa học',
+        }),
+      });
+    });
+
+    it('AC9: should log audit event', async () => {
+      await service.rejectProposal(
+        'proposal-1',
+        RejectReasonCode.NOT_FEASIBLE,
+        'Test reason',
+        managerContext,
+      );
+
+      expect(mockAuditService.logEvent).toHaveBeenCalledWith({
+        action: 'PROPOSAL_REJECT',
+        actorUserId: 'manager-1',
+        entityType: 'Proposal',
+        entityId: 'proposal-1',
+        metadata: expect.objectContaining({
+          reasonCode: RejectReasonCode.NOT_FEASIBLE,
+          comment: 'Test reason',
+        }),
+      });
+    });
+  });
+
+  describe('Story 9.3: Pause Proposal (Non-terminal → PAUSED)', () => {
+    const inProgressProposal = {
+      ...mockProposal,
+      state: ProjectState.IN_PROGRESS,
+      holderUnit: 'faculty-1',
+      holderUser: 'user-1',
+      slaDeadline: new Date('2026-01-20T17:00:00'),
+    };
+
+    const phongKHNCContext: TransitionContext = {
+      userId: 'pkhcn-1',
+      userRole: 'PHONG_KHCN',
+      userFacultyId: 'PKHCN',
+    };
+
+    beforeEach(() => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(inProgressProposal);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...inProgressProposal,
+          state: ProjectState.PAUSED,
+          holderUnit: 'PHONG_KHCN',
+          holderUser: null,
+          pausedAt: new Date(),
+          pauseReason: 'Tạm dừng để kiểm tra',
+          expectedResumeAt: new Date('2026-01-15T00:00:00'),
+          prePauseState: ProjectState.IN_PROGRESS,
+          prePauseHolderUnit: 'faculty-1',
+          prePauseHolderUser: 'user-1',
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
+          id: 'log-pause',
+          proposalId: 'proposal-1',
+          action: WorkflowAction.PAUSE,
+          fromState: ProjectState.IN_PROGRESS,
+          toState: ProjectState.PAUSED,
+          actorId: 'pkhcn-1',
+          actorName: 'PKHCN User',
+          comment: expect.any(String),
+          timestamp: new Date(),
+        });
+        return await callback(mockPrisma as any);
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        displayName: 'PKHCN User',
+      });
+    });
+
+    it('AC1: PHONG_KHCN can pause any non-terminal proposal', async () => {
+      const result = await service.pauseProposal(
+        'proposal-1',
+        'Tạm dừng để kiểm tra',
+        new Date('2026-01-15T00:00:00'),
+        phongKHNCContext,
+      );
+
+      expect(result.currentState).toBe(ProjectState.PAUSED);
+      expect(result.previousState).toBe(ProjectState.IN_PROGRESS);
+    });
+
+    it('AC2: should store pre-pause state for resume', async () => {
+      await service.pauseProposal(
+        'proposal-1',
+        'Tạm dừng',
+        undefined,
+        phongKHNCContext,
+      );
+
+      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
+        where: { id: 'proposal-1' },
+        data: expect.objectContaining({
+          prePauseState: ProjectState.IN_PROGRESS,
+          prePauseHolderUnit: 'faculty-1',
+          prePauseHolderUser: 'user-1',
+        }),
+      });
+    });
+
+    it('AC3: should store pause reason', async () => {
+      await service.pauseProposal(
+        'proposal-1',
+        'Cần bổ sung hồ sơ',
+        undefined,
+        phongKHNCContext,
+      );
+
+      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
+        where: { id: 'proposal-1' },
+        data: expect.objectContaining({
+          pauseReason: 'Cần bổ sung hồ sơ',
+        }),
+      });
+    });
+
+    it('AC4: should store expectedResumeAt if provided', async () => {
+      const expectedDate = new Date('2026-01-15T00:00:00');
+      await service.pauseProposal(
+        'proposal-1',
+        'Tạm dừng',
+        expectedDate,
+        phongKHNCContext,
+      );
+
+      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
+        where: { id: 'proposal-1' },
+        data: expect.objectContaining({
+          expectedResumeAt: expectedDate,
+        }),
+      });
+    });
+
+    it('AC5: should reject if expectedResumeAt is in the past', async () => {
+      const pastDate = new Date('2025-01-01T00:00:00');
+
+      await expect(
+        service.pauseProposal(
+          'proposal-1',
+          'Tạm dừng',
+          pastDate,
+          phongKHNCContext,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('AC6: should NOT allow pause on terminal states', async () => {
+      const completedProposal = {
+        ...mockProposal,
+        state: ProjectState.COMPLETED,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(completedProposal);
+
+      await expect(
+        service.pauseProposal(
+          'proposal-1',
+          'Tạm dừng',
+          undefined,
+          phongKHNCContext,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('AC7: should only allow PHONG_KHCN to pause', async () => {
+      const giangVienContext: TransitionContext = {
+        ...phongKHNCContext,
+        userRole: 'GIANG_VIEN',
+      };
+
+      await expect(
+        service.pauseProposal(
+          'proposal-1',
+          'Tạm dừng',
+          undefined,
+          giangVienContext,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('AC8: should set holder to PHONG_KHCN', async () => {
+      await service.pauseProposal(
+        'proposal-1',
+        'Tạm dừng',
+        undefined,
+        phongKHNCContext,
+      );
+
+      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
+        where: { id: 'proposal-1' },
+        data: expect.objectContaining({
+          holderUnit: 'PHONG_KHCN',
+          holderUser: null,
+        }),
+      });
+    });
+
+    it('AC9: should build pause comment with expected resume date', async () => {
+      const expectedDate = new Date('2026-01-15T00:00:00');
+      await service.pauseProposal(
+        'proposal-1',
+        'Tạm dừng',
+        expectedDate,
+        phongKHNCContext,
+      );
+
+      expect(mockPrisma.workflowLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          comment: expect.stringContaining('15/1/2026'),
+        }),
+      });
+    });
+
+    it('AC10: should log audit event', async () => {
+      await service.pauseProposal(
+        'proposal-1',
+        'Tạm dừng',
+        undefined,
+        phongKHNCContext,
+      );
+
+      expect(mockAuditService.logEvent).toHaveBeenCalledWith({
+        action: 'PROPOSAL_PAUSE',
+        actorUserId: 'pkhcn-1',
+        entityType: 'Proposal',
+        entityId: 'proposal-1',
+        metadata: expect.objectContaining({
+          reason: 'Tạm dừng',
+        }),
+      });
+    });
+  });
+
+  describe('Story 9.3: Resume Proposal (PAUSED → pre-pause state)', () => {
+    const pausedProposal = {
+      ...mockProposal,
+      state: ProjectState.PAUSED,
+      holderUnit: 'PHONG_KHCN',
+      holderUser: null,
+      pausedAt: new Date('2026-01-10T00:00:00'),
+      slaDeadline: new Date('2026-01-20T17:00:00'),
+      prePauseState: ProjectState.IN_PROGRESS,
+      prePauseHolderUnit: 'faculty-1',
+      prePauseHolderUser: 'user-1',
+    };
+
+    const phongKHNCContext: TransitionContext = {
+      userId: 'pkhcn-1',
+      userRole: 'PHONG_KHCN',
+      userFacultyId: 'PKHCN',
+    };
+
+    beforeEach(() => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(pausedProposal);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...pausedProposal,
+          state: ProjectState.IN_PROGRESS,
+          holderUnit: 'faculty-1',
+          holderUser: 'user-1',
+          slaDeadline: new Date('2026-01-23T17:00:00'), // Extended by paused duration
+          resumedAt: new Date('2026-01-13T00:00:00'),
+          pausedAt: null,
+          prePauseState: null,
+          prePauseHolderUnit: null,
+          prePauseHolderUser: null,
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
+          id: 'log-resume',
+          proposalId: 'proposal-1',
+          action: WorkflowAction.RESUME,
+          fromState: ProjectState.PAUSED,
+          toState: ProjectState.IN_PROGRESS,
+          actorId: 'pkhcn-1',
+          actorName: 'PKHCN User',
+          comment: 'Tiếp tục đề tài',
+          timestamp: new Date(),
+        });
+        return await callback(mockPrisma as any);
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        displayName: 'PKHCN User',
+      });
+    });
+
+    it('AC1: PHONG_KHCN can resume paused proposal', async () => {
+      const result = await service.resumeProposal(
+        'proposal-1',
+        undefined,
+        phongKHNCContext,
+      );
+
+      expect(result.currentState).toBe(ProjectState.IN_PROGRESS);
+      expect(result.previousState).toBe(ProjectState.PAUSED);
+    });
+
+    it('AC2: should restore pre-pause state', async () => {
+      await service.resumeProposal(
+        'proposal-1',
+        undefined,
+        phongKHNCContext,
+      );
+
+      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
+        where: { id: 'proposal-1' },
+        data: expect.objectContaining({
+          state: ProjectState.IN_PROGRESS,
+          holderUnit: 'faculty-1',
+          holderUser: 'user-1',
+        }),
+      });
+    });
+
+    it('AC3: should extend SLA deadline by paused duration', async () => {
+      // Paused for 3 days (Jan 10 to Jan 13), deadline should extend by 3 days
+      await service.resumeProposal(
+        'proposal-1',
+        undefined,
+        phongKHNCContext,
+      );
+
+      // Verify update was called and result contains extended deadline
+      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
+        where: { id: 'proposal-1' },
+        data: expect.objectContaining({
+          slaDeadline: expect.any(Date),
+        }),
+      });
+
+      // Verify the result has extended deadline
+      const result = await service.resumeProposal(
+        'proposal-1',
+        undefined,
+        phongKHNCContext,
+      );
+      expect(result.proposal.slaDeadline).toEqual(new Date('2026-01-23T17:00:00'));
+    });
+
+    it('AC4: should clear pause tracking fields', async () => {
+      await service.resumeProposal(
+        'proposal-1',
+        undefined,
+        phongKHNCContext,
+      );
+
+      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
+        where: { id: 'proposal-1' },
+        data: expect.objectContaining({
+          pausedAt: null,
+          prePauseState: null,
+          prePauseHolderUnit: null,
+          prePauseHolderUser: null,
+        }),
+      });
+    });
+
+    it('AC5: should set resumedAt timestamp', async () => {
+      await service.resumeProposal(
+        'proposal-1',
+        undefined,
+        phongKHNCContext,
+      );
+
+      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
+        where: { id: 'proposal-1' },
+        data: expect.objectContaining({
+          resumedAt: expect.any(Date),
+        }),
+      });
+    });
+
+    it('AC6: should only allow PHONG_KHCN to resume', async () => {
+      const giangVienContext: TransitionContext = {
+        ...phongKHNCContext,
+        userRole: 'GIANG_VIEN',
+      };
+
+      await expect(
+        service.resumeProposal(
+          'proposal-1',
+          undefined,
+          giangVienContext,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('AC7: should reject if proposal not paused', async () => {
+      const inProgressProposal = {
+        ...mockProposal,
+        state: ProjectState.IN_PROGRESS,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(inProgressProposal);
+
+      await expect(
+        service.resumeProposal(
+          'proposal-1',
+          undefined,
+          phongKHNCContext,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('AC8: should reject if prePauseState is missing', async () => {
+      const pausedWithoutPreState = {
+        ...pausedProposal,
+        prePauseState: null,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(pausedWithoutPreState);
+
+      await expect(
+        service.resumeProposal(
+          'proposal-1',
+          undefined,
+          phongKHNCContext,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('AC9: should allow optional comment', async () => {
+      await service.resumeProposal(
+        'proposal-1',
+        'Đã giải quyết xong vấn đề',
+        phongKHNCContext,
+      );
+
+      expect(mockPrisma.workflowLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          comment: 'Đã giải quyết xong vấn đề',
+        }),
+      });
+    });
+
+    it('AC10: should log audit event', async () => {
+      await service.resumeProposal(
+        'proposal-1',
+        undefined,
+        phongKHNCContext,
+      );
+
+      expect(mockAuditService.logEvent).toHaveBeenCalledWith({
+        action: 'PROPOSAL_RESUME',
+        actorUserId: 'pkhcn-1',
+        entityType: 'Proposal',
+        entityId: 'proposal-1',
+        metadata: expect.objectContaining({
+          fromState: ProjectState.PAUSED,
+          toState: ProjectState.IN_PROGRESS,
+        }),
+      });
+    });
+
+    it('AC11: should handle different pre-pause states', async () => {
+      const pausedFromFacultyReview = {
+        ...pausedProposal,
+        prePauseState: ProjectState.FACULTY_REVIEW,
+        prePauseHolderUnit: 'faculty-1',
+        prePauseHolderUser: null,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(pausedFromFacultyReview);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...pausedFromFacultyReview,
+          state: ProjectState.FACULTY_REVIEW,
+          holderUnit: 'faculty-1',
+          holderUser: null,
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
+          id: 'log-resume',
+          proposalId: 'proposal-1',
+          action: WorkflowAction.RESUME,
+          fromState: ProjectState.PAUSED,
+          toState: ProjectState.FACULTY_REVIEW,
+          actorId: 'pkhcn-1',
+          actorName: 'PKHCN User',
+          comment: 'Tiếp tục',
+          timestamp: new Date(),
+        });
+        return await callback(mockPrisma as any);
+      });
+
+      const result = await service.resumeProposal(
+        'proposal-1',
+        undefined,
+        phongKHNCContext,
+      );
+
+      expect(result.currentState).toBe(ProjectState.FACULTY_REVIEW);
     });
   });
 });

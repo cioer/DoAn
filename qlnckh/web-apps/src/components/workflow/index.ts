@@ -21,5 +21,13 @@ export type { SLABadgeProps } from './SLABadge';
 export { ChangesRequestedBanner } from './ChangesRequestedBanner';
 export type { ChangesRequestedBannerProps } from './ChangesRequestedBanner';
 
-export { RevisionPanel } from './RevisionPanel';
-export type { RevisionPanelProps } from './RevisionPanel';
+// Temporarily disabled due to Vite compilation issues
+// export { RevisionPanel } from './RevisionPanel';
+// export type { RevisionPanelProps } from './RevisionPanel';
+
+// BAN_GIAM_HOC High-Level Decision Actions
+export { CouncilReviewApprovalActions } from './CouncilReviewApprovalActions';
+export type { CouncilReviewApprovalActionsProps } from './CouncilReviewApprovalActions';
+
+export { SchoolAcceptanceActions } from './SchoolAcceptanceActions';
+export type { SchoolAcceptanceActionsProps } from './SchoolAcceptanceActions';

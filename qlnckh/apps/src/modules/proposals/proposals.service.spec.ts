@@ -10,25 +10,25 @@ import { ProjectState } from '@prisma/client';
 // Manual mock - bypass DI
 const mockPrisma = {
   proposal: {
-    findUnique: jest.fn(),
-    findMany: jest.fn(),
-    findFirst: jest.fn(),
-    count: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    findFirst: vi.fn(),
+    count: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
   },
   formTemplate: {
-    findFirst: jest.fn(),
+    findFirst: vi.fn(),
   },
   faculty: {
-    findUnique: jest.fn(),
+    findUnique: vi.fn(),
   },
-  $queryRaw: jest.fn().mockResolvedValue([{ next_code: 'DT-001' }]),
+  $queryRaw: vi.fn().mockResolvedValue([{ next_code: 'DT-001' }]),
 };
 
 const mockAuditService = {
-  logEvent: jest.fn().mockResolvedValue(undefined),
+  logEvent: vi.fn().mockResolvedValue(undefined),
 };
 
 describe('ProposalsService', () => {
@@ -80,7 +80,7 @@ describe('ProposalsService', () => {
   beforeEach(() => {
     // Manually create service with mocks
     service = new ProposalsService(mockPrisma as any, mockAuditService as any);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should be defined', () => {

@@ -1,5 +1,6 @@
 import { AuditService } from './audit.service';
 import { AuditAction } from './audit-action.enum';
+import { Prisma } from '@prisma/client';
 
 describe('AuditService', () => {
   let service: AuditService;
@@ -7,16 +8,16 @@ describe('AuditService', () => {
   // Manual mock - bypass DI
   const mockPrisma = {
     auditEvent: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      count: jest.fn(),
+      create: vi.fn(),
+      findMany: vi.fn(),
+      count: vi.fn(),
     },
   };
 
   beforeEach(() => {
     // Manually create service with mock prisma - bypass DI
     service = new AuditService(mockPrisma as any);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -72,7 +73,7 @@ describe('AuditService', () => {
         createdAt: new Date(),
         entityType: null,
         entityId: null,
-        metadata: null,
+        metadata: Prisma.JsonNull,
         ip: null,
         userAgent: null,
         requestId: null,
@@ -86,7 +87,7 @@ describe('AuditService', () => {
           actorUserId: 'user-123',
           entityType: null,
           entityId: null,
-          metadata: null,
+          metadata: Prisma.JsonNull,
         }),
       });
     });

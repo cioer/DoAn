@@ -1,4 +1,4 @@
-import { IsEnum, IsString, IsOptional, IsUUID, IsNotEmpty, IsArray, MinItems, ArrayNotEmpty } from 'class-validator';
+import { IsEnum, IsString, IsOptional, IsUUID, IsNotEmpty, IsArray, ArrayMinSize, ArrayNotEmpty } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ProjectState, WorkflowAction } from '@prisma/client';
 import { ReturnReasonCode, CanonicalSectionId } from '../enums/return-reason-code.enum';
@@ -162,7 +162,7 @@ export class ReturnFacultyReviewDto {
   })
   @IsArray()
   @IsString({ each: true })
-  @MinItems(1)
+  @ArrayMinSize(1)
   reasonSections: CanonicalSectionId[];
 
   @ApiPropertyOptional({
@@ -233,4 +233,131 @@ export interface TransitionErrorResponseDto {
     message: string;
     details?: Record<string, unknown>;
   };
+}
+
+// Epic 9: Exception Actions DTOs (Stories 9.1, 9.2, 9.3)
+// Re-export exception DTOs for convenience
+export {
+  CancelProposalDto,
+  CancelProposalResponseDto,
+} from './cancel-proposal.dto';
+export {
+  WithdrawProposalDto,
+  WithdrawProposalResponseDto,
+} from './withdraw-proposal.dto';
+export {
+  RejectProposalDto,
+  RejectProposalResponseDto,
+} from './reject-proposal.dto';
+export {
+  PauseProposalDto,
+  PauseProposalResponseDto,
+} from './pause-proposal.dto';
+export {
+  ResumeProposalDto,
+  ResumeProposalResponseDto,
+} from './resume-proposal.dto';
+
+/**
+ * Approve Council Review DTO (BAN_GIAM_HOC)
+ * Specific DTO for approving proposal at Council Review stage
+ * (OUTLINE_COUNCIL_REVIEW → APPROVED)
+ */
+export class ApproveCouncilReviewDto {
+  @ApiProperty({
+    description: 'ID của đề tài cần duyệt',
+    example: 'uuid-v4',
+  })
+  @IsUUID()
+  proposalId: string;
+
+  @ApiPropertyOptional({
+    description: 'Idempotency key',
+    example: 'uuid-v4',
+  })
+  @IsOptional()
+  @IsUUID()
+  idempotencyKey?: string;
+}
+
+/**
+ * Return Council Review DTO (BAN_GIAM_HOC)
+ * Specific DTO for returning proposal at Council Review stage
+ * (OUTLINE_COUNCIL_REVIEW → CHANGES_REQUESTED)
+ */
+export class ReturnCouncilReviewDto {
+  @ApiProperty({
+    description: 'ID của đề tài cần trả về',
+    example: 'uuid-v4',
+  })
+  @IsUUID()
+  proposalId: string;
+
+  @ApiProperty({
+    description: 'Lý do trả về',
+    example: 'Đề tài cần bổ sung thêm số liệu thực nghiệm',
+  })
+  @IsString()
+  @IsNotEmpty()
+  reason: string;
+
+  @ApiPropertyOptional({
+    description: 'Idempotency key',
+    example: 'uuid-v4',
+  })
+  @IsOptional()
+  @IsUUID()
+  idempotencyKey?: string;
+}
+
+/**
+ * Accept School Review DTO (BAN_GIAM_HOC)
+ * Specific DTO for accepting proposal at School Acceptance stage
+ * (SCHOOL_ACCEPTANCE_REVIEW → HANDOVER)
+ */
+export class AcceptSchoolReviewDto {
+  @ApiProperty({
+    description: 'ID của đề tài cần nghiệm thu',
+    example: 'uuid-v4',
+  })
+  @IsUUID()
+  proposalId: string;
+
+  @ApiPropertyOptional({
+    description: 'Idempotency key',
+    example: 'uuid-v4',
+  })
+  @IsOptional()
+  @IsUUID()
+  idempotencyKey?: string;
+}
+
+/**
+ * Return School Review DTO (BAN_GIAM_HOC)
+ * Specific DTO for returning proposal at School Acceptance stage
+ * (SCHOOL_ACCEPTANCE_REVIEW → CHANGES_REQUESTED)
+ */
+export class ReturnSchoolReviewDto {
+  @ApiProperty({
+    description: 'ID của đề tài cần trả về',
+    example: 'uuid-v4',
+  })
+  @IsUUID()
+  proposalId: string;
+
+  @ApiProperty({
+    description: 'Lý do trả về',
+    example: 'Báo cáo cần bổ sung thêm kết quả phân tích',
+  })
+  @IsString()
+  @IsNotEmpty()
+  reason: string;
+
+  @ApiPropertyOptional({
+    description: 'Idempotency key',
+    example: 'uuid-v4',
+  })
+  @IsOptional()
+  @IsUUID()
+  idempotencyKey?: string;
 }

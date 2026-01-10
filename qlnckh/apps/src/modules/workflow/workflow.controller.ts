@@ -59,6 +59,10 @@ import {
   RejectProposalDto,
   PauseProposalDto,
   ResumeProposalDto,
+  ApproveCouncilReviewDto,
+  ReturnCouncilReviewDto,
+  AcceptSchoolReviewDto,
+  ReturnSchoolReviewDto,
 } from './dto/transition.dto';
 
 /**
@@ -305,11 +309,11 @@ export class WorkflowController {
     },
   })
   async getQueue(
+    @CurrentUser() user: RequestUser,
     @Query('filter') filter: QueueFilterType,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
     @Query('search') search?: string,
-    @CurrentUser() user: RequestUser,
   ): Promise<QueueResponseDto> {
     // Parse and validate pagination parameters (Story 3.5 code review fix)
     let pageNum = page ? parseInt(page, 10) : 1;
@@ -1351,6 +1355,336 @@ export class WorkflowController {
         previousState: result.previousState,
         currentState: result.currentState,
         action: 'RESUME',
+        holderUnit: result.holderUnit,
+        holderUser: result.holderUser,
+        workflowLogId: result.workflowLog.id,
+      },
+    };
+  }
+
+  /**
+   * Approve Council Review (OUTLINE_COUNCIL_REVIEW → APPROVED)
+   * BAN_GIAM_HOC: High-level decision to approve proposal after Council Review
+   *
+   * AC1: When BAN_GIAM_HOC approves:
+   * - State transitions OUTLINE_COUNCIL_REVIEW → APPROVED
+   * - holder_user = null (no specific holder needed)
+   * - workflow_logs entry with action=APPROVE
+   */
+  @Post(':proposalId/approve-council')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.BAN_GIAM_HOC)
+  @ApiOperation({
+    summary: 'Duyệt đề tài ở cấp Hội đồng',
+    description:
+      'Chuyển đề tài từ trạng thái OUTLINE_COUNCIL_REVIEW sang APPROVED. Chỉ BAN_GIAM_HOC mới có thể duyệt.',
+  })
+  @ApiParam({
+    name: 'proposalId',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Đề tài được duyệt thành công',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          proposalId: 'proposal-uuid',
+          previousState: 'OUTLINE_COUNCIL_REVIEW',
+          currentState: 'APPROVED',
+          action: 'APPROVE',
+          holderUnit: null,
+          holderUser: null,
+          workflowLogId: 'log-uuid',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - proposal not in OUTLINE_COUNCIL_REVIEW state',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user lacks BAN_GIAM_HOC role',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflict - duplicate idempotency key',
+  })
+  async approveCouncilReview(
+    @Param('proposalId') proposalId: string,
+    @Body() dto: ApproveCouncilReviewDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<TransitionResponseDto> {
+    const result = await this.workflowService.approveCouncilReview(
+      proposalId,
+      {
+        userId: user.id,
+        userRole: user.role,
+        userFacultyId: user.facultyId,
+        idempotencyKey: dto.idempotencyKey,
+        ip,
+        userAgent,
+        requestId,
+      },
+    );
+
+    return {
+      success: true,
+      data: {
+        proposalId: result.proposal.id,
+        previousState: result.previousState,
+        currentState: result.currentState,
+        action: 'APPROVE',
+        holderUnit: result.holderUnit,
+        holderUser: result.holderUser,
+        workflowLogId: result.workflowLog.id,
+      },
+    };
+  }
+
+  /**
+   * Return Council Review (OUTLINE_COUNCIL_REVIEW → CHANGES_REQUESTED)
+   * BAN_GIAM_HOC: Return proposal for changes during Council Review
+   *
+   * AC1: When BAN_GIAM_HOC returns:
+   * - State transitions OUTLINE_COUNCIL_REVIEW → CHANGES_REQUESTED
+   * - holder_unit = owner_faculty_id (back to PI)
+   * - return_target_state stored in workflow_logs
+   */
+  @Post(':proposalId/return-council')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.BAN_GIAM_HOC)
+  @ApiOperation({
+    summary: 'Yêu cầu sửa đổi từ Hội đồng',
+    description:
+      'Chuyển đề tài từ trạng thái OUTLINE_COUNCIL_REVIEW sang CHANGES_REQUESTED. Chỉ BAN_GIAM_HOC mới có thể trả về.',
+  })
+  @ApiParam({
+    name: 'proposalId',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Đề tài được trả về thành công',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - proposal not in OUTLINE_COUNCIL_REVIEW state',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user lacks BAN_GIAM_HOC role',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  async returnCouncilReview(
+    @Param('proposalId') proposalId: string,
+    @Body() dto: ReturnCouncilReviewDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<TransitionResponseDto> {
+    const result = await this.workflowService.returnCouncilReview(
+      proposalId,
+      dto.reason,
+      {
+        userId: user.id,
+        userRole: user.role,
+        userFacultyId: user.facultyId,
+        idempotencyKey: dto.idempotencyKey,
+        ip,
+        userAgent,
+        requestId,
+      },
+    );
+
+    return {
+      success: true,
+      data: {
+        proposalId: result.proposal.id,
+        previousState: result.previousState,
+        currentState: result.currentState,
+        action: 'RETURN',
+        holderUnit: result.holderUnit,
+        holderUser: result.holderUser,
+        workflowLogId: result.workflowLog.id,
+      },
+    };
+  }
+
+  /**
+   * Accept School Acceptance (SCHOOL_ACCEPTANCE_REVIEW → HANDOVER)
+   * BAN_GIAM_HOC: Final acceptance after School Acceptance Review
+   *
+   * AC1: When BAN_GIAM_HOC accepts:
+   * - State transitions SCHOOL_ACCEPTANCE_REVIEW → HANDOVER
+   * - holder_unit = "PHONG_KHCN"
+   * - workflow_logs entry with action=ACCEPT
+   */
+  @Post(':proposalId/accept-school')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.BAN_GIAM_HOC)
+  @ApiOperation({
+    summary: 'Nghiệm thu cấp Trường',
+    description:
+      'Chuyển đề tài từ trạng thái SCHOOL_ACCEPTANCE_REVIEW sang HANDOVER. Chỉ BAN_GIAM_HOC mới có thể nghiệm thu.',
+  })
+  @ApiParam({
+    name: 'proposalId',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Đề tài được nghiệm thu thành công',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          proposalId: 'proposal-uuid',
+          previousState: 'SCHOOL_ACCEPTANCE_REVIEW',
+          currentState: 'HANDOVER',
+          action: 'ACCEPT',
+          holderUnit: 'PHONG_KHCN',
+          holderUser: null,
+          workflowLogId: 'log-uuid',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - proposal not in SCHOOL_ACCEPTANCE_REVIEW state',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user lacks BAN_GIAM_HOC role',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflict - duplicate idempotency key',
+  })
+  async acceptSchoolReview(
+    @Param('proposalId') proposalId: string,
+    @Body() dto: AcceptSchoolReviewDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<TransitionResponseDto> {
+    const result = await this.workflowService.acceptSchoolReview(
+      proposalId,
+      {
+        userId: user.id,
+        userRole: user.role,
+        userFacultyId: user.facultyId,
+        idempotencyKey: dto.idempotencyKey,
+        ip,
+        userAgent,
+        requestId,
+      },
+    );
+
+    return {
+      success: true,
+      data: {
+        proposalId: result.proposal.id,
+        previousState: result.previousState,
+        currentState: result.currentState,
+        action: 'ACCEPT',
+        holderUnit: result.holderUnit,
+        holderUser: result.holderUser,
+        workflowLogId: result.workflowLog.id,
+      },
+    };
+  }
+
+  /**
+   * Return School Acceptance (SCHOOL_ACCEPTANCE_REVIEW → CHANGES_REQUESTED)
+   * BAN_GIAM_HOC: Return proposal for changes during School Acceptance Review
+   *
+   * AC1: When BAN_GIAM_HOC returns:
+   * - State transitions SCHOOL_ACCEPTANCE_REVIEW → CHANGES_REQUESTED
+   * - holder_unit = owner_faculty_id (back to PI)
+   * - return_target_state stored in workflow_logs
+   */
+  @Post(':proposalId/return-school')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.BAN_GIAM_HOC)
+  @ApiOperation({
+    summary: 'Yêu cầu sửa đổi từ nghiệm thu cấp Trường',
+    description:
+      'Chuyển đề tài từ trạng thái SCHOOL_ACCEPTANCE_REVIEW sang CHANGES_REQUESTED. Chỉ BAN_GIAM_HOC mới có thể trả về.',
+  })
+  @ApiParam({
+    name: 'proposalId',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Đề tài được trả về thành công',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - proposal not in SCHOOL_ACCEPTANCE_REVIEW state',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user lacks BAN_GIAM_HOC role',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  async returnSchoolReview(
+    @Param('proposalId') proposalId: string,
+    @Body() dto: ReturnSchoolReviewDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<TransitionResponseDto> {
+    const result = await this.workflowService.returnSchoolReview(
+      proposalId,
+      dto.reason,
+      {
+        userId: user.id,
+        userRole: user.role,
+        userFacultyId: user.facultyId,
+        idempotencyKey: dto.idempotencyKey,
+        ip,
+        userAgent,
+        requestId,
+      },
+    );
+
+    return {
+      success: true,
+      data: {
+        proposalId: result.proposal.id,
+        previousState: result.previousState,
+        currentState: result.currentState,
+        action: 'RETURN',
         holderUnit: result.holderUnit,
         holderUser: result.holderUser,
         workflowLogId: result.workflowLog.id,

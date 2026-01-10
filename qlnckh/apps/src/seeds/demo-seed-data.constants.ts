@@ -606,4 +606,7 @@ export const DEMO_ROLE_PERMISSIONS: DemoRolePermission[] = [
   { role: UserRole.ADMIN, permission: 'DEMO_SWITCH_PERSONA' },
   { role: UserRole.ADMIN, permission: 'DEMO_RESET' },
   { role: UserRole.ADMIN, permission: 'CALENDAR_MANAGE' },
+  { role: UserRole.ADMIN, permission: 'DASHBOARD_VIEW' },
+  { role: UserRole.ADMIN, permission: 'AUDIT_VIEW' },
+  { role: UserRole.ADMIN, permission: 'FORM_TEMPLATE_IMPORT' },
 ];

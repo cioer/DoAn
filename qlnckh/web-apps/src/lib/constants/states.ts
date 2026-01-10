@@ -1,4 +1,26 @@
 /**
+ * Project State Enum
+ * Matches Prisma schema ProjectState enum
+ */
+export enum ProjectState {
+  DRAFT = 'DRAFT',
+  FACULTY_REVIEW = 'FACULTY_REVIEW',
+  SCHOOL_SELECTION_REVIEW = 'SCHOOL_SELECTION_REVIEW',
+  OUTLINE_COUNCIL_REVIEW = 'OUTLINE_COUNCIL_REVIEW',
+  CHANGES_REQUESTED = 'CHANGES_REQUESTED',
+  APPROVED = 'APPROVED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  FACULTY_ACCEPTANCE_REVIEW = 'FACULTY_ACCEPTANCE_REVIEW',
+  SCHOOL_ACCEPTANCE_REVIEW = 'SCHOOL_ACCEPTANCE_REVIEW',
+  HANDOVER = 'HANDOVER',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+  REJECTED = 'REJECTED',
+  WITHDRAWN = 'WITHDRAWN',
+  PAUSED = 'PAUSED',
+}
+
+/**
  * State Badge Constants (Story 5.1)
  *
  * Provides state badge configurations for UI components.
@@ -9,16 +31,19 @@
 
 import { LucideIcon } from 'lucide-react';
 import {
-  FileEdit,
-  Clock,
-  AlertCircle,
+  Ban,
   CheckCircle,
-  RotateCw,
+  Clock,
+  FileEdit,
   PauseCircle,
-  FileX,
-  XCircle,
+  CircleMinus,
+  RotateCw,
   Users,
-  ClipboardList,
+  XCircle,
+  ClipboardCheck,
+  Award,
+  AlertCircle,
+  ArrowUpLeft,
 } from 'lucide-react';
 
 /**
@@ -38,22 +63,28 @@ export interface StateBadgeConfig {
 /**
  * Icon mapping for states
  * Using Lucide React icons (UX-7: icon + text always displayed)
+ *
+ * Exception states (Story 9):
+ * - PAUSED: PauseCircle (yellow)
+ * - CANCELLED: XCircle (gray)
+ * - REJECTED: Ban (red)
+ * - WITHDRAWN: RemoveCircle (gray)
  */
 const STATE_ICONS: Record<string, LucideIcon> = {
   DRAFT: FileEdit,
   FACULTY_REVIEW: Clock,
   SCHOOL_SELECTION_REVIEW: Clock,
   OUTLINE_COUNCIL_REVIEW: Users,
-  CHANGES_REQUESTED: AlertCircle,
+  CHANGES_REQUESTED: ArrowUpLeft,
   APPROVED: CheckCircle,
   IN_PROGRESS: RotateCw,
   PAUSED: PauseCircle,
-  FACULTY_ACCEPTANCE_REVIEW: ClipboardList,
-  SCHOOL_ACCEPTANCE_REVIEW: ClipboardList,
-  REJECTED: XCircle,
-  WITHDRAWN: FileX,
+  FACULTY_ACCEPTANCE_REVIEW: ClipboardCheck,
+  SCHOOL_ACCEPTANCE_REVIEW: Award,
+  REJECTED: Ban,
+  WITHDRAWN: CircleMinus,
   CANCELLED: XCircle,
-  HANDOVER: ClipboardList,
+  HANDOVER: Award,
   COMPLETED: CheckCircle,
 };
 
@@ -82,21 +113,27 @@ const STATE_LABELS: Record<string, string> = {
 /**
  * State badge variants
  * Maps each state to a visual variant
+ *
+ * Exception states (Story 9):
+ * - PAUSED: 'warning' (yellow)
+ * - CANCELLED: 'default' (gray)
+ * - REJECTED: 'danger' (red)
+ * - WITHDRAWN: 'default' (gray)
  */
 const STATE_VARIANTS: Record<string, StateBadgeVariant> = {
   DRAFT: 'default',
   FACULTY_REVIEW: 'info',
-  SCHOOL_SELECTION_REVIEW: 'warning', // Story 5.1: amber/yellow for pending
+  SCHOOL_SELECTION_REVIEW: 'warning',
   OUTLINE_COUNCIL_REVIEW: 'info',
-  CHANGES_REQUESTED: 'danger',
+  CHANGES_REQUESTED: 'warning',
   APPROVED: 'success',
   IN_PROGRESS: 'primary',
-  PAUSED: 'default',
+  PAUSED: 'warning',
   FACULTY_ACCEPTANCE_REVIEW: 'info',
-  SCHOOL_ACCEPTANCE_REVIEW: 'warning',
+  SCHOOL_ACCEPTANCE_REVIEW: 'success',
   REJECTED: 'danger',
   WITHDRAWN: 'default',
-  CANCELLED: 'danger',
+  CANCELLED: 'default',
   HANDOVER: 'info',
   COMPLETED: 'success',
 };

@@ -294,38 +294,38 @@ export type SectionIdType = `${SectionId}`;
 /**
  * Helper type to extract section data type from section ID
  */
-export type SectionDataType<T extends SectionId> = T extends SectionId.SEC_INFO_GENERAL
+export type SectionDataType<T extends SectionId> = T extends 'SEC_INFO_GENERAL'
   ? InfoGeneralSection
-  : T extends SectionId.SEC_CONTENT_METHOD
+  : T extends 'SEC_CONTENT_METHOD'
   ? ContentMethodSection
-  : T extends SectionId.SEC_RESEARCH_METHOD
+  : T extends 'SEC_RESEARCH_METHOD'
   ? ResearchMethodSection
-  : T extends SectionId.SEC_EXPECTED_RESULTS
+  : T extends 'SEC_EXPECTED_RESULTS'
   ? ExpectedResultsSection
-  : T extends SectionId.SEC_BUDGET
+  : T extends 'SEC_BUDGET'
   ? BudgetSection
-  : T extends SectionId.SEC_ATTACHMENTS
+  : T extends 'SEC_ATTACHMENTS'
   ? AttachmentsSection
-  : T extends SectionId.SEC_RESEARCHERS
+  : T extends 'SEC_RESEARCHERS'
   ? ResearchersSection
-  : T extends SectionId.SEC_FACILITIES
+  : T extends 'SEC_FACILITIES'
   ? FacilitiesSection
-  : T extends SectionId.SEC_TIMELINE
+  : T extends 'SEC_TIMELINE'
   ? TimelineSection
-  : T extends SectionId.SEC_REFERENCES
+  : T extends 'SEC_REFERENCES'
   ? ReferencesSection
-  : T extends SectionId.SEC_FACULTY_ACCEPTANCE_RESULTS
+  : T extends 'SEC_FACULTY_ACCEPTANCE_RESULTS'
   ? FacultyAcceptanceResultsSection
-  : T extends SectionId.SEC_FACULTY_ACCEPTANCE_PRODUCTS
+  : T extends 'SEC_FACULTY_ACCEPTANCE_PRODUCTS'
   ? FacultyAcceptanceProductsSection
-  : T extends SectionId.SEC_SCHOOL_ACCEPTANCE_RESULTS
+  : T extends 'SEC_SCHOOL_ACCEPTANCE_RESULTS'
   ? SchoolAcceptanceResultsSection
-  : T extends SectionId.SEC_SCHOOL_ACCEPTANCE_PRODUCTS
+  : T extends 'SEC_SCHOOL_ACCEPTANCE_PRODUCTS'
   ? SchoolAcceptanceProductsSection
-  : T extends SectionId.SEC_HANDOVER_CHECKLIST
+  : T extends 'SEC_HANDOVER_CHECKLIST'
   ? HandoverChecklistSection
-  : T extends SectionId.SEC_EXTENSION_REASON
+  : T extends 'SEC_EXTENSION_REASON'
   ? ExtensionReasonSection
-  : T extends SectionId.SEC_EXTENSION_DURATION
+  : T extends 'SEC_EXTENSION_DURATION'
   ? ExtensionDurationSection
   : Record<string, unknown>;

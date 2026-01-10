@@ -4,6 +4,7 @@ import { DocumentTemplatesController } from './document-templates.controller';
 import { DocumentTemplatesService } from './document-templates.service';
 import { PrismaService } from '../auth/prisma.service';
 import { AuditModule } from '../audit/audit.module';
+import { RbacModule } from '../rbac/rbac.module';
 
 /**
  * Document Templates Module
@@ -21,6 +22,7 @@ import { AuditModule } from '../audit/audit.module';
       },
     }),
     AuditModule,
+    RbacModule,
   ],
   controllers: [DocumentTemplatesController],
   providers: [DocumentTemplatesService, PrismaService],

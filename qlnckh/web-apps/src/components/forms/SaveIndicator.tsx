@@ -26,7 +26,7 @@ export function SaveIndicator({ state, className = '' }: SaveIndicatorProps) {
 
   if (state.status === 'saving') {
     return (
-      <div className={`${baseClass} text-muted-foreground ${className}`}>
+      <div className={`${baseClass} text-gray-500 dark:text-gray-400 ${className}`}>
         <Loader2 className="h-4 w-4 animate-spin" />
         <span>Đang lưu...</span>
       </div>
@@ -41,7 +41,7 @@ export function SaveIndicator({ state, className = '' }: SaveIndicatorProps) {
       hour12: false,
     });
     return (
-      <div className={`${baseClass} text-green-600 dark:text-green-400 ${className}`}>
+      <div className={`${baseClass} text-success-600 dark:text-success-400 ${className}`}>
         <CheckCircle className="h-4 w-4" />
         <span>Đã lưu vào {time}</span>
       </div>
@@ -50,7 +50,7 @@ export function SaveIndicator({ state, className = '' }: SaveIndicatorProps) {
 
   if (state.status === 'error') {
     return (
-      <div className={`${baseClass} text-red-600 dark:text-red-400 ${className}`}>
+      <div className={`${baseClass} text-error-600 dark:text-error-400 ${className}`}>
         <AlertCircle className="h-4 w-4" />
         <span>Lưu thất bại. Đang thử lại...</span>
       </div>

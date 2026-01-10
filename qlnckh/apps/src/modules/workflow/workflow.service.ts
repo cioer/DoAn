@@ -1776,4 +1776,548 @@ export class WorkflowService {
 
     return executeResume();
   }
+
+  /**
+   * Approve Council Review (OUTLINE_COUNCIL_REVIEW → APPROVED)
+   * BAN_GIAM_HOC: High-level decision to approve proposal after Council Review
+   *
+   * When BAN_GIAM_HOC approves:
+   * - State transitions OUTLINE_COUNCIL_REVIEW → APPROVED
+   * - holder_user remains null (no specific holder needed)
+   * - workflow_logs entry with action=APPROVE
+   *
+   * @param proposalId - Proposal ID
+   * @param context - Transition context
+   * @returns Transition result
+   */
+  async approveCouncilReview(
+    proposalId: string,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    // Check idempotency
+    if (context.idempotencyKey) {
+      const cached = this.idempotencyStore.get(context.idempotencyKey);
+      if (cached) {
+        this.logger.log(
+          `Idempotent request: ${context.idempotencyKey} - returning cached result`,
+        );
+        return cached as Promise<TransitionResult>;
+      }
+    }
+
+    // Get proposal
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: { owner: true, faculty: true },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException('Đề tài không tồn tại');
+    }
+
+    // Validate: Must be in OUTLINE_COUNCIL_REVIEW state
+    if (proposal.state !== ProjectState.OUTLINE_COUNCIL_REVIEW) {
+      throw new BadRequestException(
+        `Chỉ có thể duyệt đề tài ở trạng thái OUTLINE_COUNCIL_REVIEW. Hiện tại: ${proposal.state}`,
+      );
+    }
+
+    // RBAC validation: User must have BAN_GIAM_HOC role
+    this.validateActionPermission(WorkflowAction.APPROVE, context.userRole);
+
+    // Validate transition
+    const toState = ProjectState.APPROVED;
+    if (
+      !isValidTransition(
+        proposal.state,
+        toState,
+        WorkflowAction.APPROVE,
+      )
+    ) {
+      throw new InvalidTransitionError(
+        proposal.state,
+        toState,
+        WorkflowAction.APPROVE,
+      );
+    }
+
+    // No specific holder needed after approval
+    const holder = { holderUnit: null, holderUser: null };
+
+    // Get user display name for audit log
+    const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+    // Execute transition
+    const result = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.proposal.update({
+        where: { id: proposalId },
+        data: {
+          state: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        },
+      });
+
+      const workflowLog = await tx.workflowLog.create({
+        data: {
+          proposalId,
+          action: WorkflowAction.APPROVE,
+          fromState: proposal.state,
+          toState,
+          actorId: context.userId,
+          actorName: actorDisplayName,
+        },
+      });
+
+      // Log audit
+      await this.auditService.logEvent({
+        action: 'COUNCIL_APPROVE' as AuditAction,
+        actorUserId: context.userId,
+        entityType: 'Proposal',
+        entityId: proposalId,
+        metadata: {
+          proposalCode: proposal.code,
+          fromState: proposal.state,
+          toState,
+        },
+        ip: context.ip,
+        userAgent: context.userAgent,
+        requestId: context.requestId,
+      });
+
+      return { proposal: updated, workflowLog };
+    });
+
+    const transitionResult: TransitionResult = {
+      proposal: result.proposal,
+      workflowLog: result.workflowLog,
+      previousState: proposal.state,
+      currentState: toState,
+      holderUnit: holder.holderUnit,
+      holderUser: holder.holderUser,
+    };
+
+    if (context.idempotencyKey) {
+      this.idempotencyStore.set(context.idempotencyKey, transitionResult);
+    }
+
+    this.logger.log(
+      `Proposal ${proposal.code} approved by BAN_GIAM_HOC: ${proposal.state} → ${toState}`,
+    );
+
+    return transitionResult;
+  }
+
+  /**
+   * Return Council Review (OUTLINE_COUNCIL_REVIEW → CHANGES_REQUESTED)
+   * BAN_GIAM_HOC: Return proposal for changes during Council Review
+   *
+   * When BAN_GIAM_HOC returns:
+   * - State transitions OUTLINE_COUNCIL_REVIEW → CHANGES_REQUESTED
+   * - holder_unit = owner_faculty_id (back to PI for revision)
+   * - return_target_state = OUTLINE_COUNCIL_REVIEW stored in workflow_logs
+   *
+   * @param proposalId - Proposal ID
+   * @param reason - Return reason
+   * @param context - Transition context
+   * @returns Transition result
+   */
+  async returnCouncilReview(
+    proposalId: string,
+    reason: string,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    // Check idempotency
+    if (context.idempotencyKey) {
+      const cached = this.idempotencyStore.get(context.idempotencyKey);
+      if (cached) {
+        this.logger.log(
+          `Idempotent request: ${context.idempotencyKey} - returning cached result`,
+        );
+        return cached as Promise<TransitionResult>;
+      }
+    }
+
+    // Get proposal
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: { owner: true, faculty: true },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException('Đề tài không tồn tại');
+    }
+
+    // Validate: Must be in OUTLINE_COUNCIL_REVIEW state
+    if (proposal.state !== ProjectState.OUTLINE_COUNCIL_REVIEW) {
+      throw new BadRequestException(
+        `Chỉ có thể trả về đề tài ở trạng thái OUTLINE_COUNCIL_REVIEW. Hiện tại: ${proposal.state}`,
+      );
+    }
+
+    // RBAC validation: User must have BAN_GIAM_HOC role
+    this.validateActionPermission(WorkflowAction.RETURN, context.userRole);
+
+    // Validate transition
+    const toState = ProjectState.CHANGES_REQUESTED;
+    if (
+      !isValidTransition(
+        proposal.state,
+        toState,
+        WorkflowAction.RETURN,
+      )
+    ) {
+      throw new InvalidTransitionError(
+        proposal.state,
+        toState,
+        WorkflowAction.RETURN,
+      );
+    }
+
+    // holder = owner faculty (back to PI)
+    const holder = {
+      holderUnit: proposal.facultyId,
+      holderUser: proposal.ownerId,
+    };
+
+    // Get user display name for audit log
+    const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+    // Execute transition
+    const result = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.proposal.update({
+        where: { id: proposalId },
+        data: {
+          state: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        },
+      });
+
+      const workflowLog = await tx.workflowLog.create({
+        data: {
+          proposalId,
+          action: WorkflowAction.RETURN,
+          fromState: proposal.state,
+          toState,
+          returnTargetState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+          returnTargetHolderUnit: proposal.councilId,
+          actorId: context.userId,
+          actorName: actorDisplayName,
+          comment: reason,
+        },
+      });
+
+      // Log audit
+      await this.auditService.logEvent({
+        action: 'COUNCIL_RETURN' as AuditAction,
+        actorUserId: context.userId,
+        entityType: 'Proposal',
+        entityId: proposalId,
+        metadata: {
+          proposalCode: proposal.code,
+          fromState: proposal.state,
+          toState,
+          returnTargetState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+          reason,
+        },
+        ip: context.ip,
+        userAgent: context.userAgent,
+        requestId: context.requestId,
+      });
+
+      return { proposal: updated, workflowLog };
+    });
+
+    const transitionResult: TransitionResult = {
+      proposal: result.proposal,
+      workflowLog: result.workflowLog,
+      previousState: proposal.state,
+      currentState: toState,
+      holderUnit: holder.holderUnit,
+      holderUser: holder.holderUser,
+    };
+
+    if (context.idempotencyKey) {
+      this.idempotencyStore.set(context.idempotencyKey, transitionResult);
+    }
+
+    this.logger.log(
+      `Proposal ${proposal.code} returned by BAN_GIAM_HOC: ${proposal.state} → ${toState}`,
+    );
+
+    return transitionResult;
+  }
+
+  /**
+   * Accept School Acceptance (SCHOOL_ACCEPTANCE_REVIEW → HANDOVER)
+   * BAN_GIAM_HOC: Final acceptance after School Acceptance Review
+   *
+   * When BAN_GIAM_HOC accepts:
+   * - State transitions SCHOOL_ACCEPTANCE_REVIEW → HANDOVER
+   * - holder_unit = "PHONG_KHCN"
+   * - workflow_logs entry with action=ACCEPT
+   *
+   * @param proposalId - Proposal ID
+   * @param context - Transition context
+   * @returns Transition result
+   */
+  async acceptSchoolReview(
+    proposalId: string,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    // Check idempotency
+    if (context.idempotencyKey) {
+      const cached = this.idempotencyStore.get(context.idempotencyKey);
+      if (cached) {
+        this.logger.log(
+          `Idempotent request: ${context.idempotencyKey} - returning cached result`,
+        );
+        return cached as Promise<TransitionResult>;
+      }
+    }
+
+    // Get proposal
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: { owner: true, faculty: true },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException('Đề tài không tồn tại');
+    }
+
+    // Validate: Must be in SCHOOL_ACCEPTANCE_REVIEW state
+    if (proposal.state !== ProjectState.SCHOOL_ACCEPTANCE_REVIEW) {
+      throw new BadRequestException(
+        `Chỉ có thể nghiệm thu đề tài ở trạng thái SCHOOL_ACCEPTANCE_REVIEW. Hiện tại: ${proposal.state}`,
+      );
+    }
+
+    // RBAC validation: User must have BAN_GIAM_HOC role
+    this.validateActionPermission(WorkflowAction.ACCEPT, context.userRole);
+
+    // Validate transition
+    const toState = ProjectState.HANDOVER;
+    if (
+      !isValidTransition(
+        proposal.state,
+        toState,
+        WorkflowAction.ACCEPT,
+      )
+    ) {
+      throw new InvalidTransitionError(
+        proposal.state,
+        toState,
+        WorkflowAction.ACCEPT,
+      );
+    }
+
+    // holder = PHONG_KHCN for handover
+    const holder = { holderUnit: 'PHONG_KHCN', holderUser: null };
+
+    // Get user display name for audit log
+    const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+    // Execute transition
+    const result = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.proposal.update({
+        where: { id: proposalId },
+        data: {
+          state: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        },
+      });
+
+      const workflowLog = await tx.workflowLog.create({
+        data: {
+          proposalId,
+          action: WorkflowAction.ACCEPT,
+          fromState: proposal.state,
+          toState,
+          actorId: context.userId,
+          actorName: actorDisplayName,
+        },
+      });
+
+      // Log audit
+      await this.auditService.logEvent({
+        action: 'SCHOOL_ACCEPT' as AuditAction,
+        actorUserId: context.userId,
+        entityType: 'Proposal',
+        entityId: proposalId,
+        metadata: {
+          proposalCode: proposal.code,
+          fromState: proposal.state,
+          toState,
+        },
+        ip: context.ip,
+        userAgent: context.userAgent,
+        requestId: context.requestId,
+      });
+
+      return { proposal: updated, workflowLog };
+    });
+
+    const transitionResult: TransitionResult = {
+      proposal: result.proposal,
+      workflowLog: result.workflowLog,
+      previousState: proposal.state,
+      currentState: toState,
+      holderUnit: holder.holderUnit,
+      holderUser: holder.holderUser,
+    };
+
+    if (context.idempotencyKey) {
+      this.idempotencyStore.set(context.idempotencyKey, transitionResult);
+    }
+
+    this.logger.log(
+      `Proposal ${proposal.code} accepted by BAN_GIAM_HOC: ${proposal.state} → ${toState}`,
+    );
+
+    return transitionResult;
+  }
+
+  /**
+   * Return School Acceptance (SCHOOL_ACCEPTANCE_REVIEW → CHANGES_REQUESTED)
+   * BAN_GIAM_HOC: Return proposal for changes during School Acceptance Review
+   *
+   * When BAN_GIAM_HOC returns:
+   * - State transitions SCHOOL_ACCEPTANCE_REVIEW → CHANGES_REQUESTED
+   * - holder_unit = owner_faculty_id (back to PI for revision)
+   * - return_target_state = SCHOOL_ACCEPTANCE_REVIEW stored in workflow_logs
+   *
+   * @param proposalId - Proposal ID
+   * @param reason - Return reason
+   * @param context - Transition context
+   * @returns Transition result
+   */
+  async returnSchoolReview(
+    proposalId: string,
+    reason: string,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    // Check idempotency
+    if (context.idempotencyKey) {
+      const cached = this.idempotencyStore.get(context.idempotencyKey);
+      if (cached) {
+        this.logger.log(
+          `Idempotent request: ${context.idempotencyKey} - returning cached result`,
+        );
+        return cached as Promise<TransitionResult>;
+      }
+    }
+
+    // Get proposal
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: { owner: true, faculty: true },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException('Đề tài không tồn tại');
+    }
+
+    // Validate: Must be in SCHOOL_ACCEPTANCE_REVIEW state
+    if (proposal.state !== ProjectState.SCHOOL_ACCEPTANCE_REVIEW) {
+      throw new BadRequestException(
+        `Chỉ có thể trả về đề tài ở trạng thái SCHOOL_ACCEPTANCE_REVIEW. Hiện tại: ${proposal.state}`,
+      );
+    }
+
+    // RBAC validation: User must have BAN_GIAM_HOC role
+    this.validateActionPermission(WorkflowAction.RETURN, context.userRole);
+
+    // Validate transition
+    const toState = ProjectState.CHANGES_REQUESTED;
+    if (
+      !isValidTransition(
+        proposal.state,
+        toState,
+        WorkflowAction.RETURN,
+      )
+    ) {
+      throw new InvalidTransitionError(
+        proposal.state,
+        toState,
+        WorkflowAction.RETURN,
+      );
+    }
+
+    // holder = owner faculty (back to PI)
+    const holder = {
+      holderUnit: proposal.facultyId,
+      holderUser: proposal.ownerId,
+    };
+
+    // Get user display name for audit log
+    const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+    // Execute transition
+    const result = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.proposal.update({
+        where: { id: proposalId },
+        data: {
+          state: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        },
+      });
+
+      const workflowLog = await tx.workflowLog.create({
+        data: {
+          proposalId,
+          action: WorkflowAction.RETURN,
+          fromState: proposal.state,
+          toState,
+          returnTargetState: ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+          returnTargetHolderUnit: 'PHONG_KHCN',
+          actorId: context.userId,
+          actorName: actorDisplayName,
+          comment: reason,
+        },
+      });
+
+      // Log audit
+      await this.auditService.logEvent({
+        action: 'SCHOOL_RETURN' as AuditAction,
+        actorUserId: context.userId,
+        entityType: 'Proposal',
+        entityId: proposalId,
+        metadata: {
+          proposalCode: proposal.code,
+          fromState: proposal.state,
+          toState,
+          returnTargetState: ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+          reason,
+        },
+        ip: context.ip,
+        userAgent: context.userAgent,
+        requestId: context.requestId,
+      });
+
+      return { proposal: updated, workflowLog };
+    });
+
+    const transitionResult: TransitionResult = {
+      proposal: result.proposal,
+      workflowLog: result.workflowLog,
+      previousState: proposal.state,
+      currentState: toState,
+      holderUnit: holder.holderUnit,
+      holderUser: holder.holderUser,
+    };
+
+    if (context.idempotencyKey) {
+      this.idempotencyStore.set(context.idempotencyKey, transitionResult);
+    }
+
+    this.logger.log(
+      `Proposal ${proposal.code} returned by BAN_GIAM_HOC: ${proposal.state} → ${toState}`,
+    );
+
+    return transitionResult;
+  }
 }

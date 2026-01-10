@@ -1,1 +1,138 @@
-/* You can add global styles to this file, and also import other style files */
+@import "tailwindcss";
+
+/* Custom base styles */
+@layer base {
+  * {
+    @apply border-gray-200;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+  }
+
+  /* Focus visible styles for accessibility */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary-600 ring-offset-2;
+  }
+}
+
+/* Custom component utilities */
+@layer components {
+  /* Card component base */
+  .card {
+    @apply bg-white rounded-lg shadow-md border border-gray-200;
+  }
+
+  /* Card header */
+  .card-header {
+    @apply p-6 border-b border-gray-200;
+  }
+
+  /* Card body */
+  .card-body {
+    @apply p-6;
+  }
+
+  /* Card footer */
+  .card-footer {
+    @apply p-6 border-t border-gray-200 bg-gray-50 rounded-b-lg;
+  }
+
+  /* Input base */
+  .input {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-md;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+    @apply disabled:bg-gray-100 disabled:cursor-not-allowed;
+  }
+
+  /* Textarea */
+  .textarea {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-md resize-none;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+  }
+
+  /* Select */
+  .select {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-md;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+    @apply appearance-none bg-white;
+  }
+}
+
+/* Design Tokens - Custom Theme */
+@theme {
+  /* Primary colors (Blue) */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  --color-primary-950: #172554;
+
+  /* Secondary colors (Orange - for destructive/warning) */
+  --color-secondary-50: #fff7ed;
+  --color-secondary-100: #ffedd5;
+  --color-secondary-200: #fed7aa;
+  --color-secondary-300: #fdba74;
+  --color-secondary-400: #fb923c;
+  --color-secondary-500: #f97316;
+  --color-secondary-600: #ea580c;
+  --color-secondary-700: #c2410c;
+  --color-secondary-800: #9a3412;
+  --color-secondary-900: #7c2d12;
+  --color-secondary-950: #431407;
+
+  /* Semantic colors */
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-500: #eab308;
+  --color-warning-600: #ca8a04;
+
+  --color-error-50: #fef2f2;
+  --color-error-100: #fee2e2;
+  --color-error-500: #ef4444;
+  --color-error-600: #dc2626;
+  --color-error-700: #b91c1c;
+
+  --color-info-50: #f0f9ff;
+  --color-info-100: #e0f2fe;
+  --color-info-500: #0ea5e9;
+  --color-info-600: #0284c7;
+
+  /* Spacing (4px base scale) */
+  --spacing-18: 4.5rem;  /* 72px */
+  --spacing-88: 22rem;   /* 352px */
+  --spacing-128: 32rem;  /* 512px */
+
+  /* Border Radius */
+  --radius-sm: 0.25rem;   /* 4px */
+  --radius-md: 0.5rem;    /* 8px */
+  --radius-lg: 0.75rem;   /* 12px */
+  --radius-xl: 1rem;      /* 16px */
+  --radius-2xl: 1.5rem;   /* 24px */
+  --radius-full: 9999px;
+
+  /* Font size - extra extra small */
+  --font-size-xxs: 0.625rem;
+  --line-height-xxs: 0.75rem;
+
+  /* Z-index */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+}

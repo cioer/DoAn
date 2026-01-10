@@ -11,7 +11,8 @@
 
 import { useEffect, useState } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
-import { workflowApi, RETURN_REASON_LABELS, CANONICAL_SECTIONS, WorkflowLog } from '@/lib/api/workflow';
+import { workflowApi, RETURN_REASON_LABELS, CANONICAL_SECTIONS, WorkflowLog } from '../../lib/api/workflow';
+import { Alert } from '../ui/Alert';
 
 export interface ChangesRequestedBannerProps {
   proposalId: string;
@@ -78,26 +79,30 @@ export function ChangesRequestedBanner({
     return null;
   }
 
-  // Loading state
+  // Loading state - using Alert component
   if (loading) {
     return (
-      <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-4 flex items-center gap-3">
-        <Loader2 className="w-5 h-5 text-amber-600 animate-spin" />
-        <p className="text-sm text-amber-700">Đang tải thông tin yêu cầu sửa...</p>
-      </div>
+      <Alert variant="warning" className="mb-4">
+        <div className="flex items-center gap-3">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <p className="text-sm">Đang tải thông tin yêu cầu sửa...</p>
+        </div>
+      </Alert>
     );
   }
 
-  // Error state (still show banner with generic message)
+  // Error state (still show banner with generic message) - using Alert component
   if (error) {
     return (
-      <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-4 flex items-start gap-3">
-        <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-        <div className="flex-1">
-          <p className="font-medium text-amber-800">Hồ sơ cần sửa trước khi nộp lại</p>
-          <p className="text-sm text-amber-700 mt-1">{error}</p>
+      <Alert variant="warning" className="mb-4">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-medium">Hồ sơ cần sửa trước khi nộp lại</p>
+            <p className="text-sm mt-1">{error}</p>
+          </div>
         </div>
-      </div>
+      </Alert>
     );
   }
 
@@ -110,45 +115,47 @@ export function ChangesRequestedBanner({
   const sectionLabels = getSectionLabels(revisionSections);
 
   return (
-    <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-4 flex items-start gap-3">
-      <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-      <div className="flex-1">
-        <p className="font-medium text-amber-800">Hồ sơ cần sửa trước khi nộp lại</p>
+    <Alert variant="warning" className="mb-4">
+      <div className="flex items-start gap-3">
+        <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <p className="font-medium">Hồ sơ cần sửa trước khi nộp lại</p>
 
-        {returnLog && (
-          <div className="mt-2 text-sm text-amber-700">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-medium">Lý do:</span>
-              <span>{reasonLabel}</span>
-            </div>
-
-            {sectionLabels.length > 0 && (
-              <div>
-                <span className="font-medium">Phần cần sửa:</span>
-                <ul className="list-disc list-inside mt-1 ml-1">
-                  {sectionLabels.map((label) => (
-                    <li key={label}>{label}</li>
-                  ))}
-                </ul>
+          {returnLog && (
+            <div className="mt-2 text-sm">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-medium">Lý do:</span>
+                <span>{reasonLabel}</span>
               </div>
-            )}
 
-            <div className="mt-2 text-xs text-amber-600">
-              <span className="font-medium">Người yêu cầu:</span> {returnLog.actorName}
-              <span className="mx-2">•</span>
-              <span className="font-medium">Ngày:</span>{' '}
-              {new Date(returnLog.timestamp).toLocaleDateString('vi-VN')}
+              {sectionLabels.length > 0 && (
+                <div>
+                  <span className="font-medium">Phần cần sửa:</span>
+                  <ul className="list-disc list-inside mt-1 ml-1">
+                    {sectionLabels.map((label) => (
+                      <li key={label}>{label}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="mt-2 text-xs">
+                <span className="font-medium">Người yêu cầu:</span> {returnLog.actorName}
+                <span className="mx-2">•</span>
+                <span className="font-medium">Ngày:</span>{' '}
+                {new Date(returnLog.timestamp).toLocaleDateString('vi-VN')}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {!returnLog && (
-          <p className="mt-1 text-sm text-amber-700">
-            Vui lòng xem chi tiết trong lịch sử thay đổi.
-          </p>
-        )}
+          {!returnLog && (
+            <p className="mt-1 text-sm">
+              Vui lòng xem chi tiết trong lịch sử thay đổi.
+            </p>
+          )}
+        </div>
       </div>
-    </div>
+    </Alert>
   );
 }
 

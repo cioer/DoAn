@@ -13,15 +13,10 @@ export default defineConfig({
     exclude: ['node_modules', 'dist', '.nx', '**/node_modules'],
     root: '.',
     setupFiles: ['./apps/src/test-setup.ts'],
-    // Ensure reflect-metadata is loaded
-    poolOptions: {
-      threads: {
-        singleThread: true,
-      },
-      forks: {
-        singleFork: true,
-      },
-    },
+    // Enable isolated environment for each test
+    isolate: true,
+    // Ensure reflect-metadata is loaded (Vitest 4.x - moved to top level)
+    singleThread: true,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -42,9 +37,9 @@ export default defineConfig({
       // Backend alias
       '@': path.resolve(__dirname, './apps/src'),
       '@test': path.resolve(__dirname, './apps/src/test'),
-      // Frontend alias (for web-apps)
-      '@/lib': path.resolve(__dirname, './web-apps/src/lib'),
-      '@/components': path.resolve(__dirname, './web-apps/src/components'),
+      // Frontend alias (for web-apps) - use exact path strings
+      '@@/lib': path.resolve(__dirname, './web-apps/src/lib'),
+      '@@/components': path.resolve(__dirname, './web-apps/src/components'),
     },
   },
 });

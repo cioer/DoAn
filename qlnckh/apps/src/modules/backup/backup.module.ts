@@ -4,6 +4,7 @@ import { BackupService } from './backup.service';
 import { StateVerificationService } from './helpers/state-verification.service';
 import { PrismaService } from '../auth/prisma.service';
 import { AuditModule } from '../audit/audit.module';
+import { RbacModule } from '../rbac/rbac.module';
 
 /**
  * Backup Module
@@ -22,7 +23,7 @@ import { AuditModule } from '../audit/audit.module';
  * - File operations OUTSIDE transactions
  */
 @Module({
-  imports: [AuditModule],
+  imports: [AuditModule, RbacModule],
   controllers: [BackupController],
   providers: [BackupService, StateVerificationService, PrismaService],
   exports: [BackupService, StateVerificationService],

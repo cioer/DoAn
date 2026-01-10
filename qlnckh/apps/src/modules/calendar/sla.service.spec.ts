@@ -11,13 +11,13 @@ import { BusinessCalendarService } from './calendar.service';
 
 // Manual mock for BusinessCalendarService
 const mockCalendarService = {
-  isBusinessDay: jest.fn(),
+  isBusinessDay: vi.fn(),
 };
 
 // Manual mock for PrismaService
 const mockPrisma = {
   businessHoliday: {
-    findMany: jest.fn(),
+    findMany: vi.fn(),
   },
 };
 
@@ -25,7 +25,7 @@ describe('SlaService', () => {
   let service: SlaService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     service = new SlaService(mockPrisma as any, mockCalendarService as any);
   });
 

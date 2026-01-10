@@ -9,18 +9,19 @@
  * - Option to "Tạo hội đồng mới" (placeholder for future)
  * - Secretary assignment (required)
  * - Members list (optional)
+ * - Uses UI components (Button, Select)
  */
 
 import { useState, useEffect } from 'react';
 import {
   Users,
   Plus,
-  Loader2,
   AlertCircle,
   X,
-  ChevronDown,
 } from 'lucide-react';
 import { generateIdempotencyKey } from '../../lib/api/workflow';
+import { Button } from '../ui';
+import { Select, SelectOption } from '../ui';
 
 /**
  * Council data type
@@ -73,6 +74,7 @@ export interface CouncilAssignmentDialogProps {
 
 /**
  * Story 5.2: AC1 - Council Assignment Dialog Component
+ * - Uses UI components (Button, Select)
  */
 export function CouncilAssignmentDialog({
   isOpen,
@@ -216,11 +218,20 @@ export function CouncilAssignmentDialog({
     }
   };
 
+  // Build select options for councils
+  const councilOptions: SelectOption[] = councils.map((c) => ({ value: c.id, label: c.name }));
+
+  // Build select options for secretary
+  const secretaryOptions: SelectOption[] = selectedCouncil?.members.map((m) => ({
+    value: m.userId,
+    label: `${m.displayName} (${m.role})`,
+  })) || [];
+
   if (!isOpen) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
       role="dialog"
       aria-modal="true"
       aria-labelledby="council-dialog-title"
@@ -262,75 +273,49 @@ export function CouncilAssignmentDialog({
           {/* Loading state */}
           {loading && (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+              <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
               <span className="ml-2 text-sm text-gray-600">Đang tải danh sách hội đồng...</span>
             </div>
           )}
 
           {!loading && (
             <>
-              {/* Council Selection (Story 5.2: AC1) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Chọn hội đồng <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <select
-                    value={selectedCouncil?.id || ''}
-                    onChange={(e) => handleCouncilChange(e.target.value)}
-                    disabled={isSubmitting}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">-- Chọn hội đồng --</option>
-                    {councils.map((council) => (
-                      <option key={council.id} value={council.id}>
-                        {council.name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                </div>
-              </div>
+              {/* Council Selection (Story 5.2: AC1) - using Select component */}
+              <Select
+                label="Chọn hội đồng"
+                required
+                placeholder="-- Chọn hội đồng --"
+                options={councilOptions}
+                value={selectedCouncil?.id || ''}
+                onChange={(e) => handleCouncilChange(e.target.value)}
+                disabled={isSubmitting}
+              />
 
               {/* "Tạo hội đồng mới" button (Story 5.2: AC1) - placeholder for future */}
               <button
                 type="button"
                 onClick={() => setError('Tính năng tạo hội đồng mới sẽ được triển khai sau')}
-                className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 disabled:text-gray-400 disabled:cursor-not-allowed"
                 disabled={isSubmitting}
               >
                 <Plus className="w-4 h-4" />
                 Tạo hội đồng mới
               </button>
 
-              {/* Secretary Assignment (Story 5.2: AC1) */}
+              {/* Secretary Assignment (Story 5.2: AC1) - using Select component */}
               {selectedCouncil && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Thư ký hội đồng <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={selectedSecretary}
-                      onChange={(e) => setSelectedSecretary(e.target.value)}
-                      disabled={isSubmitting}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    >
-                      <option value="">-- Chọn thư ký --</option>
-                      {selectedCouncil.members.map((member) => (
-                        <option key={member.userId} value={member.userId}>
-                          {member.displayName} ({member.role})
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                  </div>
-                  {selectedCouncil.secretaryName && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Thư ký mặc định: {selectedCouncil.secretaryName}
-                    </p>
-                  )}
-                </div>
+                <>
+                  <Select
+                    label="Thư ký hội đồng"
+                    required
+                    placeholder="-- Chọn thư ký --"
+                    options={secretaryOptions}
+                    value={selectedSecretary}
+                    onChange={(e) => setSelectedSecretary(e.target.value)}
+                    disabled={isSubmitting}
+                    helperText={selectedCouncil.secretaryName ? `Thư ký mặc định: ${selectedCouncil.secretaryName}` : undefined}
+                  />
+                </>
               )}
 
               {/* Members Multi-select (Story 5.2: AC1 - optional) */}
@@ -351,7 +336,7 @@ export function CouncilAssignmentDialog({
                           checked={selectedMembers.includes(member.userId)}
                           onChange={() => toggleMember(member.userId)}
                           disabled={isSubmitting}
-                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                          className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500"
                         />
                         <Users className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-700">{member.displayName}</span>
@@ -370,32 +355,24 @@ export function CouncilAssignmentDialog({
           )}
         </div>
 
-        {/* Footer */}
+        {/* Footer - using Button components */}
         <div className="p-6 border-t bg-gray-50 rounded-b-lg flex justify-end gap-3">
-          <button
+          <Button
+            variant="secondary"
             onClick={onClose}
             disabled={isSubmitting}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Hủy
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="primary"
             onClick={handleAssign}
-            disabled={isSubmitting || !isValid}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed inline-flex items-center gap-2"
+            isLoading={isSubmitting}
+            disabled={!isValid}
+            leftIcon={<Users className="w-4 h-4" />}
           >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Đang xử lý...
-              </>
-            ) : (
-              <>
-                <Users className="w-4 h-4" />
-                Xác nhận phân bổ
-              </>
-            )}
-          </button>
+            Xác nhận phân bổ
+          </Button>
         </div>
       </div>
     </div>

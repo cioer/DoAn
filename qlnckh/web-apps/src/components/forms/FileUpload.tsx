@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { Upload, File, X, AlertTriangle } from 'lucide-react';
 import { ProgressBar } from './ProgressBar';
 import { attachmentsApi, Attachment } from '../../lib/api/attachments';
+import { Alert, AlertActions, Button } from '../ui';
 
 /**
  * FileUpload Component (Story 2.4)
@@ -219,43 +220,52 @@ export function FileUpload({
         </div>
       </div>
 
-      {/* Warning display (AC5: Approaching limit) */}
+      {/* Warning display (AC5: Approaching limit) - using Alert component */}
       {warning && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-3 py-2 rounded text-sm flex items-start gap-2">
-          <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-          <span className="flex-1">{warning}</span>
-          <div className="flex gap-2">
-            <button
+        <Alert variant="warning" className="text-sm">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+            <span className="flex-1">{warning}</span>
+          </div>
+          <AlertActions>
+            <Button
+              variant="ghost"
+              size="xxs"
               onClick={proceedWithWarning}
-              className="text-yellow-700 hover:text-yellow-900 font-medium text-xs"
               disabled={uploading}
+              className="text-warning-700 hover:text-warning-900 font-medium text-xs"
             >
               Tiếp tục
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
+              size="xxs"
               onClick={clearWarning}
-              className="text-yellow-600 hover:text-yellow-800"
               disabled={uploading}
+              className="text-warning-600 hover:text-warning-800"
             >
               <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
+            </Button>
+          </AlertActions>
+        </Alert>
       )}
 
-      {/* Error display */}
+      {/* Error display - using Alert component */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-3 py-2 rounded text-sm flex items-start gap-2">
-          <span>⚠️</span>
-          <span className="flex-1">{error}</span>
-          <button
-            onClick={clearError}
-            className="text-red-600 hover:text-red-800"
-            disabled={uploading}
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        <Alert variant="error" className="text-sm">
+          {error}
+          <AlertActions>
+            <Button
+              variant="ghost"
+              size="xxs"
+              onClick={clearError}
+              disabled={uploading}
+              className="text-error-600 hover:text-error-800"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </AlertActions>
+        </Alert>
       )}
     </div>
   );

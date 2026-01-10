@@ -380,4 +380,84 @@ export class EvaluationService {
 
     return result;
   }
+
+  /**
+   * Get evaluation results for proposal owner (GIANG_VIEN Feature)
+   * Allows proposal owners to view finalized evaluation results
+   *
+   * @param proposalId - Proposal ID
+   * @param ownerId - Proposal owner ID (current user)
+   * @returns Evaluation with evaluator details
+   * @throws NotFoundException if proposal or evaluation not found
+   * @throws ForbiddenException if user is not the proposal owner
+   */
+  async getEvaluationResultsForOwner(proposalId: string, ownerId: string) {
+    // Verify proposal exists and user is the owner
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: {
+        id: true,
+        ownerId: true,
+        code: true,
+        title: true,
+        state: true,
+      },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Không tìm thấy đề tài',
+        },
+      });
+    }
+
+    // Verify user is the proposal owner
+    if (proposal.ownerId !== ownerId) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'NOT_PROPOSAL_OWNER',
+          message: 'Bạn không có quyền xem kết quả đánh giá của đề tài này',
+        },
+      });
+    }
+
+    // Get finalized evaluation for this proposal
+    const evaluation = await this.prisma.evaluation.findFirst({
+      where: {
+        proposalId,
+        state: EvaluationState.FINALIZED,
+      },
+      include: {
+        evaluator: {
+          select: {
+            id: true,
+            displayName: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    });
+
+    if (!evaluation) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'EVALUATION_NOT_FOUND',
+          message: 'Đề tài này chưa có kết quả đánh giá hoặc đánh giá chưa hoàn tất',
+        },
+      });
+    }
+
+    this.logger.log(`Evaluation results retrieved for proposal ${proposalId} by owner ${ownerId}`);
+
+    return evaluation;
+  }
 }

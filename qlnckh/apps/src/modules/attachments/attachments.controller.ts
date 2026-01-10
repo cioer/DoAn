@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Put,
   Delete,
@@ -31,8 +32,23 @@ import {
 import { RequireRoles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UserRole } from '@prisma/client';
-import { AuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../rbac/guards/roles.guard';
+
+/**
+ * Multer file interface
+ */
+interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  destination: string;
+  filename: string;
+  path: string;
+  buffer: Buffer;
+}
 
 /**
  * User object attached to request by JWT guard
@@ -48,12 +64,12 @@ interface RequestUser {
  * File upload interface for API documentation
  */
 class UploadFileDto {
-  file!: Express.Multer.File;
+  file!: MulterFile;
 }
 
 @ApiTags('attachments')
 @Controller('proposals/:id/attachments')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class AttachmentsController {
   private readonly logger = new Logger(AttachmentsController.name);
@@ -154,7 +170,7 @@ export class AttachmentsController {
   })
   async upload(
     @Param('id') proposalId: string,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: MulterFile,
     @CurrentUser() user: RequestUser,
     @CurrentUser('id') userId: string,
   ): Promise<UploadAttachmentResponseDto> {
@@ -342,7 +358,7 @@ export class AttachmentsController {
   async replace(
     @Param('id') proposalId: string,
     @Param('attachmentId') attachmentId: string,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: MulterFile,
     @CurrentUser() user: RequestUser,
     @CurrentUser('id') userId: string,
   ): Promise<ReplaceAttachmentResponseDto> {

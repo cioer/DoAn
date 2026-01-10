@@ -11,15 +11,15 @@ describe('PermissionsGuard', () => {
   let rbacService: RbacService;
 
   const mockReflector = {
-    getAllAndOverride: jest.fn(),
+    getAllAndOverride: vi.fn(),
   };
 
   const mockRbacService = {
-    hasAllPermissions: jest.fn(),
+    hasAllPermissions: vi.fn(),
   };
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     guard = new PermissionsGuard(
       mockReflector as unknown as Reflector,
@@ -39,16 +39,16 @@ describe('PermissionsGuard', () => {
 
     beforeEach(() => {
       mockExecutionContext = {
-        switchToHttp: jest.fn().mockReturnValue({
-          getRequest: jest.fn().mockReturnValue({
+        switchToHttp: vi.fn().mockReturnValue({
+          getRequest: vi.fn().mockReturnValue({
             user: {
               id: 'user-123',
               role: UserRole.ADMIN,
             },
           }),
         }),
-        getHandler: jest.fn(),
-        getClass: jest.fn(),
+        getHandler: vi.fn(),
+        getClass: vi.fn(),
       } as unknown as ExecutionContext;
     });
 
@@ -108,11 +108,11 @@ describe('PermissionsGuard', () => {
       mockReflector.getAllAndOverride.mockReturnValue([Permission.USER_MANAGE]);
 
       const contextWithoutUser = {
-        switchToHttp: jest.fn().mockReturnValue({
-          getRequest: jest.fn().mockReturnValue({}),
+        switchToHttp: vi.fn().mockReturnValue({
+          getRequest: vi.fn().mockReturnValue({}),
         }),
-        getHandler: jest.fn(),
-        getClass: jest.fn(),
+        getHandler: vi.fn(),
+        getClass: vi.fn(),
       } as unknown as ExecutionContext;
 
       await expect(guard.canActivate(contextWithoutUser)).rejects.toThrow(

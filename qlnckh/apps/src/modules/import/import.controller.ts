@@ -9,6 +9,7 @@ import {
   BadRequestException,
   Res,
   NotFoundException,
+  UploadedFile,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -32,23 +33,31 @@ import { UserRole } from '@prisma/client';
 
 /**
  * User object attached to request by JWT guard
+ * IdempotencyInterceptor adds ip, userAgent, requestId to the request
  */
 interface RequestUser {
   id: string;
   email: string;
   role: string;
   facultyId: string | null;
-}
-
-/**
- * Import request body with audit context
- * Epic 9 Retro: Proper interface, NO as any
- */
-interface ImportRequestBody {
-  file?: { buffer: Buffer; originalname: string };
   ip?: string;
   userAgent?: string;
   requestId?: string;
+}
+
+/**
+ * Multer file interface for uploaded files
+ */
+interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  destination?: string;
+  filename?: string;
+  path?: string;
+  buffer: Buffer;
 }
 
 /**
@@ -150,13 +159,12 @@ export class ImportController {
     },
   })
   async importUsers(
-    @Body() body: ImportRequestBody,
+    @UploadedFile() file: MulterFile,
     @CurrentUser() user: RequestUser,
   ) {
     // Validate permissions
     this.importService.validateImportPermission(user.role);
 
-    const file = body.file;
     if (!file) {
       throw new BadRequestException({
         success: false,
@@ -169,9 +177,9 @@ export class ImportController {
 
     const result = await this.importService.importUsers(file, {
       userId: user.id,
-      ip: body.ip,
-      userAgent: body.userAgent,
-      requestId: body.requestId,
+      ip: user.ip,
+      userAgent: user.userAgent,
+      requestId: user.requestId,
     });
 
     return {
@@ -234,13 +242,12 @@ export class ImportController {
     description: 'Forbidden - user lacks ADMIN role',
   })
   async importProposals(
-    @Body() body: ImportRequestBody,
+    @UploadedFile() file: MulterFile,
     @CurrentUser() user: RequestUser,
   ) {
     // Validate permissions
     this.importService.validateImportPermission(user.role);
 
-    const file = body.file;
     if (!file) {
       throw new BadRequestException({
         success: false,
@@ -253,9 +260,9 @@ export class ImportController {
 
     const result = await this.importService.importProposals(file, {
       userId: user.id,
-      ip: body.ip,
-      userAgent: body.userAgent,
-      requestId: body.requestId,
+      ip: user.ip,
+      userAgent: user.userAgent,
+      requestId: user.requestId,
     });
 
     return {

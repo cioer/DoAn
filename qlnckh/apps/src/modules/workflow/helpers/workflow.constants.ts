@@ -15,6 +15,7 @@ export const SPECIAL_UNIT_CODES = {
 /**
  * Role-based authorization matrix
  * Maps workflow actions to roles that can perform them
+ * Epic 9: Updated with exception action permissions
  */
 export const ACTION_ROLE_PERMISSIONS = {
   SUBMIT: ['GIANG_VIEN'],
@@ -25,8 +26,8 @@ export const ACTION_ROLE_PERMISSIONS = {
   SUBMIT_ACCEPTANCE: ['GIANG_VIEN'],
   FACULTY_ACCEPT: ['QUAN_LY_KHOA', 'THU_KY_KHOA'],
   ACCEPT: ['PHONG_KHCN', 'BAN_GIAM_HOC'],
-  REJECT: ['BAN_GIAM_HOC'],
-  CANCEL: ['GIANG_VIEN', 'QUAN_LY_KHOA', 'PHONG_KHCN'],
+  REJECT: ['QUAN_LY_KHOA', 'PHONG_KHCN', 'THU_KY_HOI_DONG', 'THANH_TRUNG', 'BAN_GIAM_HOC'],
+  CANCEL: ['GIANG_VIEN'],
   WITHDRAW: ['GIANG_VIEN'],
   PAUSE: ['PHONG_KHCN'],
   RESUME: ['PHONG_KHCN'],
@@ -46,5 +47,5 @@ export function canRolePerformAction(
   userRole: string,
 ): boolean {
   const allowedRoles = ACTION_ROLE_PERMISSIONS[action as keyof typeof ACTION_ROLE_PERMISSIONS];
-  return allowedRoles?.includes(userRole as any) ?? false;
+  return (allowedRoles as readonly string[] | undefined)?.includes(userRole) ?? false;
 }

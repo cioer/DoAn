@@ -28,11 +28,17 @@ enum UserRole {
 }
 
 enum Permission {
-  USER_MANAGE           // Quản lý người dùng
-  DEMO_SWITCH_PERSONA   // Demo: Chuyển persona
-  DEMO_RESET            // Demo: Reset dữ liệu
-  CALENDAR_MANAGE       // Quản lý lịch làm việc
-  AUDIT_VIEW            // Xem audit log
+  USER_MANAGE             // Quản lý người dùng
+  DEMO_SWITCH_PERSONA     // Demo: Chuyển persona
+  DEMO_RESET              // Demo: Reset dữ liệu
+  CALENDAR_MANAGE         // Quản lý lịch làm việc
+  DASHBOARD_VIEW          // Xem dashboard (Story 11.2)
+  AUDIT_VIEW              // Xem audit log
+  PROPOSAL_CREATE         // Tạo đề tài mới
+  PROPOSAL_EDIT           // Sửa đề tài
+  VIEW_EVALUATION_RESULTS  // Xem kết quả đánh giá (GIANG_VIEN Feature)
+  EXPORT_PROPOSAL_PDF     // Xuất đề tài ra PDF (GIANG_VIEN Feature)
+  FORM_TEMPLATE_IMPORT    // Import biểu mẫu từ Word (ADMIN)
 }
 
 // ============================================================
@@ -55,6 +61,7 @@ model User {
   auditEventsAsActor  AuditEvent[]    @relation("AuditActor")
   auditEventsAsActing AuditEvent[]    @relation("AuditActingAs")
   ownedProposals    Proposal[]        @relation("ProposalOwner")
+  rejectedProposals Proposal[]        @relation("RejectedBy")
   secretaryCouncils Council[]        @relation("CouncilSecretary")
   councilMemberships CouncilMember[]
   evaluations       Evaluation[]      @relation("EvaluationEvaluator")
@@ -172,6 +179,18 @@ enum WorkflowAction {
   FINALIZE           // Hoàn tất (đóng dự án)
   ASSIGN_COUNCIL     // Phân bổ hội đồng
   EVALUATION_SUBMITTED // Nộp phiếu đánh giá (Story 5.4)
+  // Epic 7: Document actions
+  TEMPLATE_UPLOAD    // Upload template (Story 7.2)
+  TEMPLATE_ACTIVATE  // Kích hoạt template (Story 7.2)
+  TEMPLATE_DELETE    // Xóa template (Story 7.2)
+  DOC_GENERATED      // Tạo tài liệu (Story 7.3)
+  DOC_DOWNLOADED     // Tải xuống tài liệu (Story 7.3)
+  DOC_VERIFIED       // Xác thực tính toàn vẹn (Story 7.3)
+  // Epic 8: Bulk Actions & Reports
+  BULK_ASSIGN        // Gán holder_user hàng loạt (Story 8.1)
+  BULK_REMIND        // Gửi email nhắc hàng loạt (Story 8.2)
+  REMIND_SENT        // Email nhắc đã gửi (Story 8.2 - per recipient)
+  EXPORT_EXCEL       // Xuất Excel (Story 8.3)
 }
 
 model Proposal {
@@ -191,6 +210,20 @@ model Proposal {
   templateId      String?       @map("template_id")   // FK to form_templates (Story 2.2)
   templateVersion String?       @map("template_version") // e.g., "v1.0" (Story 2.2)
   formData        Json?         @map("form_data")     // JSON with section data (Story 2.2)
+
+  // Epic 9: Exception tracking fields
+  cancelledAt     DateTime?     @map("cancelled_at")   // Story 9.1: When proposal was cancelled
+  withdrawnAt     DateTime?     @map("withdrawn_at")   // Story 9.1: When proposal was withdrawn
+  rejectedAt      DateTime?     @map("rejected_at")    // Story 9.2: When proposal was rejected
+  rejectedById    String?       @map("rejected_by_id") // Story 9.2: Who rejected the proposal
+  pausedAt        DateTime?     @map("paused_at")      // Story 9.3: When proposal was paused
+  resumedAt       DateTime?     @map("resumed_at")     // Story 9.3: When proposal was resumed
+  pauseReason     String?       @map("pause_reason")   @db.Text // Story 9.3: Reason for pausing
+  expectedResumeAt DateTime?     @map("expected_resume_at") // Story 9.3: Expected resume date
+  prePauseState   ProjectState? @map("pre_pause_state") // Story 9.3: State before pausing
+  prePauseHolderUnit String?    @map("pre_pause_holder_unit") // Story 9.3: Holder before pausing
+  prePauseHolderUser String?    @map("pre_pause_holder_user") // Story 9.3: Holder user before pausing
+
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
   deletedAt       DateTime?     @map("deleted_at")    // Soft delete (Story 2.6)
@@ -199,9 +232,11 @@ model Proposal {
   faculty         Faculty       @relation(fields: [facultyId], references: [id])
   council         Council?      @relation(fields: [councilId], references: [id])
   template        FormTemplate? @relation(fields: [templateId], references: [id])
+  rejectedByUser  User?         @relation("RejectedBy", fields: [rejectedById], references: [id])
   workflowLogs    WorkflowLog[]
   attachments     Attachment[]
   evaluations     Evaluation[]
+  documents       Document[]
 
   @@map("proposals")
   @@index([state])
@@ -214,6 +249,13 @@ model Proposal {
   @@index([deletedAt])       // Story 2.6: index for soft delete filter
   @@index([code])
   @@index([templateId])
+  @@index([cancelledAt])     // Story 9.1: index for cancelled proposals
+  @@index([withdrawnAt])     // Story 9.1: index for withdrawn proposals
+  @@index([rejectedAt])      // Story 9.2: index for rejected proposals
+  @@index([rejectedById])    // Story 9.2: index for rejected by queries
+  @@index([pausedAt])        // Story 9.3: index for paused proposals
+  @@index([resumedAt])       // Story 9.3: index for resumed proposals
+  @@index([expectedResumeAt]) // Story 9.3: index for expected resume date
 }
 
 model WorkflowLog {
@@ -396,6 +438,106 @@ model CouncilMember {
   @@index([councilId])
   @@index([userId])
   @@map("council_members")
+}
+
+// ============================================================
+// DOCUMENT TEMPLATES: DOCX Template Management (Epic 7 Story 7.2)
+// ============================================================
+
+enum DocumentTemplateType {
+  PROPOSAL_OUTLINE       // Đề cương đề tài
+  EVALUATION_FORM        // Phiếu đánh giá
+  FINAL_REPORT           // Báo cáo cuối cùng
+  FACULTY_ACCEPTANCE     // Biên bản nghiệm thu cấp Khoa
+  SCHOOL_ACCEPTANCE      // Biên bản nghiệm thu cấp Trường
+  HANDOVER_CHECKLIST     // Biên bản bàn giao
+}
+
+model DocumentTemplate {
+  id            String                  @id @default(uuid())
+  name          String
+  description   String?                 @db.Text
+  templateType  DocumentTemplateType    @map("template_type")
+  filePath      String                  @map("file_path")
+  fileName      String                  @map("file_name")
+  fileSize      Int                     @map("file_size")
+  sha256Hash    String                  @map("sha256_hash")
+  version       Int                     @default(1) // For tracking template versions
+  placeholders  String[]                // Array of placeholder names extracted from template
+  isActive      Boolean                 @default(false) @map("is_active")
+  createdBy     String                  @map("created_by")
+  createdAt     DateTime                @default(now()) @map("created_at")
+  updatedAt     DateTime                @updatedAt @map("updated_at")
+  deletedAt     DateTime?               @map("deleted_at")
+
+  documents     Document[]
+
+  @@unique([templateType, isActive])
+  @@index([templateType])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("document_templates")
+}
+
+// ============================================================
+// DOCUMENTS: Generated Documents (Epic 7 Story 7.3)
+// ============================================================
+
+enum DocumentType {
+  PROPOSAL_OUTLINE       // Đề cương đề tài
+  EVALUATION_FORM        // Phiếu đánh giá
+  FINAL_REPORT           // Báo cáo cuối cùng
+  FACULTY_ACCEPTANCE     // Biên bản nghiệm thu cấp Khoa
+  SCHOOL_ACCEPTANCE      // Biên bản nghiệm thu cấp Trường
+  HANDOVER_CHECKLIST     // Biên bản bàn giao
+}
+
+model Document {
+  id              String         @id @default(uuid())
+  proposalId      String         @map("proposal_id")
+  documentType    DocumentType   @map("document_type")
+  templateId      String         @map("template_id")
+  templateVersion Int            @map("template_version")
+  filePath        String         @map("file_path")
+  fileName        String         @map("file_name")
+  fileSize        Int            @map("file_size")
+  sha256Hash      String         @unique @map("sha256_hash")
+  generatedBy     String         @map("generated_by")
+  generatedAt     DateTime       @default(now()) @map("generated_at")
+  deletedAt       DateTime?      @map("deleted_at")
+  retentionUntil  DateTime?      @map("retention_until") // 7 years retention
+
+  proposal        Proposal       @relation(fields: [proposalId], references: [id])
+  template        DocumentTemplate @relation(fields: [templateId], references: [id])
+  manifest        DocumentManifest?
+
+  @@index([proposalId])
+  @@index([sha256Hash])
+  @@index([deletedAt])
+  @@index([generatedAt])
+  @@map("documents")
+}
+
+// ============================================================
+// DOCUMENT MANIFESTS: Integrity Tracking (Epic 7 Story 7.3)
+// ============================================================
+
+model DocumentManifest {
+  id                String   @id @default(uuid())
+  documentId        String   @unique @map("document_id")
+  templateId        String   @map("template_id")
+  templateVersion   Int      @map("template_version")
+  proposalData      Json     @map("proposal_data") // Snapshot of proposal data at generation time
+  generatedBy       String   @map("generated_by")
+  generatedAt       DateTime @default(now()) @map("generated_at")
+  verifiedAt        DateTime? @map("verified_at")
+  verifiedBy        String?  @map("verified_by")
+  verificationResult String? @map("verification_result") // 'VALID' | 'MISMATCH'
+
+  document          Document @relation(fields: [documentId], references: [id])
+
+  @@index([documentId])
+  @@map("document_manifests")
 }
 
 // ============================================================

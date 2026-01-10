@@ -4,6 +4,7 @@
  */
 
 import 'reflect-metadata';
+import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
 // Make Vitest's vi available as jest for compatibility with existing tests

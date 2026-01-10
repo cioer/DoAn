@@ -77,8 +77,8 @@ export class BusinessCalendarController {
   @Get()
   @HttpCode(HttpStatus.OK)
   async getHolidays(
-    @Query('year', new DefaultValuePipe(null), ParseIntPipe) year?: number | null,
-    @Query('month', new DefaultValuePipe(null), ParseIntPipe) month?: number | null,
+    @Query('year', new DefaultValuePipe(null), new ParseIntPipe({ optional: true })) year?: number | null,
+    @Query('month', new DefaultValuePipe(null), new ParseIntPipe({ optional: true })) month?: number | null,
     @Query('isHoliday') isHoliday?: string,
   ) {
     const query: HolidayQueryDto = {};

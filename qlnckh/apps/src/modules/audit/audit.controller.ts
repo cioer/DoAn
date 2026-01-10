@@ -6,7 +6,8 @@ import {
   Req,
   Param,
 } from '@nestjs/common';
-import { AuditService } from './audit.service';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { AuditService, AuditStatistics } from './audit.service';
 import { AuditQueryDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../rbac/guards/permissions.guard';
@@ -19,10 +20,18 @@ import { Request } from 'express';
  *
  * Provides audit log query endpoints for admin users.
  * All endpoints require AUDIT_VIEW permission.
+ *
+ * Story 10.4: Full Audit Log Viewer
+ * - Statistics dashboard
+ * - Advanced filtering
+ * - Action grouping
+ * - Timeline view
  */
+@ApiTags('audit')
 @Controller('audit')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions(Permission.AUDIT_VIEW)
+@ApiBearerAuth()
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 
@@ -76,6 +85,78 @@ export class AuditController {
           total: events.length,
         },
       },
+    };
+  }
+
+  /**
+   * GET /api/audit/statistics
+   * Story 10.4: AC2 - Statistics Dashboard
+   *
+   * Returns aggregated statistics about audit events.
+   */
+  @Get('statistics')
+  @ApiOperation({
+    summary: 'Lấy thống kê audit logs',
+    description: 'Trả về thống kê tổng hợp về các sự kiện audit.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Statistics retrieved successfully',
+  })
+  async getStatistics() {
+    const stats = await this.auditService.getAuditStatistics();
+
+    return {
+      success: true,
+      data: stats,
+    };
+  }
+
+  /**
+   * GET /api/audit/grouped
+   * Story 10.4: AC4 - Action Grouping
+   *
+   * Returns audit events grouped by action type.
+   */
+  @Get('grouped')
+  @ApiOperation({
+    summary: 'Lấy audit logs được nhóm theo hành động',
+    description: 'Trả về các sự kiện audit được nhóm theo loại hành động.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Grouped audit events retrieved successfully',
+  })
+  async getGroupedAuditLogs(@Query() query: AuditQueryDto) {
+    const result = await this.auditService.getAuditEventsGroupedByAction(query);
+
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  /**
+   * GET /api/audit/timeline
+   * Story 10.4: AC5 - Timeline View
+   *
+   * Returns audit events in timeline view grouped by date.
+   */
+  @Get('timeline')
+  @ApiOperation({
+    summary: 'Lấy audit logs dạng timeline',
+    description: 'Trả về các sự kiện audit được nhóm theo ngày dưới dạng timeline.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Timeline retrieved successfully',
+  })
+  async getAuditTimeline(@Query() query: AuditQueryDto) {
+    const result = await this.auditService.getAuditTimeline(query);
+
+    return {
+      success: true,
+      data: result,
     };
   }
 }

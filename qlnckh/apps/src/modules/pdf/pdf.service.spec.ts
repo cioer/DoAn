@@ -47,7 +47,7 @@ describe('PdfService', () => {
     // Manual Prisma mock (Epic 2 pattern)
     prismaMock = {
       proposal: {
-        findUnique: jest.fn().mockResolvedValue(mockProposal),
+        findUnique: vi.fn().mockResolvedValue(mockProposal),
       },
     };
 

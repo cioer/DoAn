@@ -5,6 +5,7 @@ import { PrismaService } from '../auth/prisma.service';
 import { AuditModule } from '../audit/audit.module';
 import { BusinessCalendarModule } from '../calendar/calendar.module';
 import { IdempotencyModule } from '../../common/interceptors';
+import { RbacModule } from '../rbac/rbac.module';
 
 /**
  * Workflow Module
@@ -18,7 +19,7 @@ import { IdempotencyModule } from '../../common/interceptors';
  * Story 3.8: Added IdempotencyModule for idempotency on state-changing actions
  */
 @Module({
-  imports: [AuditModule, BusinessCalendarModule, IdempotencyModule],
+  imports: [AuditModule, BusinessCalendarModule, IdempotencyModule, RbacModule],
   controllers: [WorkflowController],
   providers: [WorkflowService, PrismaService],
   exports: [WorkflowService],

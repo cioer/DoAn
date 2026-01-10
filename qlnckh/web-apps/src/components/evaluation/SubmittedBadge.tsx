@@ -12,6 +12,7 @@
  */
 
 import { CheckCircle } from 'lucide-react';
+import { Badge } from '../ui';
 
 export interface SubmittedBadgeProps {
   submittedAt: Date | string;
@@ -43,17 +44,15 @@ function formatSubmittedTimestamp(timestamp: Date | string): string {
 
 /**
  * Submitted Badge Component (Story 5.5)
- * Displays prominent "Đã nộp" badge with timestamp
+ * Displays prominent "Đã nộp" badge with timestamp - using Badge component
  */
 export function SubmittedBadge({ submittedAt, className = '' }: SubmittedBadgeProps) {
   const timestamp = formatSubmittedTimestamp(submittedAt);
 
   return (
-    <div className={`inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-full ${className}`}>
-      <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-      <span className="text-sm font-medium text-green-800 dark:text-green-200">
-        Đã nộp vào {timestamp}
-      </span>
-    </div>
+    <Badge variant="success" className={`rounded-full ${className}`}>
+      <CheckCircle className="h-4 w-4" />
+      <span className="ml-1">Đã nộp vào {timestamp}</span>
+    </Badge>
   );
 }

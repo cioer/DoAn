@@ -159,17 +159,155 @@ export const VALID_TRANSITIONS: StateTransition[] = [
     allowedRoles: ['PHONG_KHCN', 'GIANG_VIEN'],
   },
 
-  // Exception States
+  // Exception States - Epic 9: Cancel/Withdraw/Reject/Pause/Resume
+
+  // Cancel: DRAFT → CANCELLED (Story 9.1)
   {
     fromState: ProjectState.DRAFT,
     toState: ProjectState.CANCELLED,
     action: WorkflowAction.CANCEL,
     allowedRoles: ['GIANG_VIEN'],
   },
+
+  // Withdraw: Review states → WITHDRAWN (Story 9.1)
+  {
+    fromState: ProjectState.FACULTY_REVIEW,
+    toState: ProjectState.WITHDRAWN,
+    action: WorkflowAction.WITHDRAW,
+    allowedRoles: ['GIANG_VIEN'],
+  },
+  {
+    fromState: ProjectState.SCHOOL_SELECTION_REVIEW,
+    toState: ProjectState.WITHDRAWN,
+    action: WorkflowAction.WITHDRAW,
+    allowedRoles: ['GIANG_VIEN'],
+  },
+  {
+    fromState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+    toState: ProjectState.WITHDRAWN,
+    action: WorkflowAction.WITHDRAW,
+    allowedRoles: ['GIANG_VIEN'],
+  },
+  {
+    fromState: ProjectState.CHANGES_REQUESTED,
+    toState: ProjectState.WITHDRAWN,
+    action: WorkflowAction.WITHDRAW,
+    allowedRoles: ['GIANG_VIEN'],
+  },
+
+  // Reject: Review states → REJECTED (Story 9.2)
+  {
+    fromState: ProjectState.FACULTY_REVIEW,
+    toState: ProjectState.REJECTED,
+    action: WorkflowAction.REJECT,
+    allowedRoles: ['QUAN_LY_KHOA', 'PHONG_KHCN', 'BAN_GIAM_HOC'],
+  },
+  {
+    fromState: ProjectState.SCHOOL_SELECTION_REVIEW,
+    toState: ProjectState.REJECTED,
+    action: WorkflowAction.REJECT,
+    allowedRoles: ['PHONG_KHCN', 'BAN_GIAM_HOC'],
+  },
+  {
+    fromState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+    toState: ProjectState.REJECTED,
+    action: WorkflowAction.REJECT,
+    allowedRoles: ['THU_KY_HOI_DONG', 'THANH_TRUNG', 'BAN_GIAM_HOC'],
+  },
+  {
+    fromState: ProjectState.CHANGES_REQUESTED,
+    toState: ProjectState.REJECTED,
+    action: WorkflowAction.REJECT,
+    allowedRoles: ['QUAN_LY_KHOA', 'PHONG_KHCN', 'BAN_GIAM_HOC'],
+  },
+
+  // Pause: Non-terminal states → PAUSED (Story 9.3, PHONG_KHCN only)
+  {
+    fromState: ProjectState.FACULTY_REVIEW,
+    toState: ProjectState.PAUSED,
+    action: WorkflowAction.PAUSE,
+    allowedRoles: ['PHONG_KHCN'],
+  },
+  {
+    fromState: ProjectState.SCHOOL_SELECTION_REVIEW,
+    toState: ProjectState.PAUSED,
+    action: WorkflowAction.PAUSE,
+    allowedRoles: ['PHONG_KHCN'],
+  },
+  {
+    fromState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+    toState: ProjectState.PAUSED,
+    action: WorkflowAction.PAUSE,
+    allowedRoles: ['PHONG_KHCN'],
+  },
+  {
+    fromState: ProjectState.CHANGES_REQUESTED,
+    toState: ProjectState.PAUSED,
+    action: WorkflowAction.PAUSE,
+    allowedRoles: ['PHONG_KHCN'],
+  },
+  {
+    fromState: ProjectState.APPROVED,
+    toState: ProjectState.PAUSED,
+    action: WorkflowAction.PAUSE,
+    allowedRoles: ['PHONG_KHCN'],
+  },
   {
     fromState: ProjectState.IN_PROGRESS,
     toState: ProjectState.PAUSED,
     action: WorkflowAction.PAUSE,
+    allowedRoles: ['PHONG_KHCN'],
+  },
+  {
+    fromState: ProjectState.FACULTY_ACCEPTANCE_REVIEW,
+    toState: ProjectState.PAUSED,
+    action: WorkflowAction.PAUSE,
+    allowedRoles: ['PHONG_KHCN'],
+  },
+  {
+    fromState: ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+    toState: ProjectState.PAUSED,
+    action: WorkflowAction.PAUSE,
+    allowedRoles: ['PHONG_KHCN'],
+  },
+  {
+    fromState: ProjectState.HANDOVER,
+    toState: ProjectState.PAUSED,
+    action: WorkflowAction.PAUSE,
+    allowedRoles: ['PHONG_KHCN'],
+  },
+
+  // Resume: PAUSED → pre-pause state (Story 9.3)
+  // Note: Resume is special - the target state depends on prePauseState
+  // The service layer handles this dynamically
+  {
+    fromState: ProjectState.PAUSED,
+    toState: ProjectState.FACULTY_REVIEW,
+    action: WorkflowAction.RESUME,
+    allowedRoles: ['PHONG_KHCN'],
+  },
+  {
+    fromState: ProjectState.PAUSED,
+    toState: ProjectState.SCHOOL_SELECTION_REVIEW,
+    action: WorkflowAction.RESUME,
+    allowedRoles: ['PHONG_KHCN'],
+  },
+  {
+    fromState: ProjectState.PAUSED,
+    toState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+    action: WorkflowAction.RESUME,
+    allowedRoles: ['PHONG_KHCN'],
+  },
+  {
+    fromState: ProjectState.PAUSED,
+    toState: ProjectState.CHANGES_REQUESTED,
+    action: WorkflowAction.RESUME,
+    allowedRoles: ['PHONG_KHCN'],
+  },
+  {
+    fromState: ProjectState.PAUSED,
+    toState: ProjectState.APPROVED,
+    action: WorkflowAction.RESUME,
     allowedRoles: ['PHONG_KHCN'],
   },
   {
@@ -179,30 +317,22 @@ export const VALID_TRANSITIONS: StateTransition[] = [
     allowedRoles: ['PHONG_KHCN'],
   },
   {
-    fromState: ProjectState.IN_PROGRESS,
-    toState: ProjectState.WITHDRAWN,
-    action: WorkflowAction.WITHDRAW,
-    allowedRoles: ['GIANG_VIEN'],
-  },
-
-  // Terminal states can also be reached from various states
-  {
-    fromState: ProjectState.CHANGES_REQUESTED,
-    toState: ProjectState.CANCELLED,
-    action: WorkflowAction.CANCEL,
-    allowedRoles: ['GIANG_VIEN'],
+    fromState: ProjectState.PAUSED,
+    toState: ProjectState.FACULTY_ACCEPTANCE_REVIEW,
+    action: WorkflowAction.RESUME,
+    allowedRoles: ['PHONG_KHCN'],
   },
   {
-    fromState: ProjectState.FACULTY_REVIEW,
-    toState: ProjectState.CANCELLED,
-    action: WorkflowAction.CANCEL,
-    allowedRoles: ['GIANG_VIEN', 'QUAN_LY_KHOA'],
+    fromState: ProjectState.PAUSED,
+    toState: ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+    action: WorkflowAction.RESUME,
+    allowedRoles: ['PHONG_KHCN'],
   },
   {
-    fromState: ProjectState.SCHOOL_SELECTION_REVIEW,
-    toState: ProjectState.CANCELLED,
-    action: WorkflowAction.CANCEL,
-    allowedRoles: ['GIANG_VIEN', 'PHONG_KHCN'],
+    fromState: ProjectState.PAUSED,
+    toState: ProjectState.HANDOVER,
+    action: WorkflowAction.RESUME,
+    allowedRoles: ['PHONG_KHCN'],
   },
 ];
 
@@ -291,7 +421,7 @@ export function getValidNextStates(
  * @returns true if state is terminal
  */
 export function isTerminalState(state: ProjectState): boolean {
-  return TERMINAL_STATES.includes(state);
+  return TERMINAL_STATES.includes(state as any);
 }
 
 /**

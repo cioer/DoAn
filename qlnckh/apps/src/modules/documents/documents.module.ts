@@ -6,6 +6,7 @@ import { IntegrityService } from './integrity.service';
 import { PrismaService } from '../auth/prisma.service';
 import { AuditModule } from '../audit/audit.module';
 import { DocumentTemplatesModule } from '../document-templates/document-templates.module';
+import { RbacModule } from '../rbac/rbac.module';
 
 /**
  * Documents Module
@@ -20,7 +21,7 @@ import { DocumentTemplatesModule } from '../document-templates/document-template
  * - RBAC for downloads
  */
 @Module({
-  imports: [AuditModule, DocumentTemplatesModule],
+  imports: [AuditModule, DocumentTemplatesModule, RbacModule],
   controllers: [DocumentsController],
   providers: [
     DocumentsService,

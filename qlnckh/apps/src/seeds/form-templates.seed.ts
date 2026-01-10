@@ -255,7 +255,7 @@ export async function seedFormTemplates(prismaClient: PrismaClient = prisma): Pr
         },
       });
 
-      console.log(`  ✅ Created template: ${template.code} - ${template.name} with ${template.sections.length} sections`);
+      console.log(`  ✅ Created template: ${template.code} - ${template.name} with ${templateData.sections.length} sections`);
     } else {
       console.log(`  ⏭️  Template already exists: ${templateData.code}`);
     }

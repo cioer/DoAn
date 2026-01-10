@@ -9,6 +9,7 @@ import {
   NotFoundException,
   InternalServerErrorException,
   ForbiddenException,
+  Req,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
@@ -22,6 +23,9 @@ import { PdfService } from './pdf.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../rbac/guards/roles.guard';
 import { RequireRoles } from '../../common/decorators/roles.decorator';
+import { PermissionsGuard } from '../rbac/guards/permissions.guard';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { Permission } from '../rbac/permissions.enum';
 import { UserRole } from '@prisma/client';
 
 /**
@@ -331,6 +335,116 @@ export class PdfController {
       res.send(pdfBuffer);
     } catch (error) {
       // Fix: Use instanceof for proper NestJS exception type checking
+      if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+        throw error;
+      }
+      throw new InternalServerErrorException({
+        success: false,
+        error: {
+          code: 'PDF_GENERATION_FAILED',
+          message: 'Không thể tạo PDF. Vui lòng thử lại.',
+        },
+      });
+    }
+  }
+
+  /**
+   * GET /api/proposals/:id/export
+   * GIANG_VIEN Feature: Export proposal to PDF for proposal owners
+   *
+   * Returns PDF buffer for proposal with option to include evaluation results.
+   * Proposal owners (GIANG_VIEN) can export their own proposals.
+   *
+   * @param id - Proposal ID
+   * @param type - Export type: 'summary', 'full', or 'with_evaluation'
+   * @param req - Request with user info
+   * @param res - Response object for PDF stream
+   */
+  @Get(':id/export')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.EXPORT_PROPOSAL_PDF)
+  @ApiOperation({
+    summary: 'Xuất PDF đề tài',
+    description:
+      'Xuất PDF cho đề tài. Chủ đề tài có thể xuất đề tài của mình. ' +
+      'Hỗ trợ các loại: summary (tóm tắt), full (đầy đủ), with_evaluation (có kết quả đánh giá).',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'PDF file',
+    content: {
+      'application/pdf': {
+        example: 'Binary PDF content',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - not proposal owner',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'NOT_PROPOSAL_OWNER',
+          message: 'Bạn không có quyền xuất đề tài này',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Không tìm thấy đề tài',
+        },
+      },
+    },
+  })
+  async exportProposalPdf(
+    @Param('id') id: string,
+    @Req() req: { user: RequestUser },
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      // Get proposal to verify ownership
+      const proposal = await this.pdfService.getProposalForExport(id);
+
+      // Verify user is the proposal owner
+      if (proposal.ownerId !== req.user.id) {
+        throw new ForbiddenException({
+          success: false,
+          error: {
+            code: 'NOT_PROPOSAL_OWNER',
+            message: 'Bạn không có quyền xuất đề tài này',
+          },
+        });
+      }
+
+      // Generate PDF
+      const pdfBuffer = await this.pdfService.generateProposalPdf(id);
+
+      // Generate filename: {code}_{timestamp}.pdf
+      const timestamp = new Date().getTime();
+      const filename = `${proposal.code}_${timestamp}.pdf`;
+
+      // Set headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', pdfBuffer.length.toString());
+
+      // Send PDF buffer
+      res.send(pdfBuffer);
+    } catch (error) {
       if (error instanceof NotFoundException || error instanceof ForbiddenException) {
         throw error;
       }

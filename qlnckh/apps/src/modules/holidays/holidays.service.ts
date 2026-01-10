@@ -60,10 +60,13 @@ export class HolidaysService {
   async getHolidays(query: HolidayQueryDto): Promise<PaginatedHolidays> {
     const where: Record<string, unknown> = {};
 
-    // Year filter
+    // Year filter - declare variables outside if block for use in SQL template
+    let startOfYear: Date | undefined;
+    let endOfYear: Date | undefined;
     if (query.year) {
-      const startOfYear = new Date(query.year, 0, 1);
-      const endOfYear = new Date(query.year, 11, 31);
+      const year = typeof query.year === 'string' ? parseInt(query.year, 10) : query.year;
+      startOfYear = new Date(year, 0, 1);
+      endOfYear = new Date(year, 11, 31, 23, 59, 59);
       where.date = {
         gte: startOfYear,
         lte: endOfYear,

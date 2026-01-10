@@ -18,6 +18,7 @@
  */
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { vi, beforeEach, afterEach, describe, it, expect } from 'vitest';
 import { ProposalActions } from './ProposalActions';
 import { workflowApi } from '@/lib/api/workflow';
@@ -71,7 +72,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       );
 
       const button = screen.getByRole('button', { name: /duyệt hồ sơ/i });
-      expect(button).toBeInTheDocument();
+      expect(button).toBeDefined();
       expect(button).toHaveAttribute('aria-label', 'Duyệt hồ sơ đề tài');
     });
 
@@ -86,7 +87,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       );
 
       const button = screen.getByRole('button', { name: /duyệt hồ sơ/i });
-      expect(button).toBeInTheDocument();
+      expect(button).toBeDefined();
     });
 
     it('should NOT show approve button for GIANG_VIEN role', () => {
@@ -100,7 +101,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       );
 
       const button = screen.queryByRole('button', { name: /duyệt hồ sơ/i });
-      expect(button).not.toBeInTheDocument();
+      expect(button).toBeNull();
     });
 
     it('should NOT show approve button when proposal state != FACULTY_REVIEW', () => {
@@ -114,7 +115,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       );
 
       const button = screen.queryByRole('button', { name: /duyệt hồ sơ/i });
-      expect(button).not.toBeInTheDocument();
+      expect(button).toBeNull();
     });
   });
 
@@ -130,7 +131,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       );
 
       const button = screen.getByRole('button', { name: /yêu cầu sửa/i });
-      expect(button).toBeInTheDocument();
+      expect(button).toBeDefined();
       expect(button).toHaveAttribute('aria-label', 'Yêu cầu sửa hồ sơ');
     });
 
@@ -145,7 +146,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       );
 
       const button = screen.getByRole('button', { name: /yêu cầu sửa/i });
-      expect(button).toBeInTheDocument();
+      expect(button).toBeDefined();
     });
 
     it('should NOT show return button for GIANG_VIEN role', () => {
@@ -159,7 +160,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       );
 
       const button = screen.queryByRole('button', { name: /yêu cầu sửa/i });
-      expect(button).not.toBeInTheDocument();
+      expect(button).toBeNull();
     });
 
     it('should NOT show return button when proposal state != FACULTY_REVIEW', () => {
@@ -173,7 +174,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       );
 
       const button = screen.queryByRole('button', { name: /yêu cầu sửa/i });
-      expect(button).not.toBeInTheDocument();
+      expect(button).toBeNull();
     });
   });
 
@@ -190,8 +191,8 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /yêu cầu sửa/i }));
 
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByText('Yêu cầu sửa hồ sơ')).toBeInTheDocument();
+      expect(screen.getByRole('dialog')).toBeDefined();
+      expect(screen.getByText('Yêu cầu sửa hồ sơ')).toBeDefined();
     });
 
     it('should display reason code dropdown in return dialog', () => {
@@ -206,13 +207,13 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /yêu cầu sửa/i }));
 
-      expect(screen.getByText(/lý do trả về/i)).toBeInTheDocument();
-      expect(screen.getByText(/-- Chọn lý do --/)).toBeInTheDocument();
-      expect(screen.getByText('Thiếu tài liệu')).toBeInTheDocument();
-      expect(screen.getByText('Nội dung không rõ ràng')).toBeInTheDocument();
-      expect(screen.getByText('Phương pháp không khả thi')).toBeInTheDocument();
-      expect(screen.getByText('Kinh phí không hợp lý')).toBeInTheDocument();
-      expect(screen.getByText('Khác')).toBeInTheDocument();
+      expect(screen.getByText(/lý do trả về/i)).toBeDefined();
+      expect(screen.getByText(/-- Chọn lý do --/)).toBeDefined();
+      expect(screen.getByText('Thiếu tài liệu')).toBeDefined();
+      expect(screen.getByText('Nội dung không rõ ràng')).toBeDefined();
+      expect(screen.getByText('Phương pháp không khả thi')).toBeDefined();
+      expect(screen.getByText('Kinh phí không hợp lý')).toBeDefined();
+      expect(screen.getByText('Khác')).toBeDefined();
     });
 
     it('should display section checkboxes in return dialog', () => {
@@ -227,13 +228,13 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /yêu cầu sửa/i }));
 
-      expect(screen.getByText(/phần cần sửa/i)).toBeInTheDocument();
-      expect(screen.getByText('Thông tin chung')).toBeInTheDocument();
-      expect(screen.getByText('Nội dung nghiên cứu')).toBeInTheDocument();
-      expect(screen.getByText('Phương pháp nghiên cứu')).toBeInTheDocument();
-      expect(screen.getByText('Kết quả mong đợi')).toBeInTheDocument();
-      expect(screen.getByText('Kinh phí')).toBeInTheDocument();
-      expect(screen.getByText('Tài liệu đính kèm')).toBeInTheDocument();
+      expect(screen.getByText(/phần cần sửa/i)).toBeDefined();
+      expect(screen.getByText('Thông tin chung')).toBeDefined();
+      expect(screen.getByText('Nội dung nghiên cứu')).toBeDefined();
+      expect(screen.getByText('Phương pháp nghiên cứu')).toBeDefined();
+      expect(screen.getByText('Kết quả mong đợi')).toBeDefined();
+      expect(screen.getByText('Kinh phí')).toBeDefined();
+      expect(screen.getByText('Tài liệu đính kèm')).toBeDefined();
     });
 
     it('should display comment textarea in return dialog', () => {
@@ -248,8 +249,8 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /yêu cầu sửa/i }));
 
-      expect(screen.getByText(/ghi chú thêm/i)).toBeInTheDocument();
-      expect(screen.getByPlaceholderText(/nhập ghi chú chi tiết/i)).toBeInTheDocument();
+      expect(screen.getByText(/ghi chú thêm/i)).toBeDefined();
+      expect(screen.getByPlaceholderText(/nhập ghi chú chi tiết/i)).toBeDefined();
     });
 
     it('AC4: should disable submit button when validation fails (no reason code)', () => {
@@ -377,7 +378,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       fireEvent.click(screen.getByRole('button', { name: /yêu cầu sửa/i }));
       fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
 
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).toBeNull();
       expect(workflowApi.returnFacultyReview).not.toHaveBeenCalled();
     });
 
@@ -398,7 +399,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByText('Vui lòng chọn lý do và ít nhất một phần cần sửa')).toBeInTheDocument();
+        expect(screen.getByText('Vui lòng chọn lý do và ít nhất một phần cần sửa')).toBeDefined();
       });
     });
 
@@ -426,7 +427,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Gửi yêu cầu' }));
 
       await waitFor(() => {
-        expect(screen.getByText(/đang xử lý/i)).toBeInTheDocument();
+        expect(screen.getByText(/đang xử lý/i)).toBeDefined();
       });
     });
   });
@@ -445,11 +446,11 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       const button = screen.getByRole('button', { name: /duyệt hồ sơ/i });
       fireEvent.click(button);
 
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByText('Xác nhận duyệt hồ sơ')).toBeInTheDocument();
+      expect(screen.getByRole('dialog')).toBeDefined();
+      expect(screen.getByText('Xác nhận duyệt hồ sơ')).toBeDefined();
       expect(
         screen.getByText(/chuyển lên Phòng KHCN để phân bổ/i),
-      ).toBeInTheDocument();
+      ).toBeDefined();
     });
 
     it('should call approve API with idempotency key when confirmed', async () => {
@@ -499,7 +500,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       fireEvent.click(screen.getByRole('button', { name: /duyệt hồ sơ/i }));
       fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
 
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).toBeNull();
       expect(workflowApi.approveFacultyReview).not.toHaveBeenCalled();
     });
   });
@@ -556,7 +557,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Gửi yêu cầu' }));
 
       await waitFor(() => {
-        expect(screen.getByText('Chỉ có thể trả về đề tài ở trạng thái FACULTY_REVIEW')).toBeInTheDocument();
+        expect(screen.getByText('Chỉ có thể trả về đề tài ở trạng thái FACULTY_REVIEW')).toBeDefined();
         expect(mockOnError).toHaveBeenCalledWith({
           code: 'PROPOSAL_NOT_FACULTY_REVIEW',
           message: 'Chỉ có thể trả về đề tài ở trạng thái FACULTY_REVIEW',
@@ -592,7 +593,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Xác nhận duyệt' }));
 
       await waitFor(() => {
-        expect(screen.getByText('Bạn không có quyền duyệt')).toBeInTheDocument();
+        expect(screen.getByText('Bạn không có quyền duyệt')).toBeDefined();
         expect(mockOnError).toHaveBeenCalledWith({
           code: 'FORBIDDEN',
           message: 'Bạn không có quyền duyệt',

@@ -1,337 +1,304 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAutoSave, AutoSaveState } from '../../../../hooks/useAutoSave';
-import { SaveIndicator, FileUpload, AttachmentList } from '../../../../components/forms';
-import { proposalsApi, Proposal } from '../../../../lib/api/proposals';
-import { attachmentsApi, Attachment } from '../../../../lib/api/attachments';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Save, X, AlertCircle } from 'lucide-react';
+import { useAuthStore } from '../../../../stores/authStore';
+import { Permission } from '../../../../shared/types/permissions';
+import { ProjectState } from '../../../../lib/constants/states';
+import { proposalsApi, type Proposal } from '../../../../lib/api/proposals';
+import { formTemplatesApi, type FormTemplate } from '../../../../lib/api/form-templates';
+import { ProposalForm } from '../../../../components/proposals/ProposalForm';
+import { AutoSaveIndicator } from '../../../../components/proposals/AutoSaveIndicator';
+import { useAutoSave } from '../../../../hooks/useAutoSave';
+import { StateBadge } from '../../../../components/proposals/StateBadge';
 
 /**
- * Proposal Edit Page (Story 2.3 - Integration)
+ * Edit Proposal Page
  *
- * Features:
- * - Auto-save with 2-second debounce when form fields change
- * - Save indicator showing current save status
- * - Force save before navigation/unmount
- * - Only works for DRAFT proposals
+ * Story 11.4: Edit existing DRAFT proposal
  */
-export default function ProposalEditPage() {
+export default function EditProposalPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
 
+  // State
   const [proposal, setProposal] = useState<Proposal | null>(null);
+  const [template, setTemplate] = useState<FormTemplate | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  // Form data state - structured by sections
+  const [title, setTitle] = useState('');
   const [formData, setFormData] = useState<Record<string, unknown>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notEditableReason, setNotEditableReason] = useState<string | null>(null);
 
-  // Attachments state (Story 2.4)
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
-  const [totalSize, setTotalSize] = useState(0);
-
-  /**
-   * Load proposal data on mount
-   */
+  // Load proposal and template
   useEffect(() => {
-    const loadProposal = async () => {
-      if (!id) return;
+    if (!id) return;
+    loadProposal(id);
+  }, [id]);
 
-      try {
-        setIsLoading(true);
-        const data = await proposalsApi.getProposalById(id);
+  const loadProposal = async (proposalId: string) => {
+    setIsLoading(true);
+    try {
+      const [proposalData, templates] = await Promise.all([
+        proposalsApi.getProposalById(proposalId),
+        formTemplatesApi.getTemplates(),
+      ]);
 
-        // Only DRAFT proposals can be edited
-        if (data.state !== 'DRAFT') {
-          setLoadError(`Chỉ có thể chỉnh sửa đề tài ở trạng thái NHÁP. Trạng thái hiện tại: ${data.state}`);
-          setProposal(null);
-          return;
-        }
-
-        setProposal(data);
-        setFormData(data.formData || {});
-      } catch (error) {
-        const err = error as Error;
-        setLoadError(err.message || 'Không thể tải đề tài');
-      } finally {
+      // Check if proposal is editable (only DRAFT)
+      if (proposalData.state !== ProjectState.DRAFT) {
+        setNotEditableReason('Đề tài ở trạng thái ' + proposalData.state + ' không thể chỉnh sửa');
+        setProposal(proposalData);
         setIsLoading(false);
+        return;
       }
-    };
 
-    void loadProposal();
-  }, [id]);
-
-  /**
-   * Auto-save hook (Story 2.3)
-   * - Only enabled when proposal is in DRAFT state
-   * - 2-second debounce
-   * - Exponential backoff retry
-   */
-  const { state: autoSaveState, triggerSave, forceSave } = useAutoSave({
-    proposalId: id || '',
-    enabled: proposal?.state === 'DRAFT',
-    debounceMs: 2000,
-    maxRetries: 3,
-    onAutoSaveSuccess: (updatedProposal) => {
-      // Update local proposal state with saved data
-      setProposal(updatedProposal);
-    },
-    onAutoSaveError: (error) => {
-      console.error('Auto-save failed:', error);
-    },
-  });
-
-  /**
-   * Handle field change - trigger auto-save (AC1: Auto-save Trigger)
-   */
-  const handleFieldChange = useCallback(
-    (sectionId: string, field: string, value: unknown) => {
-      setFormData((prev) => {
-        const updated = {
-          ...prev,
-          [sectionId]: {
-            ...(prev[sectionId] as Record<string, unknown> || {}),
-            [field]: value,
-          },
-        };
-
-        // Trigger auto-save with updated form data (AC1)
-        triggerSave(updated);
-
-        return updated;
-      });
-    },
-    [triggerSave],
-  );
-
-  /**
-   * Handle section change - entire section updated at once
-   */
-  const handleSectionChange = useCallback((sectionId: string, sectionData: Record<string, unknown>) => {
-    setFormData((prev) => {
-      const updated = {
-        ...prev,
-        [sectionId]: sectionData,
-      };
-
-      // Trigger auto-save with updated form data
-      triggerSave(updated);
-
-      return updated;
-    });
-  }, [triggerSave]);
-
-  /**
-   * Load attachments for proposal (Story 2.4 - Task 6.3)
-   */
-  useEffect(() => {
-    const loadAttachments = async () => {
-      if (!id) return;
-
-      try {
-        setAttachmentsLoading(true);
-        const result = await attachmentsApi.getByProposalId(id);
-        setAttachments(result.data);
-        setTotalSize(result.totalSize);
-      } catch (error) {
-        console.error('Failed to load attachments:', error);
-      } finally {
-        setAttachmentsLoading(false);
+      // Check if user is the owner
+      if (proposalData.ownerId !== user?.id) {
+        setNotEditableReason('Bạn không có quyền chỉnh sửa đề tài này');
+        setProposal(proposalData);
+        setIsLoading(false);
+        return;
       }
-    };
 
-    void loadAttachments();
-  }, [id]);
+      setProposal(proposalData);
+      setTitle(proposalData.title || '');
+      setFormData(proposalData.formData || {});
 
-  /**
-   * Handle attachment upload success (Story 2.4 - Task 6.2)
-   */
-  const handleUploadSuccess = useCallback((attachment: Attachment) => {
-    setAttachments((prev) => [...prev, attachment]);
-    setTotalSize((prev) => prev + attachment.fileSize);
-  }, []);
-
-  /**
-   * Handle form submit (explicit save button)
-   * Forces immediate save before navigation
-   */
-  const handleSubmit = async () => {
-    // Force save any pending changes
-    await forceSave(formData);
-    // Navigate back or show success message
-    navigate(-1);
+      // Load template
+      if (proposalData.templateId) {
+        const templateData = templates.find((t) => t.id === proposalData.templateId);
+        if (templateData) {
+          setTemplate(templateData);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load proposal:', err);
+      setErrors((prev) => ({ ...prev, load: 'Không thể tải thông tin đề tài' }));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  /**
-   * Handle navigation away - force save first (AC5: Data Persistence)
-   */
-  const handleNavigateAway = useCallback(async () => {
-    await forceSave(formData);
-    navigate(-1);
-  }, [forceSave, formData, navigate]);
+  // Handle form field change
+  const handleFieldChange = (field: string, value: unknown) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => ({ ...prev, [field]: undefined }));
+  };
+
+  // Auto-save function
+  const autoSaveFunc = async (data: Record<string, unknown>) => {
+    if (!id) throw new Error('Proposal ID is required');
+    await proposalsApi.autoSave(id, { formData: data });
+  };
+
+  // Auto-save hook
+  const { status: autoSaveStatus, hasChanges } = useAutoSave<Record<string, unknown>>({
+    data: formData,
+    originalData: proposal?.formData || {},
+    delay: 2000,
+    onSave: autoSaveFunc,
+    enabled: !!proposal && proposal.state === ProjectState.DRAFT,
+  });
+
+  // Validate form
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (!title.trim()) {
+      newErrors.title = 'Vui lòng nhập tên đề tài';
+    } else if (title.trim().length < 10) {
+      newErrors.title = 'Tên đề tài phải có ít nhất 10 ký tự';
+    }
+
+    if (template) {
+      template.sections.forEach((section) => {
+        if (section.required) {
+          section.fields.forEach((field) => {
+            if (field.required && !formData[field.id]) {
+              newErrors[field.id] = field.label + ' là bắt buộc';
+            }
+          });
+        }
+      });
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Handle submit
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    try {
+      if (!id) throw new Error('Proposal ID is required');
+      await proposalsApi.updateProposal(id, {
+        title: title.trim(),
+        formData,
+      });
+      navigate(`/proposals/${id}`);
+    } catch (err: any) {
+      console.error('Failed to update proposal:', err);
+      setErrors((prev) => ({
+        ...prev,
+        submit: err.response?.data?.message || 'Không thể cập nhật đề tài. Vui lòng thử lại.',
+      }));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle cancel
+  const handleCancel = () => {
+    if (hasChanges && !window.confirm('Bạn có thay đổi chưa lưu. Bạn có chắc muốn hủy?')) {
+      return;
+    }
+    navigate(`/proposals/${id}`);
+  };
 
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="min-h-screen bg-gray-50 py-8 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-          <p className="text-muted-foreground">Đang tải đề tài...</p>
+          <div className="inline-block w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+          <p className="mt-2 text-sm text-gray-600">Đang tải...</p>
         </div>
       </div>
     );
   }
 
-  // Error state
-  if (loadError) {
+  // Not editable state
+  if (notEditableReason || !proposal) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center text-red-600">
-          <p>{loadError}</p>
-          <button
-            onClick={() => navigate(-1)}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-          >
-            Quay lại
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Proposal not found
-  if (!proposal) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <p className="text-red-600">Không tìm thấy đề tài</p>
-          <button
-            onClick={() => navigate(-1)}
-            className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-          >
-            Quay lại
-          </button>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 flex items-start gap-4">
+            <AlertCircle className="h-6 w-6 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <h2 className="text-lg font-semibold text-yellow-800">Không thể chỉnh sửa</h2>
+              <p className="text-yellow-700 mt-1">{notEditableReason || 'Không tìm thấy đề tài'}</p>
+              <button
+                onClick={() => navigate(`/proposals/${id}`)}
+                className="mt-4 px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors"
+              >
+                Quay lại
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      {/* Header with SaveIndicator (AC2, AC3: Save Indicator) */}
-      <div className="flex justify-between items-center mb-6 pb-4 border-b">
-        <div>
-          <h1 className="text-2xl font-bold">{proposal.title}</h1>
-          <p className="text-sm text-muted-foreground">Mã: {proposal.code}</p>
-        </div>
-        <div className="flex items-center gap-4">
-          {/* AC2, AC3: Save Indicator */}
-          <SaveIndicator state={autoSaveState} />
-          <button
-            onClick={handleSubmit}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Lưu và thoát
-          </button>
-        </div>
-      </div>
-
-      {/* Demo Proposal Form */}
-      <div className="space-y-6">
-        {/* Attachments Section (Story 2.4 - Task 6.1) */}
-        <section className="border rounded-lg p-4" data-section="SEC_ATTACHMENTS">
-          <h2 className="text-lg font-semibold mb-4">Tài liệu đính kèm</h2>
-
-          {/* Upload component (Task 6.2) - disabled when not in DRAFT (Task 6.4) */}
-          <div className="mb-4">
-            <FileUpload
-              proposalId={id || ''}
-              onUploadSuccess={handleUploadSuccess}
-              disabled={proposal?.state !== 'DRAFT'}
-              currentTotalSize={totalSize}
-            />
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mb-8 flex items-center justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-gray-900">Chỉnh sửa đề tài</h1>
+              {proposal && <StateBadge state={proposal.state as ProjectState} />}
+            </div>
+            <p className="text-gray-600 mt-1">Mã: {proposal?.code}</p>
           </div>
+          <div className="flex items-center gap-4">
+            <AutoSaveIndicator status={autoSaveStatus} />
+            <button onClick={handleCancel} className="p-2 text-gray-400 hover:text-gray-600">
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+        </div>
 
-          {/* Attachments list (Task 6.2, 6.3) */}
-          {!attachmentsLoading && (
-            <AttachmentList
-              proposalId={id || ''}
-              attachments={attachments}
-              totalSize={totalSize}
-            />
-          )}
-        </section>
-
-        {/* Section: SEC_INFO_GENERAL */}
-        <section className="border rounded-lg p-4" data-section="SEC_INFO_GENERAL">
-          <h2 className="text-lg font-semibold mb-4">Thông tin chung</h2>
+        <div className="bg-white rounded-lg shadow p-6 space-y-6">
           <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900">Thông tin chung</h2>
+
             <div>
-              <label className="block text-sm font-medium mb-1">Tên đề tài</label>
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+                Tên đề tài <span className="text-red-500">*</span>
+              </label>
               <input
+                id="title"
                 type="text"
-                data-section="SEC_INFO_GENERAL"
-                data-field="title"
-                value={(formData.SEC_INFO_GENERAL as Record<string, unknown>)?.title as string || ''}
-                onChange={(e) => handleFieldChange('SEC_INFO_GENERAL', 'title', e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
-                placeholder="Nhập tên đề tài"
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  setErrors((prev) => ({ ...prev, title: undefined }));
+                }}
+                placeholder="Nhập tên đề tài (ít nhất 10 ký tự)"
+                className={'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-offset-1 ' +
+                  (errors.title ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500')}
               />
+              {errors.title && <p className="text-sm text-red-600 mt-1">{errors.title}</p>}
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Mục tiêu nghiên cứu</label>
-              <textarea
-                data-section="SEC_INFO_GENERAL"
-                data-field="objective"
-                value={(formData.SEC_INFO_GENERAL as Record<string, unknown>)?.objective as string || ''}
-                onChange={(e) => handleFieldChange('SEC_INFO_GENERAL', 'objective', e.target.value)}
-                className="w-full px-3 py-2 border rounded-md min-h-[100px]"
-                placeholder="Nhập mục tiêu nghiên cứu"
-              />
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Đơn vị</label>
+                <input
+                  type="text"
+                  value={proposal?.faculty?.name || ''}
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mẫu đề tài</label>
+                <input
+                  type="text"
+                  value={proposal?.template?.name || ''}
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                />
+              </div>
             </div>
           </div>
-        </section>
 
-        {/* Section: SEC_BUDGET */}
-        <section className="border rounded-lg p-4" data-section="SEC_BUDGET">
-          <h2 className="text-lg font-semibold mb-4">Ngân sách dự kiến</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Tổng ngân sách (VNĐ)</label>
-              <input
-                type="number"
-                data-section="SEC_BUDGET"
-                data-field="total"
-                value={(formData.SEC_BUDGET as Record<string, unknown>)?.total as string || ''}
-                onChange={(e) => handleFieldChange('SEC_BUDGET', 'total', parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 border rounded-md"
-                placeholder="Nhập tổng ngân sách"
-              />
+          {template && (
+            <>
+              <h2 className="text-lg font-semibold text-gray-900">Nội dung chi tiết</h2>
+              <ProposalForm template={template} formData={formData} onChange={handleFieldChange} errors={errors} />
+            </>
+          )}
+
+          {errors.submit && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+              {errors.submit}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+            <button onClick={handleCancel} className="px-4 py-2 text-gray-700 hover:text-gray-900">
+              Hủy
+            </button>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSubmit}
+                disabled={isSubmitting || autoSaveStatus === 'saving'}
+                className="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Đang xử lý...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Lưu thay đổi
+                  </>
+                )}
+              </button>
             </div>
           </div>
-        </section>
-
-        {/* Note: This is a demo form. Real implementation would have all sections */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
-          <p><strong>Lưu ý:</strong> Đây là form demo. Thực tế sẽ có tất cả các section từ template.</p>
-          <p className="mt-1">Auto-save được kích hoạt khi bạn thay đổi bất kỳ field nào.</p>
         </div>
-      </div>
-
-      {/* Footer actions */}
-      <div className="mt-8 flex justify-between">
-        <button
-          onClick={handleNavigateAway}
-          className="px-4 py-2 border rounded hover:bg-gray-50"
-        >
-          Hủy
-        </button>
-        <button
-          onClick={handleSubmit}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Lưu và thoát
-        </button>
       </div>
     </div>
   );

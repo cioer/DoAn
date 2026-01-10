@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsBoolean, IsOptional, IsEnum } from 'class-validator';
+import { FormSectionDto } from './form-section.dto';
+import { CreateFormSectionDto } from './form-section.dto';
 
 export enum ProjectType {
   CAP_TRUONG = 'CAP_TRUONG',

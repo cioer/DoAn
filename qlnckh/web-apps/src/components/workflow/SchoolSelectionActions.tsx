@@ -9,25 +9,25 @@
  *
  * Story 5.2: Council Assignment Integration
  * - "Phân bổ hội đồng" button opens CouncilAssignmentDialog
+ * - Uses UI components (Button, Select, Textarea)
  */
 
 import { useState } from 'react';
 import {
   Users,
   AlertCircle,
-  Loader2,
   XCircle,
-  ChevronDown,
   CheckCircle,
 } from 'lucide-react';
 import {
   workflowApi,
   generateIdempotencyKey,
-  RETURN_REASON_CODES,
   RETURN_REASON_LABELS,
   CANONICAL_SECTIONS,
   TransitionResult,
 } from '../../lib/api/workflow';
+import { Button } from '../ui';
+import { Select, SelectOption, Textarea } from '../ui';
 import { CouncilAssignmentDialog } from './CouncilAssignmentDialog';
 
 /**
@@ -75,6 +75,7 @@ function canReturnSchoolSelection(proposalState: string, userRole: string): bool
  * - Reason code dropdown (required)
  * - Section checkboxes (required, min 1)
  * - Comment textarea (optional)
+ * - Uses UI components (Button, Select, Textarea)
  */
 interface ReturnDialogProps {
   isOpen: boolean;
@@ -127,11 +128,16 @@ function ReturnDialog({ isOpen, onClose, onSubmit, isSubmitting }: ReturnDialogP
     );
   };
 
+  // Build select options for return reasons
+  const reasonOptions: SelectOption[] = Object.entries(RETURN_REASON_LABELS).map(
+    ([code, label]) => ({ value: code, label })
+  );
+
   if (!isOpen) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
       role="dialog"
       aria-modal="true"
       aria-labelledby="return-dialog-title"
@@ -160,27 +166,15 @@ function ReturnDialog({ isOpen, onClose, onSubmit, isSubmitting }: ReturnDialogP
             </div>
           )}
 
-          {/* Reason code dropdown (required) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Lý do trả về <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <select
-                value={reasonCode}
-                onChange={(e) => setReasonCode(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
-              >
-                <option value="">-- Chọn lý do --</option>
-                {Object.entries(RETURN_REASON_LABELS).map(([code, label]) => (
-                  <option key={code} value={code}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
-          </div>
+          {/* Reason code dropdown (required) - using Select component */}
+          <Select
+            label="Lý do trả về"
+            required
+            placeholder="-- Chọn lý do --"
+            options={reasonOptions}
+            value={reasonCode}
+            onChange={(e) => setReasonCode(e.target.value)}
+          />
 
           {/* Section checkboxes (required, min 1) */}
           <div>
@@ -211,45 +205,34 @@ function ReturnDialog({ isOpen, onClose, onSubmit, isSubmitting }: ReturnDialogP
             )}
           </div>
 
-          {/* Comment textarea (optional) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Ghi chú thêm
-              <span className="text-xs text-gray-500 ml-1">(tùy chọn)</span>
-            </label>
-            <textarea
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Nhập ghi chú chi tiết về các vấn đề cần sửa..."
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-            />
-          </div>
+          {/* Comment textarea (optional) - using Textarea component */}
+          <Textarea
+            label="Ghi chú thêm"
+            helperText="(tùy chọn)"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Nhập ghi chú chi tiết về các vấn đề cần sửa..."
+            rows={3}
+          />
         </div>
 
-        {/* Footer */}
+        {/* Footer - using Button components */}
         <div className="p-6 border-t bg-gray-50 rounded-b-lg flex justify-end gap-3">
-          <button
+          <Button
+            variant="secondary"
             onClick={onClose}
             disabled={isSubmitting}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Hủy
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="destructive"
             onClick={handleSubmit}
-            disabled={isSubmitting || !isValid}
-            className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-md hover:bg-orange-700 disabled:bg-orange-400 disabled:cursor-not-allowed inline-flex items-center gap-2"
+            isLoading={isSubmitting}
+            disabled={!isValid}
           >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Đang xử lý...
-              </>
-            ) : (
-              'Gửi yêu cầu'
-            )}
-          </button>
+            Gửi yêu cầu
+          </Button>
         </div>
       </div>
     </div>
@@ -263,6 +246,7 @@ function ReturnDialog({ isOpen, onClose, onSubmit, isSubmitting }: ReturnDialogP
  * This is the queue where PKHCN sees proposals that need council assignment.
  *
  * AC2: UI displays button "Phân bổ hội đồng" (primary) + "Yêu cầu sửa" (secondary)
+ * - Uses UI components (Button)
  */
 export function SchoolSelectionActions({
   proposalId,
@@ -392,49 +376,31 @@ export function SchoolSelectionActions({
   return (
     <>
       <div className="flex items-center gap-2">
-        {/* Story 5.1: AC2 - "Yêu cầu sửa" button (secondary destructive) */}
+        {/* Story 5.1: AC2 - "Yêu cầu sửa" button (destructive) - using Button component */}
         {showReturnButton && (
-          <button
+          <Button
+            variant="destructive"
             onClick={() => setShowReturnDialog(true)}
-            disabled={isReturning}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            isLoading={isReturning}
+            leftIcon={<XCircle className="w-4 h-4" />}
             aria-label="Yêu cầu sửa hồ sơ"
           >
-            {isReturning ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Đang xử lý...</span>
-              </>
-            ) : (
-              <>
-                <XCircle className="w-4 h-4" />
-                <span>Yêu cầu sửa</span>
-              </>
-            )}
-          </button>
+            Yêu cầu sửa
+          </Button>
         )}
 
-        {/* Story 5.1: AC2 - "Phân bổ hội đồng" button (primary) */}
+        {/* Story 5.1: AC2 - "Phân bổ hội đồng" button (primary) - using Button component */}
         {/* Story 5.2: Opens CouncilAssignmentDialog */}
         {showAssignCouncilButton && (
-          <button
+          <Button
+            variant="primary"
             onClick={() => setShowCouncilDialog(true)}
-            disabled={isAssigningCouncil}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            isLoading={isAssigningCouncil}
+            leftIcon={<Users className="w-4 h-4" />}
             aria-label="Phân bổ hội đồng xét duyệt"
           >
-            {isAssigningCouncil ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Đang xử lý...</span>
-              </>
-            ) : (
-              <>
-                <Users className="w-4 h-4" />
-                <span>Phân bổ hội đồng</span>
-              </>
-            )}
-          </button>
+            Phân bổ hội đồng
+          </Button>
         )}
       </div>
 

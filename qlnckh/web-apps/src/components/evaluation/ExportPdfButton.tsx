@@ -16,6 +16,7 @@
 
 import { useState } from 'react';
 import { Download, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Button, Alert } from '../ui';
 
 export type ExportButtonState = 'idle' | 'loading' | 'success' | 'error';
 
@@ -139,30 +140,23 @@ export function ExportPdfButton({
 
   return (
     <div className="flex flex-col items-end gap-2">
-      <button
-        type="button"
+      <Button
+        variant={isFinalized ? 'primary' : 'secondary'}
+        size="sm"
         onClick={handleExport}
         disabled={!isFinalized || exportState === 'loading'}
-        className={`
-          inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md
-          transition-colors duration-200
-          ${
-            isFinalized
-              ? 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }
-          ${className}
-        `}
+        isLoading={exportState === 'loading'}
+        leftIcon={getButtonIcon()}
+        className={isFinalized ? '' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}
       >
-        {getButtonIcon()}
         {getButtonText()}
-      </button>
+      </Button>
 
-      {/* Error Message */}
+      {/* Error Message - using Alert component */}
       {errorMessage && exportState === 'error' && (
-        <div className="text-xs text-red-600 dark:text-red-400 text-right max-w-xs">
+        <Alert variant="error" className="text-xs text-right max-w-xs py-1 px-2">
           {errorMessage}
-        </div>
+        </Alert>
       )}
     </div>
   );
