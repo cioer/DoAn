@@ -9,6 +9,11 @@ import { AttachmentsService } from './attachments.service';
 import { PrismaService } from '../auth/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-action.enum';
+import {
+  AttachmentValidationService,
+  AttachmentStorageService,
+  AttachmentQueryService,
+} from './services';
 
 // Manual mock - bypass DI (following pattern from proposals.service.spec.ts)
 const mockPrismaService = {
@@ -32,38 +37,67 @@ const mockAuditService = {
   logEvent: vi.fn().mockResolvedValue(undefined),
 };
 
-// Mock fs promises
-jest.mock('fs', () => ({
-  promises: {
-    mkdir: vi.fn().mockResolvedValue(undefined),
-    writeFile: vi.fn().mockResolvedValue(undefined),
-  },
-}));
+// Mock Validation Service
+const mockValidationService = {
+  DEFAULT_MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
+  DEFAULT_MAX_TOTAL_SIZE: 50 * 1024 * 1024, // 50MB
+  validateFileSize: vi.fn(),
+  validateFileType: vi.fn(),
+  validateTotalSize: vi.fn(),
+  generateUniqueFilename: vi.fn(),
+};
+
+// Mock Storage Service
+const mockStorageService = {
+  DEFAULT_UPLOAD_DIR: '/app/uploads',
+  saveFile: vi.fn().mockResolvedValue(undefined),
+  deleteFile: vi.fn().mockResolvedValue(undefined),
+  buildFilePath: vi.fn(),
+  buildFileUrl: vi.fn(),
+};
+
+// Mock Query Service
+const mockQueryService = {
+  getProposalForValidation: vi.fn(),
+  getAttachmentById: vi.fn(),
+  getByProposalId: vi.fn(),
+  getTotalSize: vi.fn(),
+  createAttachment: vi.fn(),
+  updateAttachment: vi.fn(),
+  softDeleteAttachment: vi.fn(),
+};
 
 describe('AttachmentsService', () => {
   let service: AttachmentsService;
-
-  // Spy on saveFileToDisk method to avoid actual file I/O
-  let saveFileToDiskSpy: jest.SpyInstance;
 
   // Manually create service with mocks (following pattern from proposals.service.spec.ts)
   beforeEach(() => {
     service = new AttachmentsService(
       mockPrismaService as any,
       mockAuditService as any,
+      mockValidationService as any,
+      mockStorageService as any,
+      mockQueryService as any,
     );
 
-    // Mock saveFileToDisk to avoid actual file I/O
-    saveFileToDiskSpy = jest
-      .spyOn(service as any, 'saveFileToDisk')
-      .mockResolvedValue(undefined);
+    // Default mock implementations
+    mockStorageService.buildFilePath.mockImplementation((filename: string, uploadDir: string) => {
+      return `${uploadDir}/${filename}`;
+    });
+
+    mockStorageService.buildFileUrl.mockImplementation((filename: string) => {
+      return `/uploads/${filename}`;
+    });
+
+    mockValidationService.generateUniqueFilename.mockImplementation((originalName: string) => {
+      return `uuid-${originalName}`;
+    });
 
     vi.clearAllMocks();
   });
 
   afterEach(() => {
-    jest.resetAllMocks();
-    saveFileToDiskSpy.mockRestore();
+    vi.clearAllMocks();
   });
 
   describe('uploadFile', () => {
@@ -93,7 +127,7 @@ describe('AttachmentsService', () => {
         size: 6 * 1024 * 1024, // 6MB - over limit
       } as Express.Multer.File;
 
-      mockPrismaService.proposal.findUnique.mockResolvedValue(mockProposal);
+      mockValidationService.validateFileSize.mockReturnValue('File quá 5MB. Vui lòng nén hoặc chia nhỏ.');
 
       // Act & Assert
       await expect(
@@ -109,6 +143,11 @@ describe('AttachmentsService', () => {
           },
         }),
       );
+
+      expect(mockValidationService.validateFileSize).toHaveBeenCalledWith(
+        largeFile.size,
+        mockValidationService.DEFAULT_MAX_FILE_SIZE,
+      );
     });
 
     it('should reject file with invalid mime type', async () => {
@@ -120,49 +159,45 @@ describe('AttachmentsService', () => {
         buffer: Buffer.from('test file content'),
       } as Express.Multer.File;
 
-      mockPrismaService.proposal.findUnique.mockResolvedValue({
+      mockValidationService.validateFileSize.mockReturnValue(null);
+      mockValidationService.validateFileType.mockReturnValue('Định dạng file không được hỗ trợ.');
+      mockQueryService.getProposalForValidation.mockResolvedValue({
         ...mockProposal,
         ownerId: mockUserId, // Same as uploader
       });
-      mockPrismaService.attachment.aggregate.mockResolvedValue({
-        _sum: { fileSize: 0 },
-      });
+      mockQueryService.getTotalSize.mockResolvedValue(0);
 
       // Act & Assert
       await expect(
-        async () =>
-          service.uploadFile('proposal-uuid', invalidFile, mockUserId, {
-            uploadDir: mockUploadDir,
-          }),
-      ).rejects.toThrow(
-        BadRequestException,
-      );
-
-      // Verify the error code
-      try {
-        await service.uploadFile('proposal-uuid', invalidFile, mockUserId, {
+        service.uploadFile('proposal-uuid', invalidFile, mockUserId, {
           uploadDir: mockUploadDir,
-        });
-      } catch (error) {
-        expect((error as BadRequestException).response).toMatchObject({
+        }),
+      ).rejects.toThrow(
+        new BadRequestException({
           success: false,
           error: {
             code: 'INVALID_FILE_TYPE',
             message: 'Định dạng file không được hỗ trợ.',
           },
-        });
-      }
+        }),
+      );
+
+      expect(mockValidationService.validateFileType).toHaveBeenCalledWith(
+        invalidFile.mimetype,
+        invalidFile.originalname,
+      );
     });
 
     it('should reject when total size exceeds 50MB', async () => {
       // Arrange - use a proposal where the user IS the owner
-      mockPrismaService.proposal.findUnique.mockResolvedValue({
+      mockValidationService.validateFileSize.mockReturnValue(null);
+      mockValidationService.validateFileType.mockReturnValue(null);
+      mockValidationService.validateTotalSize.mockReturnValue('Tổng dung lượng đã vượt giới hạn (50MB/proposal).');
+      mockQueryService.getProposalForValidation.mockResolvedValue({
         ...mockProposal,
         ownerId: mockUserId, // Same as uploader
       });
-      mockPrismaService.attachment.aggregate.mockResolvedValue({
-        _sum: { fileSize: 49 * 1024 * 1024 }, // 49MB already used
-      });
+      mockQueryService.getTotalSize.mockResolvedValue(49 * 1024 * 1024); // 49MB already used
 
       const newFile = {
         ...mockFile,
@@ -183,11 +218,18 @@ describe('AttachmentsService', () => {
           },
         }),
       );
+
+      expect(mockValidationService.validateTotalSize).toHaveBeenCalledWith(
+        49 * 1024 * 1024,
+        newFile.size,
+        mockValidationService.DEFAULT_MAX_TOTAL_SIZE,
+      );
     });
 
     it('should reject when proposal not found', async () => {
       // Arrange
-      mockPrismaService.proposal.findUnique.mockResolvedValue(null);
+      mockValidationService.validateFileSize.mockReturnValue(null);
+      mockQueryService.getProposalForValidation.mockResolvedValue(null);
 
       // Act & Assert
       await expect(
@@ -212,7 +254,8 @@ describe('AttachmentsService', () => {
         state: ProjectState.FACULTY_REVIEW,
       };
 
-      mockPrismaService.proposal.findUnique.mockResolvedValue(nonDraftProposal);
+      mockValidationService.validateFileSize.mockReturnValue(null);
+      mockQueryService.getProposalForValidation.mockResolvedValue(nonDraftProposal);
 
       // Act & Assert
       await expect(
@@ -220,11 +263,11 @@ describe('AttachmentsService', () => {
           uploadDir: mockUploadDir,
         }),
       ).rejects.toThrow(
-        new BadRequestException({
+        new ForbiddenException({
           success: false,
           error: {
             code: 'PROPOSAL_NOT_DRAFT',
-            message: 'Không thể tải lên khi hồ sơ không ở trạng thái nháp.',
+            message: 'Không thể sửa sau khi nộp. Vui lòng liên hệ admin nếu cần sửa.',
           },
         }),
       );
@@ -234,7 +277,8 @@ describe('AttachmentsService', () => {
       // Arrange
       const differentUserId = 'different-user-uuid';
 
-      mockPrismaService.proposal.findUnique.mockResolvedValue(mockProposal);
+      mockValidationService.validateFileSize.mockReturnValue(null);
+      mockQueryService.getProposalForValidation.mockResolvedValue(mockProposal);
 
       // Act & Assert
       await expect(
@@ -246,7 +290,7 @@ describe('AttachmentsService', () => {
           success: false,
           error: {
             code: 'FORBIDDEN',
-            message: 'Bạn không có quyền tải tài liệu lên đề tài này.',
+            message: 'Bạn không có quyền thay thế tài liệu của đề tài này.',
           },
         }),
       );
@@ -257,9 +301,8 @@ describe('AttachmentsService', () => {
       const createdAttachment = {
         id: 'attachment-uuid',
         proposalId: 'proposal-uuid',
-        // The service generates UUID-prefixed filename
-        fileName: expect.stringMatching(/^[a-f0-9-]+-document\.pdf$/),
-        fileUrl: expect.stringMatching(/^\/uploads\/[a-f0-9-]+-document\.pdf$/),
+        fileName: 'uuid-document.pdf',
+        fileUrl: '/uploads/uuid-document.pdf',
         fileSize: mockFile.size,
         mimeType: mockFile.mimetype,
         uploadedBy: mockUserId,
@@ -267,14 +310,15 @@ describe('AttachmentsService', () => {
         deletedAt: null,
       };
 
-      mockPrismaService.proposal.findUnique.mockResolvedValue({
+      mockValidationService.validateFileSize.mockReturnValue(null);
+      mockValidationService.validateFileType.mockReturnValue(null);
+      mockValidationService.validateTotalSize.mockReturnValue(null);
+      mockQueryService.getProposalForValidation.mockResolvedValue({
         ...mockProposal,
         ownerId: mockUserId, // Same as uploader
       });
-      mockPrismaService.attachment.aggregate.mockResolvedValue({
-        _sum: { fileSize: 0 },
-      });
-      mockPrismaService.attachment.create.mockResolvedValue(createdAttachment);
+      mockQueryService.getTotalSize.mockResolvedValue(0);
+      mockQueryService.createAttachment.mockResolvedValue(createdAttachment);
 
       // Act
       const result = await service.uploadFile(
@@ -293,14 +337,19 @@ describe('AttachmentsService', () => {
         uploadedBy: mockUserId,
       }));
 
-      expect(mockPrismaService.attachment.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          proposalId: 'proposal-uuid',
-          fileName: expect.stringMatching(/^[a-f0-9-]+-document\.pdf$/),
-          fileSize: mockFile.size,
-          mimeType: mockFile.mimetype,
-          uploadedBy: mockUserId,
-        }),
+      expect(mockStorageService.saveFile).toHaveBeenCalledWith(
+        `${mockUploadDir}/uuid-document.pdf`,
+        mockFile.buffer,
+        30000,
+      );
+
+      expect(mockQueryService.createAttachment).toHaveBeenCalledWith({
+        proposalId: 'proposal-uuid',
+        fileName: 'uuid-document.pdf',
+        fileUrl: '/uploads/uuid-document.pdf',
+        fileSize: mockFile.size,
+        mimeType: mockFile.mimetype,
+        uploadedBy: mockUserId,
       });
 
       expect(mockAuditService.logEvent).toHaveBeenCalledWith({
@@ -310,7 +359,8 @@ describe('AttachmentsService', () => {
         entityId: createdAttachment.id,
         metadata: expect.objectContaining({
           proposalId: 'proposal-uuid',
-          fileName: expect.stringMatching(/^[a-f0-9-]+-document\.pdf$/),
+          proposalCode: 'DT-001',
+          fileName: 'uuid-document.pdf',
           originalFileName: 'document.pdf',
           fileSize: mockFile.size,
         }),
@@ -331,26 +381,24 @@ describe('AttachmentsService', () => {
         deletedAt: null,
       };
 
-      mockPrismaService.proposal.findUnique.mockResolvedValue({
+      mockValidationService.validateFileSize.mockReturnValue(null);
+      mockValidationService.validateFileType.mockReturnValue(null);
+      mockValidationService.validateTotalSize.mockReturnValue(null);
+      mockQueryService.getProposalForValidation.mockResolvedValue({
         ...mockProposal,
         ownerId: mockUserId,
       });
-      mockPrismaService.attachment.aggregate.mockResolvedValue({
-        _sum: { fileSize: 0 },
-      });
-      mockPrismaService.attachment.create.mockResolvedValue(createdAttachment);
+      mockQueryService.getTotalSize.mockResolvedValue(0);
+      mockQueryService.createAttachment.mockResolvedValue(createdAttachment);
 
       // Act
       await service.uploadFile('proposal-uuid', mockFile, mockUserId, {
         uploadDir: mockUploadDir,
       });
 
-      // Assert - verify file name is prefixed with UUID
-      const createCall = mockPrismaService.attachment.create.mock.calls[0][0];
-      // Should match pattern: UUID-document.pdf
-      expect(createCall.data.fileName).toMatch(
-        /^[a-f0-9-]+-document\.pdf$/,
-      );
+      // Assert - verify unique filename generation
+      expect(mockValidationService.generateUniqueFilename).toHaveBeenCalledWith('document.pdf');
+      expect(mockStorageService.buildFilePath).toHaveBeenCalledWith('uuid-document.pdf', mockUploadDir);
     });
 
     it('should handle files with multiple extensions correctly', async () => {
@@ -372,14 +420,15 @@ describe('AttachmentsService', () => {
         deletedAt: null,
       };
 
-      mockPrismaService.proposal.findUnique.mockResolvedValue({
+      mockValidationService.validateFileSize.mockReturnValue(null);
+      mockValidationService.validateFileType.mockReturnValue(null);
+      mockValidationService.validateTotalSize.mockReturnValue(null);
+      mockQueryService.getProposalForValidation.mockResolvedValue({
         ...mockProposal,
         ownerId: mockUserId,
       });
-      mockPrismaService.attachment.aggregate.mockResolvedValue({
-        _sum: { fileSize: 0 },
-      });
-      mockPrismaService.attachment.create.mockResolvedValue(createdAttachment);
+      mockQueryService.getTotalSize.mockResolvedValue(0);
+      mockQueryService.createAttachment.mockResolvedValue(createdAttachment);
 
       // Act
       await service.uploadFile(
@@ -390,11 +439,7 @@ describe('AttachmentsService', () => {
       );
 
       // Assert - should preserve original filename with UUID prefix
-      const createCall = mockPrismaService.attachment.create.mock.calls[0][0];
-      expect(createCall.data.fileName).toContain('.pdf');
-      expect(createCall.data.fileName).toContain('my.document.backup');
-      // Should have UUID prefix - original filename - .pdf extension
-      expect(createCall.data.fileName).toMatch(/^[a-f0-9-]+-my\.document\.backup\.pdf$/);
+      expect(mockValidationService.generateUniqueFilename).toHaveBeenCalledWith('my.document.backup.pdf');
     });
   });
 
@@ -426,7 +471,9 @@ describe('AttachmentsService', () => {
         },
       ];
 
-      mockPrismaService.attachment.findMany.mockResolvedValue(mockAttachments);
+      mockQueryService.getByProposalId.mockResolvedValue(
+        Object.assign(mockAttachments, { totalSize: 3 * 1024 * 1024 }),
+      );
 
       // Act
       const result = await service.getByProposalId('proposal-uuid');
@@ -437,6 +484,7 @@ describe('AttachmentsService', () => {
       expect(result[0].fileName).toBe('document1.pdf');
       expect(result[1].fileName).toBe('document2.pdf');
       expect((result as typeof result & { totalSize: number }).totalSize).toBe(3 * 1024 * 1024); // 3MB total
+      expect(mockQueryService.getByProposalId).toHaveBeenCalledWith('proposal-uuid');
     });
 
     it('should exclude soft-deleted attachments', async () => {
@@ -453,42 +501,26 @@ describe('AttachmentsService', () => {
           uploadedAt: new Date(),
           deletedAt: null,
         },
-        {
-          id: 'attachment-2',
-          proposalId: 'proposal-uuid',
-          fileName: 'document2.pdf',
-          fileUrl: '/uploads/uuid-document2.pdf',
-          fileSize: 2 * 1024 * 1024,
-          mimeType: 'application/pdf',
-          uploadedBy: 'user-uuid',
-          uploadedAt: new Date(),
-          deletedAt: new Date(), // Soft-deleted
-        },
       ];
 
-      mockPrismaService.attachment.findMany.mockResolvedValue(mockAttachments);
+      mockQueryService.getByProposalId.mockResolvedValue(
+        Object.assign(mockAttachments, { totalSize: 1024 * 1024 }),
+      );
 
       // Act
       const result = await service.getByProposalId('proposal-uuid');
 
-      // Assert - should return all attachments (filtering happens at query level)
+      // Assert - should return non-deleted attachments
       expect(Array.isArray(result)).toBe(true);
-      expect(result).toHaveLength(2);
-      // Note: The service relies on Prisma query to filter deletedAt, not post-filter
-      expect(mockPrismaService.attachment.findMany).toHaveBeenCalledWith({
-        where: {
-          proposalId: 'proposal-uuid',
-          deletedAt: null,
-        },
-        orderBy: {
-          uploadedAt: 'desc',
-        },
-      });
+      expect(result).toHaveLength(1);
+      expect(mockQueryService.getByProposalId).toHaveBeenCalledWith('proposal-uuid');
     });
 
     it('should return empty array when no attachments found', async () => {
       // Arrange
-      mockPrismaService.attachment.findMany.mockResolvedValue([]);
+      mockQueryService.getByProposalId.mockResolvedValue(
+        Object.assign([], { totalSize: 0 }),
+      );
 
       // Act
       const result = await service.getByProposalId('proposal-uuid');
@@ -533,19 +565,6 @@ describe('AttachmentsService', () => {
     const mockUserId = 'owner-uuid';
     const mockUploadDir = '/uploads';
 
-    // Spy on deleteFileFromStorage method to avoid actual file I/O
-    let deleteFileFromStorageSpy: jest.SpyInstance;
-
-    beforeEach(() => {
-      deleteFileFromStorageSpy = jest
-        .spyOn(service as any, 'deleteFileFromStorage')
-        .mockResolvedValue(undefined);
-    });
-
-    afterEach(() => {
-      deleteFileFromStorageSpy.mockRestore();
-    });
-
     it('should reject when proposal is not in DRAFT state', async () => {
       // Arrange
       const nonDraftProposal = {
@@ -553,7 +572,7 @@ describe('AttachmentsService', () => {
         state: ProjectState.FACULTY_REVIEW,
       };
 
-      mockPrismaService.proposal.findUnique.mockResolvedValue(nonDraftProposal);
+      mockQueryService.getProposalForValidation.mockResolvedValue(nonDraftProposal);
 
       // Act & Assert
       await expect(
@@ -577,11 +596,11 @@ describe('AttachmentsService', () => {
 
     it('should reject when attachment not found', async () => {
       // Arrange
-      mockPrismaService.proposal.findUnique.mockResolvedValue({
+      mockQueryService.getProposalForValidation.mockResolvedValue({
         ...mockProposal,
         ownerId: mockUserId,
       });
-      mockPrismaService.attachment.findUnique.mockResolvedValue(null);
+      mockQueryService.getAttachmentById.mockResolvedValue(null);
 
       // Act & Assert
       await expect(
@@ -610,11 +629,11 @@ describe('AttachmentsService', () => {
         deletedAt: new Date(),
       };
 
-      mockPrismaService.proposal.findUnique.mockResolvedValue({
+      mockQueryService.getProposalForValidation.mockResolvedValue({
         ...mockProposal,
         ownerId: mockUserId,
       });
-      mockPrismaService.attachment.findUnique.mockResolvedValue(deletedAttachment);
+      mockQueryService.getAttachmentById.mockResolvedValue(deletedAttachment);
 
       // Act & Assert
       await expect(
@@ -640,8 +659,8 @@ describe('AttachmentsService', () => {
       // Arrange
       const differentUserId = 'different-user-uuid';
 
-      mockPrismaService.proposal.findUnique.mockResolvedValue(mockProposal);
-      mockPrismaService.attachment.findUnique.mockResolvedValue(
+      mockQueryService.getProposalForValidation.mockResolvedValue(mockProposal);
+      mockQueryService.getAttachmentById.mockResolvedValue(
         mockExistingAttachment,
       );
 
@@ -672,13 +691,14 @@ describe('AttachmentsService', () => {
         size: 6 * 1024 * 1024, // 6MB - over limit
       } as Express.Multer.File;
 
-      mockPrismaService.proposal.findUnique.mockResolvedValue({
+      mockQueryService.getProposalForValidation.mockResolvedValue({
         ...mockProposal,
         ownerId: mockUserId,
       });
-      mockPrismaService.attachment.findUnique.mockResolvedValue(
+      mockQueryService.getAttachmentById.mockResolvedValue(
         mockExistingAttachment,
       );
+      mockValidationService.validateFileSize.mockReturnValue('File quá 5MB. Vui lòng nén hoặc chia nhỏ.');
 
       // Act & Assert
       await expect(
@@ -698,28 +718,35 @@ describe('AttachmentsService', () => {
           },
         }),
       );
+
+      expect(mockValidationService.validateFileSize).toHaveBeenCalledWith(
+        largeFile.size,
+        mockValidationService.DEFAULT_MAX_FILE_SIZE,
+      );
     });
 
     it('should replace file and update attachment record', async () => {
       // Arrange
       const updatedAttachment = {
         ...mockExistingAttachment,
-        fileName: expect.stringMatching(/^[a-f0-9-]+-new-document\.pdf$/),
-        fileUrl: expect.stringMatching(/^\/uploads\/[a-f0-9-]+-new-document\.pdf$/),
+        fileName: 'uuid-new-document.pdf',
+        fileUrl: '/uploads/uuid-new-document.pdf',
         fileSize: mockNewFile.size,
         mimeType: mockNewFile.mimetype,
         uploadedBy: mockUserId,
-        uploadedAt: expect.any(Date),
+        uploadedAt: new Date(),
       };
 
-      mockPrismaService.proposal.findUnique.mockResolvedValue({
+      mockQueryService.getProposalForValidation.mockResolvedValue({
         ...mockProposal,
         ownerId: mockUserId,
       });
-      mockPrismaService.attachment.findUnique.mockResolvedValue(
+      mockQueryService.getAttachmentById.mockResolvedValue(
         mockExistingAttachment,
       );
-      mockPrismaService.attachment.update.mockResolvedValue(updatedAttachment);
+      mockValidationService.validateFileSize.mockReturnValue(null);
+      mockValidationService.validateFileType.mockReturnValue(null);
+      mockQueryService.updateAttachment.mockResolvedValue(updatedAttachment);
 
       // Act
       const result = await service.replaceAttachment(
@@ -740,9 +767,16 @@ describe('AttachmentsService', () => {
       }));
 
       // Verify old file was deleted
-      expect(deleteFileFromStorageSpy).toHaveBeenCalledWith(
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
         mockExistingAttachment.fileUrl,
         mockUploadDir,
+      );
+
+      // Verify new file was saved
+      expect(mockStorageService.saveFile).toHaveBeenCalledWith(
+        `${mockUploadDir}/uuid-new-document.pdf`,
+        mockNewFile.buffer,
+        30000,
       );
 
       // Verify audit event was logged
@@ -756,7 +790,7 @@ describe('AttachmentsService', () => {
           proposalCode: 'DT-001',
           attachmentId: 'attachment-uuid',
           oldFileName: 'old-document.pdf',
-          newFileName: expect.stringMatching(/^[a-f0-9-]+-new-document\.pdf$/),
+          newFileName: 'uuid-new-document.pdf',
         }),
       });
     });
@@ -788,19 +822,6 @@ describe('AttachmentsService', () => {
     const mockUserId = 'owner-uuid';
     const mockUploadDir = '/uploads';
 
-    // Spy on deleteFileFromStorage method to avoid actual file I/O
-    let deleteFileFromStorageSpy: jest.SpyInstance;
-
-    beforeEach(() => {
-      deleteFileFromStorageSpy = jest
-        .spyOn(service as any, 'deleteFileFromStorage')
-        .mockResolvedValue(undefined);
-    });
-
-    afterEach(() => {
-      deleteFileFromStorageSpy.mockRestore();
-    });
-
     it('should reject when proposal is not in DRAFT state', async () => {
       // Arrange
       const nonDraftProposal = {
@@ -808,7 +829,7 @@ describe('AttachmentsService', () => {
         state: ProjectState.FACULTY_REVIEW,
       };
 
-      mockPrismaService.proposal.findUnique.mockResolvedValue(nonDraftProposal);
+      mockQueryService.getProposalForValidation.mockResolvedValue(nonDraftProposal);
 
       // Act & Assert
       await expect(
@@ -828,11 +849,11 @@ describe('AttachmentsService', () => {
 
     it('should reject when attachment not found', async () => {
       // Arrange
-      mockPrismaService.proposal.findUnique.mockResolvedValue({
+      mockQueryService.getProposalForValidation.mockResolvedValue({
         ...mockProposal,
         ownerId: mockUserId,
       });
-      mockPrismaService.attachment.findUnique.mockResolvedValue(null);
+      mockQueryService.getAttachmentById.mockResolvedValue(null);
 
       // Act & Assert
       await expect(
@@ -854,8 +875,8 @@ describe('AttachmentsService', () => {
       // Arrange
       const differentUserId = 'different-user-uuid';
 
-      mockPrismaService.proposal.findUnique.mockResolvedValue(mockProposal);
-      mockPrismaService.attachment.findUnique.mockResolvedValue(mockAttachment);
+      mockQueryService.getProposalForValidation.mockResolvedValue(mockProposal);
+      mockQueryService.getAttachmentById.mockResolvedValue(mockAttachment);
 
       // Act & Assert
       await expect(
@@ -867,7 +888,7 @@ describe('AttachmentsService', () => {
           success: false,
           error: {
             code: 'FORBIDDEN',
-            message: 'Bạn không có quyền xóa tài liệu của đề tài này.',
+            message: 'Bạn không có quyền thay thế tài liệu của đề tài này.',
           },
         }),
       );
@@ -880,12 +901,12 @@ describe('AttachmentsService', () => {
         deletedAt: new Date(),
       };
 
-      mockPrismaService.proposal.findUnique.mockResolvedValue({
+      mockQueryService.getProposalForValidation.mockResolvedValue({
         ...mockProposal,
         ownerId: mockUserId,
       });
-      mockPrismaService.attachment.findUnique.mockResolvedValue(mockAttachment);
-      mockPrismaService.attachment.update.mockResolvedValue(deletedAttachment);
+      mockQueryService.getAttachmentById.mockResolvedValue(mockAttachment);
+      mockQueryService.softDeleteAttachment.mockResolvedValue(deletedAttachment);
 
       // Act
       const result = await service.deleteAttachment(
@@ -902,13 +923,10 @@ describe('AttachmentsService', () => {
       });
 
       // Verify soft delete was called
-      expect(mockPrismaService.attachment.update).toHaveBeenCalledWith({
-        where: { id: 'attachment-uuid' },
-        data: { deletedAt: expect.any(Date) },
-      });
+      expect(mockQueryService.softDeleteAttachment).toHaveBeenCalledWith('attachment-uuid');
 
       // Verify physical file was deleted
-      expect(deleteFileFromStorageSpy).toHaveBeenCalledWith(
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
         mockAttachment.fileUrl,
         mockUploadDir,
       );
@@ -931,19 +949,19 @@ describe('AttachmentsService', () => {
 
     it('should handle file deletion errors gracefully', async () => {
       // Arrange - simulate file deletion error
-      deleteFileFromStorageSpy.mockRejectedValue(new Error('File not found'));
+      mockStorageService.deleteFile.mockRejectedValue(new Error('File not found'));
 
       const deletedAttachment = {
         ...mockAttachment,
         deletedAt: new Date(),
       };
 
-      mockPrismaService.proposal.findUnique.mockResolvedValue({
+      mockQueryService.getProposalForValidation.mockResolvedValue({
         ...mockProposal,
         ownerId: mockUserId,
       });
-      mockPrismaService.attachment.findUnique.mockResolvedValue(mockAttachment);
-      mockPrismaService.attachment.update.mockResolvedValue(deletedAttachment);
+      mockQueryService.getAttachmentById.mockResolvedValue(mockAttachment);
+      mockQueryService.softDeleteAttachment.mockResolvedValue(deletedAttachment);
 
       // Act - should not throw even if file deletion fails
       const result = await service.deleteAttachment(
