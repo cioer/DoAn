@@ -457,6 +457,15 @@ export class WorkflowService {
     proposalId: string,
     context: TransitionContext,
   ): Promise<TransitionResult> {
+    // Phase 1 Refactor: Use new implementation if feature flag is enabled
+    if (this.useNewServices) {
+      this.logger.debug('Using NEW refactored approveFacultyReview implementation');
+      return this.approveFacultyReviewNew(proposalId, context);
+    }
+
+    // Original implementation (fallback)
+    this.logger.debug('Using ORIGINAL approveFacultyReview implementation');
+
     // Check idempotency
     if (context.idempotencyKey) {
       const cached = this.idempotencyStore.get(context.idempotencyKey);
@@ -570,6 +579,131 @@ export class WorkflowService {
     );
 
     return transitionResult;
+  }
+
+  /**
+   * NEW: Approve Faculty Review (Phase 1 Refactor)
+   * Uses extracted services for cleaner, more maintainable code
+   */
+  async approveFacultyReviewNew(
+    proposalId: string,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    const toState = ProjectState.SCHOOL_SELECTION_REVIEW;
+    const action = WorkflowAction.APPROVE;
+
+    // Use IdempotencyService for atomic idempotency check
+    const idempotencyResult = await this.idempotency.setIfAbsent(
+      context.idempotencyKey || `approve-faculty-${proposalId}`,
+      async () => {
+        // Get proposal
+        const proposal = await this.prisma.proposal.findUnique({
+          where: { id: proposalId },
+          include: { owner: true, faculty: true },
+        });
+
+        if (!proposal) {
+          throw new NotFoundException('Đề tài không tồn tại');
+        }
+
+        // Use WorkflowValidatorService for validation
+        await this.validator.validateTransition(
+          proposalId,
+          toState,
+          action,
+          {
+            proposal,
+            user: {
+              id: context.userId,
+              role: context.userRole,
+              facultyId: context.userFacultyId,
+            },
+          },
+        );
+
+        // Calculate holder using HolderAssignmentService
+        const holder = this.holder.getHolderForState(
+          toState,
+          proposal,
+          context.userId,
+          context.userFacultyId,
+        );
+
+        // Get user display name for audit log
+        const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+        // Calculate SLA dates
+        const slaStartDate = new Date();
+        const slaDeadline = await this.slaService.calculateDeadlineWithCutoff(
+          slaStartDate,
+          3, // 3 business days for school review
+          17, // 17:00 cutoff hour (5 PM)
+        );
+
+        // Use TransactionService for transaction orchestration
+        const result = await this.transaction.updateProposalWithLog({
+          proposalId,
+          userId: context.userId,
+          userDisplayName: actorDisplayName,
+          action,
+          fromState: proposal.state,
+          toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+          slaStartDate,
+          slaDeadline,
+        });
+
+        // Build transition result
+        const transitionResult: TransitionResult = {
+          proposal: result.proposal,
+          workflowLog: result.workflowLog,
+          previousState: proposal.state,
+          currentState: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        };
+
+        // Use AuditHelperService for audit logging with retry (fire-and-forget)
+        this.auditHelper
+          .logWorkflowTransition(
+            {
+              proposalId,
+              proposalCode: proposal.code,
+              fromState: proposal.state,
+              toState,
+              action: 'APPROVE',
+              holderUnit: holder.holderUnit,
+              holderUser: holder.holderUser,
+              slaStartDate,
+              slaDeadline,
+            },
+            {
+              userId: context.userId,
+              userDisplayName: actorDisplayName,
+              ip: context.ip,
+              userAgent: context.userAgent,
+              requestId: context.requestId,
+              facultyId: context.userFacultyId,
+              role: context.userRole,
+            },
+          )
+          .catch((err) => {
+            this.logger.error(
+              `Audit log failed for proposal ${proposal.code}: ${err.message}`,
+            );
+          });
+
+        this.logger.log(
+          `Proposal ${proposal.code} approved by faculty (NEW): ${proposal.state} → ${toState}`,
+        );
+
+        return transitionResult;
+      },
+    );
+
+    // Return the unwrapped result
+    return idempotencyResult.data;
   }
 
   /**
