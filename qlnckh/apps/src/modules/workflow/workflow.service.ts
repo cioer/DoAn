@@ -2093,6 +2093,15 @@ export class WorkflowService {
     proposalId: string,
     context: TransitionContext,
   ): Promise<TransitionResult> {
+    // Phase 1 Refactor: Use new implementation if feature flag is enabled
+    if (this.useNewServices) {
+      this.logger.debug('Using NEW refactored approveCouncilReview implementation');
+      return this.approveCouncilReviewNew(proposalId, context);
+    }
+
+    // Original implementation (fallback)
+    this.logger.debug('Using ORIGINAL approveCouncilReview implementation');
+
     // Check idempotency
     if (context.idempotencyKey) {
       const cached = this.idempotencyStore.get(context.idempotencyKey);
@@ -2205,6 +2214,123 @@ export class WorkflowService {
     );
 
     return transitionResult;
+  }
+
+  /**
+   * NEW: Approve Council Review (Phase 1 Refactor)
+   * Uses extracted services for cleaner, more maintainable code
+   * Transition to terminal state (APPROVED) - no SLA needed
+   */
+  async approveCouncilReviewNew(
+    proposalId: string,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    const toState = ProjectState.APPROVED;
+    const action = WorkflowAction.APPROVE;
+
+    // Use IdempotencyService for atomic idempotency check
+    const idempotencyResult = await this.idempotency.setIfAbsent(
+      context.idempotencyKey || `approve-council-${proposalId}`,
+      async () => {
+        // Get proposal
+        const proposal = await this.prisma.proposal.findUnique({
+          where: { id: proposalId },
+          include: { owner: true, faculty: true },
+        });
+
+        if (!proposal) {
+          throw new NotFoundException('Đề tài không tồn tại');
+        }
+
+        // Use WorkflowValidatorService for validation
+        await this.validator.validateTransition(
+          proposalId,
+          toState,
+          action,
+          {
+            proposal,
+            user: {
+              id: context.userId,
+              role: context.userRole,
+              facultyId: context.userFacultyId,
+            },
+          },
+        );
+
+        // Terminal state (APPROVED) has no holder
+        const holder = { holderUnit: null, holderUser: null };
+
+        // Get user display name for audit log
+        const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+        // No SLA for terminal state
+        const slaStartDate = new Date();
+        const slaDeadline = null;
+
+        // Use TransactionService for transaction orchestration
+        const result = await this.transaction.updateProposalWithLog({
+          proposalId,
+          userId: context.userId,
+          userDisplayName: actorDisplayName,
+          action,
+          fromState: proposal.state,
+          toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+          slaStartDate,
+          slaDeadline,
+        });
+
+        // Build transition result
+        const transitionResult: TransitionResult = {
+          proposal: result.proposal,
+          workflowLog: result.workflowLog,
+          previousState: proposal.state,
+          currentState: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        };
+
+        // Use AuditHelperService for audit logging with retry (fire-and-forget)
+        this.auditHelper
+          .logWorkflowTransition(
+            {
+              proposalId,
+              proposalCode: proposal.code,
+              fromState: proposal.state,
+              toState,
+              action: 'APPROVE',
+              holderUnit: holder.holderUnit,
+              holderUser: holder.holderUser,
+              slaStartDate,
+              slaDeadline,
+            },
+            {
+              userId: context.userId,
+              userDisplayName: actorDisplayName,
+              ip: context.ip,
+              userAgent: context.userAgent,
+              requestId: context.requestId,
+              facultyId: context.userFacultyId,
+              role: context.userRole,
+            },
+          )
+          .catch((err) => {
+            this.logger.error(
+              `Audit log failed for proposal ${proposal.code}: ${err.message}`,
+            );
+          });
+
+        this.logger.log(
+          `Proposal ${proposal.code} approved by BAN_GIAM_HOC (NEW): ${proposal.state} → ${toState}`,
+        );
+
+        return transitionResult;
+      },
+    );
+
+    // Return the unwrapped result
+    return idempotencyResult.data;
   }
 
   /**
@@ -2365,6 +2491,15 @@ export class WorkflowService {
     proposalId: string,
     context: TransitionContext,
   ): Promise<TransitionResult> {
+    // Phase 1 Refactor: Use new implementation if feature flag is enabled
+    if (this.useNewServices) {
+      this.logger.debug('Using NEW refactored acceptSchoolReview implementation');
+      return this.acceptSchoolReviewNew(proposalId, context);
+    }
+
+    // Original implementation (fallback)
+    this.logger.debug('Using ORIGINAL acceptSchoolReview implementation');
+
     // Check idempotency
     if (context.idempotencyKey) {
       const cached = this.idempotencyStore.get(context.idempotencyKey);
@@ -2477,6 +2612,123 @@ export class WorkflowService {
     );
 
     return transitionResult;
+  }
+
+  /**
+   * NEW: Accept School Review (Phase 1 Refactor)
+   * Uses extracted services for cleaner, more maintainable code
+   * Transition: SCHOOL_ACCEPTANCE_REVIEW → HANDOVER
+   */
+  async acceptSchoolReviewNew(
+    proposalId: string,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    const toState = ProjectState.HANDOVER;
+    const action = WorkflowAction.ACCEPT;
+
+    // Use IdempotencyService for atomic idempotency check
+    const idempotencyResult = await this.idempotency.setIfAbsent(
+      context.idempotencyKey || `accept-school-${proposalId}`,
+      async () => {
+        // Get proposal
+        const proposal = await this.prisma.proposal.findUnique({
+          where: { id: proposalId },
+          include: { owner: true, faculty: true },
+        });
+
+        if (!proposal) {
+          throw new NotFoundException('Đề tài không tồn tại');
+        }
+
+        // Use WorkflowValidatorService for validation
+        await this.validator.validateTransition(
+          proposalId,
+          toState,
+          action,
+          {
+            proposal,
+            user: {
+              id: context.userId,
+              role: context.userRole,
+              facultyId: context.userFacultyId,
+            },
+          },
+        );
+
+        // Fixed holder for handover
+        const holder = { holderUnit: 'PHONG_KHCN', holderUser: null };
+
+        // Get user display name for audit log
+        const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+        // No SLA for handover phase
+        const slaStartDate = new Date();
+        const slaDeadline = null;
+
+        // Use TransactionService for transaction orchestration
+        const result = await this.transaction.updateProposalWithLog({
+          proposalId,
+          userId: context.userId,
+          userDisplayName: actorDisplayName,
+          action,
+          fromState: proposal.state,
+          toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+          slaStartDate,
+          slaDeadline,
+        });
+
+        // Build transition result
+        const transitionResult: TransitionResult = {
+          proposal: result.proposal,
+          workflowLog: result.workflowLog,
+          previousState: proposal.state,
+          currentState: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        };
+
+        // Use AuditHelperService for audit logging with retry (fire-and-forget)
+        this.auditHelper
+          .logWorkflowTransition(
+            {
+              proposalId,
+              proposalCode: proposal.code,
+              fromState: proposal.state,
+              toState,
+              action: 'ACCEPT',
+              holderUnit: holder.holderUnit,
+              holderUser: holder.holderUser,
+              slaStartDate,
+              slaDeadline,
+            },
+            {
+              userId: context.userId,
+              userDisplayName: actorDisplayName,
+              ip: context.ip,
+              userAgent: context.userAgent,
+              requestId: context.requestId,
+              facultyId: context.userFacultyId,
+              role: context.userRole,
+            },
+          )
+          .catch((err) => {
+            this.logger.error(
+              `Audit log failed for proposal ${proposal.code}: ${err.message}`,
+            );
+          });
+
+        this.logger.log(
+          `Proposal ${proposal.code} accepted by BAN_GIAM_HOC (NEW): ${proposal.state} → ${toState}`,
+        );
+
+        return transitionResult;
+      },
+    );
+
+    // Return the unwrapped result
+    return idempotencyResult.data;
   }
 
   /**
