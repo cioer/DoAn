@@ -1281,6 +1281,15 @@ export class WorkflowService {
     reason: string | undefined,
     context: TransitionContext,
   ): Promise<TransitionResult> {
+    // Phase 1 Refactor: Use new implementation if feature flag is enabled
+    if (this.useNewServices) {
+      this.logger.debug('Using NEW refactored cancelProposal implementation');
+      return this.cancelProposalNew(proposalId, reason, context);
+    }
+
+    // Original implementation (fallback)
+    this.logger.debug('Using ORIGINAL cancelProposal implementation');
+
     // Check idempotency
     if (context.idempotencyKey) {
       const cached = this.idempotencyStore.get(context.idempotencyKey);
@@ -1394,6 +1403,132 @@ export class WorkflowService {
     }
 
     return executeCancel();
+  }
+
+  /**
+   * NEW: Cancel Proposal (Phase 1 Refactor)
+   * Uses extracted services for cleaner, more maintainable code
+   * Exception action - terminal state with cancelledAt timestamp
+   */
+  async cancelProposalNew(
+    proposalId: string,
+    reason: string | undefined,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    const toState = ProjectState.CANCELLED;
+    const action = WorkflowAction.CANCEL;
+
+    // Use IdempotencyService for atomic idempotency check
+    const idempotencyResult = await this.idempotency.setIfAbsent(
+      context.idempotencyKey || `cancel-${proposalId}`,
+      async () => {
+        // Get proposal
+        const proposal = await this.prisma.proposal.findUnique({
+          where: { id: proposalId },
+          include: { owner: true, faculty: true },
+        });
+
+        if (!proposal) {
+          throw new NotFoundException('Đề tài không tồn tại');
+        }
+
+        // Use WorkflowValidatorService for validation
+        await this.validator.validateTransition(
+          proposalId,
+          toState,
+          action,
+          {
+            proposal,
+            user: {
+              id: context.userId,
+              role: context.userRole,
+              facultyId: context.userFacultyId,
+            },
+          },
+        );
+
+        // Cancelled proposal goes back to owner's faculty
+        const holder = {
+          holderUnit: proposal.facultyId,
+          holderUser: proposal.ownerId,
+        };
+
+        // Get user display name for audit log
+        const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+        // No SLA for terminal state
+        const slaStartDate = new Date();
+        const slaDeadline = null;
+
+        // Use TransactionService for transaction orchestration
+        const result = await this.transaction.updateProposalWithLog({
+          proposalId,
+          userId: context.userId,
+          userDisplayName: actorDisplayName,
+          action,
+          fromState: proposal.state,
+          toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+          slaStartDate,
+          slaDeadline,
+          metadata: {
+            cancelledAt: new Date(),
+            comment: reason || 'Hủy bỏ đề tài',
+          },
+        });
+
+        // Build transition result
+        const transitionResult: TransitionResult = {
+          proposal: result.proposal,
+          workflowLog: result.workflowLog,
+          previousState: proposal.state,
+          currentState: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        };
+
+        // Use AuditHelperService for audit logging with retry (fire-and-forget)
+        this.auditHelper
+          .logWorkflowTransition(
+            {
+              proposalId,
+              proposalCode: proposal.code,
+              fromState: proposal.state,
+              toState,
+              action: 'CANCEL',
+              holderUnit: holder.holderUnit,
+              holderUser: holder.holderUser,
+              slaStartDate,
+              slaDeadline,
+              comment: reason || 'Hủy bỏ đề tài',
+            },
+            {
+              userId: context.userId,
+              userDisplayName: actorDisplayName,
+              ip: context.ip,
+              userAgent: context.userAgent,
+              requestId: context.requestId,
+              facultyId: context.userFacultyId,
+              role: context.userRole,
+            },
+          )
+          .catch((err) => {
+            this.logger.error(
+              `Audit log failed for proposal ${proposal.code}: ${err.message}`,
+            );
+          });
+
+        this.logger.log(
+          `Proposal ${proposal.code} cancelled (NEW): ${proposal.state} → ${toState}`,
+        );
+
+        return transitionResult;
+      },
+    );
+
+    // Return the unwrapped result
+    return idempotencyResult.data;
   }
 
   /**
