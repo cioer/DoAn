@@ -690,13 +690,14 @@ describe('WorkflowService', () => {
     it('AC4.2: should create workflow_log entry with action=APPROVE', async () => {
       await service.approveFacultyReview('proposal-1', facultyContext);
 
-      expect(mockPrisma.workflowLog.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
+      // Phase 1 Refactor: Verify transaction service was called with correct action
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
           action: WorkflowAction.APPROVE,
           fromState: ProjectState.FACULTY_REVIEW,
           toState: ProjectState.SCHOOL_SELECTION_REVIEW,
         }),
-      });
+      );
     });
 
     it('AC4.3: should reject approve if proposal not in FACULTY_REVIEW', async () => {
