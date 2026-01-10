@@ -9,6 +9,13 @@ import { RbacModule } from '../rbac/rbac.module';
 import { AuditModule } from '../audit/audit.module';
 import { FormTemplatesModule } from '../form-templates/form-templates.module';
 import { IdempotencyModule } from '../../common/interceptors';
+import { WorkflowModule } from '../workflow/workflow.module';
+import {
+  ProposalsCrudService,
+  ProposalsValidationService,
+  ProposalsQueryService,
+  ProposalsWorkflowService,
+} from './services';
 
 @Module({
   imports: [
@@ -17,14 +24,27 @@ import { IdempotencyModule } from '../../common/interceptors';
     AuditModule,
     FormTemplatesModule,
     IdempotencyModule,
+    WorkflowModule,
   ],
   controllers: [ProposalsController],
   providers: [
     ProposalsService,
+    ProposalsCrudService,
+    ProposalsValidationService,
+    ProposalsQueryService,
+    ProposalsWorkflowService,
     FormDataValidationService,
     DossierExportService,
     PrismaService,
   ],
-  exports: [ProposalsService, FormDataValidationService, DossierExportService],
+  exports: [
+    ProposalsService,
+    ProposalsCrudService,
+    ProposalsValidationService,
+    ProposalsQueryService,
+    ProposalsWorkflowService,
+    FormDataValidationService,
+    DossierExportService,
+  ],
 })
 export class ProposalsModule {}
