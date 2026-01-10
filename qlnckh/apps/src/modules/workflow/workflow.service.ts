@@ -1551,6 +1551,15 @@ export class WorkflowService {
     reason: string | undefined,
     context: TransitionContext,
   ): Promise<TransitionResult> {
+    // Phase 1 Refactor: Use new implementation if feature flag is enabled
+    if (this.useNewServices) {
+      this.logger.debug('Using NEW refactored withdrawProposal implementation');
+      return this.withdrawProposalNew(proposalId, reason, context);
+    }
+
+    // Original implementation (fallback)
+    this.logger.debug('Using ORIGINAL withdrawProposal implementation');
+
     // Check idempotency
     if (context.idempotencyKey) {
       const cached = this.idempotencyStore.get(context.idempotencyKey);
@@ -1688,6 +1697,130 @@ export class WorkflowService {
   }
 
   /**
+   * NEW Implementation: Withdraw Proposal using extracted services
+   * Phase 1 Refactor - Feature Flag: WORKFLOW_USE_NEW_SERVICES
+   */
+  async withdrawProposalNew(
+    proposalId: string,
+    reason: string | undefined,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    const toState = ProjectState.WITHDRAWN;
+    const action = WorkflowAction.WITHDRAW;
+
+    // Atomic idempotency
+    const idempotencyResult = await this.idempotency.setIfAbsent(
+      context.idempotencyKey || `withdraw-${proposalId}`,
+      async () => {
+        // 1. Get proposal
+        const proposal = await this.prisma.proposal.findUnique({
+          where: { id: proposalId },
+          include: { owner: true, faculty: true },
+        });
+
+        if (!proposal) {
+          throw new NotFoundException('Đề tài không tồn tại');
+        }
+
+        // 2. Validation
+        await this.validator.validateTransition(
+          proposalId,
+          toState,
+          action,
+          {
+            proposal,
+            user: {
+              id: context.userId,
+              role: context.userRole,
+              facultyId: context.userFacultyId,
+            },
+          },
+        );
+
+        // 3. Calculate holder - Return to owner's faculty
+        const holder = {
+          holderUnit: proposal.facultyId,
+          holderUser: proposal.ownerId,
+        };
+
+        // 4. Get user display name
+        const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+        // 5. No SLA for terminal state
+        const slaStartDate = new Date();
+        const slaDeadline = null;
+
+        // 6. Execute transaction
+        const result = await this.transaction.updateProposalWithLog({
+          proposalId,
+          userId: context.userId,
+          userDisplayName: actorDisplayName,
+          action,
+          fromState: proposal.state,
+          toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+          slaStartDate,
+          slaDeadline,
+          comment: reason || 'Rút hồ sơ đề tài',
+          metadata: {
+            withdrawnAt: new Date(),
+          },
+        });
+
+        // 7. Build transition result
+        const transitionResult: TransitionResult = {
+          proposal: result.proposal,
+          workflowLog: result.workflowLog,
+          previousState: proposal.state,
+          currentState: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        };
+
+        // 8. Audit logging (fire-and-forget)
+        this.auditHelper
+          .logWorkflowTransition(
+            {
+              proposalId,
+              proposalCode: proposal.code,
+              fromState: proposal.state,
+              toState,
+              action: action.toString(),
+              holderUnit: holder.holderUnit,
+              holderUser: holder.holderUser,
+              slaStartDate,
+              slaDeadline,
+            },
+            {
+              userId: context.userId,
+              userDisplayName: actorDisplayName,
+              ip: context.ip,
+              userAgent: context.userAgent,
+              requestId: context.requestId,
+              facultyId: context.userFacultyId,
+              role: context.userRole,
+            },
+          )
+          .catch((err) => {
+            this.logger.error(
+              `Audit log failed for proposal ${proposal.code}: ${err.message}`,
+            );
+          });
+
+        this.logger.log(
+          `Proposal ${proposal.code} withdrawn: ${proposal.state} → ${toState}`,
+        );
+
+        return transitionResult;
+      },
+    );
+
+    // Return the unwrapped result
+    return idempotencyResult.data;
+  }
+
+  /**
    * Reject Proposal (Review states → REJECTED)
    * Story 9.2: Reject Action - Decision makers can reject proposals
    *
@@ -1709,6 +1842,15 @@ export class WorkflowService {
     comment: string,
     context: TransitionContext,
   ): Promise<TransitionResult> {
+    // Phase 1 Refactor: Use new implementation if feature flag is enabled
+    if (this.useNewServices) {
+      this.logger.debug('Using NEW refactored rejectProposal implementation');
+      return this.rejectProposalNew(proposalId, reasonCode, comment, context);
+    }
+
+    // Original implementation (fallback)
+    this.logger.debug('Using ORIGINAL rejectProposal implementation');
+
     // Check idempotency
     if (context.idempotencyKey) {
       const cached = this.idempotencyStore.get(context.idempotencyKey);
@@ -1848,6 +1990,134 @@ export class WorkflowService {
   }
 
   /**
+   * NEW Implementation: Reject Proposal using extracted services
+   * Phase 1 Refactor - Feature Flag: WORKFLOW_USE_NEW_SERVICES
+   */
+  async rejectProposalNew(
+    proposalId: string,
+    reasonCode: RejectReasonCode,
+    comment: string,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    const toState = ProjectState.REJECTED;
+    const action = WorkflowAction.REJECT;
+
+    // Atomic idempotency
+    const idempotencyResult = await this.idempotency.setIfAbsent(
+      context.idempotencyKey || `reject-${proposalId}`,
+      async () => {
+        // 1. Get proposal
+        const proposal = await this.prisma.proposal.findUnique({
+          where: { id: proposalId },
+          include: { owner: true, faculty: true },
+        });
+
+        if (!proposal) {
+          throw new NotFoundException('Đề tài không tồn tại');
+        }
+
+        // 2. Validation
+        await this.validator.validateTransition(
+          proposalId,
+          toState,
+          action,
+          {
+            proposal,
+            user: {
+              id: context.userId,
+              role: context.userRole,
+              facultyId: context.userFacultyId,
+            },
+          },
+        );
+
+        // 3. Calculate holder - Use decision maker's unit
+        const decisionMakerUnit = context.userFacultyId || context.userRole;
+        const holder = {
+          holderUnit: decisionMakerUnit,
+          holderUser: context.userId,
+        };
+
+        // 4. Get user display name
+        const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+        // 5. No SLA for terminal state
+        const slaStartDate = new Date();
+        const slaDeadline = null;
+
+        // 6. Execute transaction
+        const result = await this.transaction.updateProposalWithLog({
+          proposalId,
+          userId: context.userId,
+          userDisplayName: actorDisplayName,
+          action,
+          fromState: proposal.state,
+          toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+          slaStartDate,
+          slaDeadline,
+          reasonCode,
+          comment,
+          metadata: {
+            rejectedAt: new Date(),
+            rejectedById: context.userId,
+          },
+        });
+
+        // 7. Build transition result
+        const transitionResult: TransitionResult = {
+          proposal: result.proposal,
+          workflowLog: result.workflowLog,
+          previousState: proposal.state,
+          currentState: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        };
+
+        // 8. Audit logging (fire-and-forget)
+        this.auditHelper
+          .logWorkflowTransition(
+            {
+              proposalId,
+              proposalCode: proposal.code,
+              fromState: proposal.state,
+              toState,
+              action: action.toString(),
+              holderUnit: holder.holderUnit,
+              holderUser: holder.holderUser,
+              slaStartDate,
+              slaDeadline,
+            },
+            {
+              userId: context.userId,
+              userDisplayName: actorDisplayName,
+              ip: context.ip,
+              userAgent: context.userAgent,
+              requestId: context.requestId,
+              facultyId: context.userFacultyId,
+              role: context.userRole,
+            },
+          )
+          .catch((err) => {
+            this.logger.error(
+              `Audit log failed for proposal ${proposal.code}: ${err.message}`,
+            );
+          });
+
+        this.logger.log(
+          `Proposal ${proposal.code} rejected: ${proposal.state} → ${toState}`,
+        );
+
+        return transitionResult;
+      },
+    );
+
+    // Return the unwrapped result
+    return idempotencyResult.data;
+  }
+
+  /**
    * Helper method to check if user can reject a proposal in given state
    * RBAC matrix for reject permissions (Story 9.2)
    */
@@ -1901,6 +2171,15 @@ export class WorkflowService {
     expectedResumeAt: Date | undefined,
     context: TransitionContext,
   ): Promise<TransitionResult> {
+    // Phase 1 Refactor: Use new implementation if feature flag is enabled
+    if (this.useNewServices) {
+      this.logger.debug('Using NEW refactored pauseProposal implementation');
+      return this.pauseProposalNew(proposalId, reason, expectedResumeAt, context);
+    }
+
+    // Original implementation (fallback)
+    this.logger.debug('Using ORIGINAL pauseProposal implementation');
+
     // Check idempotency
     if (context.idempotencyKey) {
       const cached = this.idempotencyStore.get(context.idempotencyKey);
@@ -2045,6 +2324,167 @@ export class WorkflowService {
   }
 
   /**
+   * NEW Implementation: Pause Proposal using extracted services
+   * Phase 1 Refactor - Feature Flag: WORKFLOW_USE_NEW_SERVICES
+   */
+  async pauseProposalNew(
+    proposalId: string,
+    reason: string,
+    expectedResumeAt: Date | undefined,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    const toState = ProjectState.PAUSED;
+    const action = WorkflowAction.PAUSE;
+
+    // Atomic idempotency
+    const idempotencyResult = await this.idempotency.setIfAbsent(
+      context.idempotencyKey || `pause-${proposalId}`,
+      async () => {
+        // 1. Get proposal
+        const proposal = await this.prisma.proposal.findUnique({
+          where: { id: proposalId },
+          include: { owner: true, faculty: true },
+        });
+
+        if (!proposal) {
+          throw new NotFoundException('Đề tài không tồn tại');
+        }
+
+        // 2. Define terminal states (cannot pause)
+        const TERMINAL_STATES: ProjectState[] = [
+          ProjectState.COMPLETED,
+          ProjectState.CANCELLED,
+          ProjectState.WITHDRAWN,
+          ProjectState.REJECTED,
+        ];
+
+        // State validation - Cannot pause terminal states
+        if (TERMINAL_STATES.includes(proposal.state)) {
+          throw new BadRequestException(
+            'Không thể tạm dừng đề tài ở trạng thái này',
+          );
+        }
+
+        // Already paused check
+        if (proposal.state === ProjectState.PAUSED) {
+          throw new BadRequestException('Đề tài đang bị tạm dừng');
+        }
+
+        // Validate expected resume date is in the future
+        if (expectedResumeAt && expectedResumeAt <= new Date()) {
+          throw new BadRequestException(
+            'Ngày dự kiến tiếp tục phải trong tương lai',
+          );
+        }
+
+        // 3. Validation
+        await this.validator.validateTransition(
+          proposalId,
+          toState,
+          action,
+          {
+            proposal,
+            user: {
+              id: context.userId,
+              role: context.userRole,
+              facultyId: context.userFacultyId,
+            },
+          },
+        );
+
+        // 3. Calculate holder - PHONG_KHCN for paused proposals
+        const holder = {
+          holderUnit: SPECIAL_UNIT_CODES.PHONG_KHCN,
+          holderUser: null,
+        };
+
+        // 4. Get user display name
+        const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+        // 5. No SLA for paused state
+        const slaStartDate = new Date();
+        const slaDeadline = null;
+
+        // 6. Build pause comment
+        const pauseComment = this.buildPauseComment(reason, expectedResumeAt);
+
+        // 7. Execute transaction
+        const result = await this.transaction.updateProposalWithLog({
+          proposalId,
+          userId: context.userId,
+          userDisplayName: actorDisplayName,
+          action,
+          fromState: proposal.state,
+          toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+          slaStartDate,
+          slaDeadline,
+          comment: pauseComment,
+          metadata: {
+            pausedAt: new Date(),
+            pauseReason: reason,
+            expectedResumeAt,
+            // Store pre-pause state for resume
+            prePauseState: proposal.state,
+            prePauseHolderUnit: proposal.holderUnit,
+            prePauseHolderUser: proposal.holderUser,
+          },
+        });
+
+        // 8. Build transition result
+        const transitionResult: TransitionResult = {
+          proposal: result.proposal,
+          workflowLog: result.workflowLog,
+          previousState: proposal.state,
+          currentState: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        };
+
+        // 9. Audit logging (fire-and-forget)
+        this.auditHelper
+          .logWorkflowTransition(
+            {
+              proposalId,
+              proposalCode: proposal.code,
+              fromState: proposal.state,
+              toState,
+              action: action.toString(),
+              holderUnit: holder.holderUnit,
+              holderUser: holder.holderUser,
+              slaStartDate,
+              slaDeadline,
+            },
+            {
+              userId: context.userId,
+              userDisplayName: actorDisplayName,
+              ip: context.ip,
+              userAgent: context.userAgent,
+              requestId: context.requestId,
+              facultyId: context.userFacultyId,
+              role: context.userRole,
+            },
+          )
+          .catch((err) => {
+            this.logger.error(
+              `Audit log failed for proposal ${proposal.code}: ${err.message}`,
+            );
+          });
+
+        this.logger.log(
+          `Proposal ${proposal.code} paused: ${proposal.state} → ${toState}`,
+        );
+
+        return transitionResult;
+      },
+    );
+
+    // Return the unwrapped result
+    return idempotencyResult.data;
+  }
+
+  /**
    * Helper method to build pause comment
    */
   private buildPauseComment(reason: string, expectedResumeAt?: Date): string {
@@ -2076,6 +2516,15 @@ export class WorkflowService {
     comment: string | undefined,
     context: TransitionContext,
   ): Promise<TransitionResult> {
+    // Phase 1 Refactor: Use new implementation if feature flag is enabled
+    if (this.useNewServices) {
+      this.logger.debug('Using NEW refactored resumeProposal implementation');
+      return this.resumeProposalNew(proposalId, comment, context);
+    }
+
+    // Original implementation (fallback)
+    this.logger.debug('Using ORIGINAL resumeProposal implementation');
+
     // Check idempotency
     if (context.idempotencyKey) {
       const cached = this.idempotencyStore.get(context.idempotencyKey);
@@ -2209,6 +2658,154 @@ export class WorkflowService {
     }
 
     return executeResume();
+  }
+
+  /**
+   * NEW Implementation: Resume Proposal using extracted services
+   * Phase 1 Refactor - Feature Flag: WORKFLOW_USE_NEW_SERVICES
+   */
+  async resumeProposalNew(
+    proposalId: string,
+    comment: string | undefined,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    const resumedAt = new Date();
+
+    // Atomic idempotency
+    const idempotencyResult = await this.idempotency.setIfAbsent(
+      context.idempotencyKey || `resume-${proposalId}`,
+      async () => {
+        // 1. Get proposal
+        const proposal = await this.prisma.proposal.findUnique({
+          where: { id: proposalId },
+          include: { owner: true, faculty: true },
+        });
+
+        if (!proposal) {
+          throw new NotFoundException('Đề tài không tồn tại');
+        }
+
+        // Must be paused to resume - validate via validator service
+        if (proposal.state !== ProjectState.PAUSED) {
+          throw new BadRequestException('Đề tài không ở trạng thái tạm dừng');
+        }
+
+        // Validate pre-pause state exists
+        if (!proposal.prePauseState) {
+          throw new BadRequestException(
+            'Không thể xác định trạng thái trước khi tạm dừng',
+          );
+        }
+
+        const toState = proposal.prePauseState;
+        const action = WorkflowAction.RESUME;
+
+        // 2. Validation
+        await this.validator.validateTransition(
+          proposalId,
+          toState,
+          action,
+          {
+            proposal,
+            user: {
+              id: context.userId,
+              role: context.userRole,
+              facultyId: context.userFacultyId,
+            },
+          },
+        );
+
+        // 3. Calculate holder - Restore pre-pause holder
+        const holder = {
+          holderUnit: proposal.prePauseHolderUnit,
+          holderUser: proposal.prePauseHolderUser,
+        };
+
+        // 4. Get user display name
+        const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+        // 5. Recalculate SLA deadline if was paused
+        let slaDeadline = proposal.slaDeadline;
+        if (proposal.pausedAt && proposal.slaDeadline) {
+          const pausedDuration = resumedAt.getTime() - proposal.pausedAt.getTime();
+          slaDeadline = new Date(
+            proposal.slaDeadline.getTime() + pausedDuration,
+          );
+        }
+
+        // 6. Execute transaction
+        const result = await this.transaction.updateProposalWithLog({
+          proposalId,
+          userId: context.userId,
+          userDisplayName: actorDisplayName,
+          action,
+          fromState: proposal.state,
+          toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+          slaStartDate: proposal.slaStartDate, // Keep original SLA start date
+          slaDeadline,
+          comment: comment || 'Tiếp tục đề tài sau tạm dừng',
+          metadata: {
+            resumedAt,
+            // Clear pause tracking fields
+            prePauseState: null,
+            prePauseHolderUnit: null,
+            prePauseHolderUser: null,
+            pausedAt: null,
+          },
+        });
+
+        // 7. Build transition result
+        const transitionResult: TransitionResult = {
+          proposal: result.proposal,
+          workflowLog: result.workflowLog,
+          previousState: proposal.state,
+          currentState: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        };
+
+        // 8. Audit logging (fire-and-forget)
+        this.auditHelper
+          .logWorkflowTransition(
+            {
+              proposalId,
+              proposalCode: proposal.code,
+              fromState: proposal.state,
+              toState,
+              action: action.toString(),
+              holderUnit: holder.holderUnit,
+              holderUser: holder.holderUser,
+              slaStartDate: proposal.slaStartDate,
+              slaDeadline,
+            },
+            {
+              userId: context.userId,
+              userDisplayName: actorDisplayName,
+              ip: context.ip,
+              userAgent: context.userAgent,
+              requestId: context.requestId,
+              facultyId: context.userFacultyId,
+              role: context.userRole,
+            },
+          )
+          .catch((err) => {
+            this.logger.error(
+              `Audit log failed for proposal ${proposal.code}: ${err.message}`,
+            );
+          });
+
+        this.logger.log(
+          `Proposal ${proposal.code} resumed: ${proposal.state} → ${toState}`,
+        );
+
+        return transitionResult;
+      },
+    );
+
+    // Return the unwrapped result
+    return idempotencyResult.data;
   }
 
   /**
