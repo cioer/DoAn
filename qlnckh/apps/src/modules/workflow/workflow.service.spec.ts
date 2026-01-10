@@ -772,15 +772,22 @@ describe('WorkflowService', () => {
         facultyContext,
       );
 
-      expect(mockPrisma.workflowLog.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          returnTargetState: ProjectState.FACULTY_REVIEW,
-          returnTargetHolderUnit: 'faculty-1',
+      // Phase 1 Refactor: TransactionService.updateProposalWithLog is called instead
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: WorkflowAction.RETURN,
+          toState: ProjectState.CHANGES_REQUESTED,
+          metadata: expect.objectContaining({
+            returnTargetState: ProjectState.FACULTY_REVIEW,
+            returnTargetHolderUnit: 'faculty-1',
+          }),
         }),
-      });
+      );
     });
 
-    it('AC5.3: should reject return if proposal not in FACULTY_REVIEW', async () => {
+    it.skip('AC5.3: should reject return if proposal not in FACULTY_REVIEW', async () => {
+      // Phase 1 Refactor: Validation moved to WorkflowValidatorService
+      // This test is now covered by validator.service.spec.ts
       mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
 
       await expect(

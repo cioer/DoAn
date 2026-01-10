@@ -729,6 +729,15 @@ export class WorkflowService {
     reasonSections: string[] | undefined,
     context: TransitionContext,
   ): Promise<TransitionResult> {
+    // Phase 1 Refactor: Use new implementation if feature flag is enabled
+    if (this.useNewServices) {
+      this.logger.debug('Using NEW refactored returnFacultyReview implementation');
+      return this.returnFacultyReviewNew(proposalId, reason, reasonCode, reasonSections, context);
+    }
+
+    // Original implementation (fallback)
+    this.logger.debug('Using ORIGINAL returnFacultyReview implementation');
+
     // Check idempotency
     if (context.idempotencyKey) {
       const cached = this.idempotencyStore.get(context.idempotencyKey);
@@ -860,6 +869,153 @@ export class WorkflowService {
   }
 
   /**
+   * NEW Implementation: Return Faculty Review using extracted services
+   * Phase 1 Refactor - Feature Flag: WORKFLOW_USE_NEW_SERVICES
+   */
+  async returnFacultyReviewNew(
+    proposalId: string,
+    reason: string,
+    reasonCode: string,
+    reasonSections: string[] | undefined,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    const toState = ProjectState.CHANGES_REQUESTED;
+    const action = WorkflowAction.RETURN;
+
+    // Atomic idempotency
+    const idempotencyResult = await this.idempotency.setIfAbsent(
+      context.idempotencyKey || `return-faculty-${proposalId}`,
+      async () => {
+        // 1. Get proposal
+        const proposal = await this.prisma.proposal.findUnique({
+          where: { id: proposalId },
+          include: { owner: true, faculty: true },
+        });
+
+        if (!proposal) {
+          throw new NotFoundException('Đề tài không tồn tại');
+        }
+
+        // 2. Validation
+        await this.validator.validateTransition(
+          proposalId,
+          toState,
+          action,
+          {
+            proposal,
+            user: {
+              id: context.userId,
+              role: context.userRole,
+              facultyId: context.userFacultyId,
+            },
+          },
+        );
+
+        // 3. Calculate holder - back to owner's faculty
+        const holder = this.holder.getHolderForState(
+          toState,
+          proposal,
+          context.userId,
+          context.userFacultyId,
+        );
+
+        // 4. Get user display name
+        const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+        // 5. Store return target for resubmit
+        const returnTargetState = proposal.state; // Return to FACULTY_REVIEW
+        const returnTargetHolderUnit = proposal.facultyId; // Faculty that was reviewing
+
+        // 6. Build comment JSON with reason and revisionSections
+        const commentJson = JSON.stringify({
+          reason,
+          revisionSections: reasonSections || [],
+        });
+
+        // 7. No SLA for CHANGES_REQUESTED state
+        const slaStartDate = new Date();
+        const slaDeadline = null;
+
+        // 8. Execute transaction
+        const result = await this.transaction.updateProposalWithLog({
+          proposalId,
+          userId: context.userId,
+          userDisplayName: actorDisplayName,
+          action,
+          fromState: proposal.state,
+          toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+          slaStartDate,
+          slaDeadline,
+          reasonCode,
+          comment: commentJson,
+          metadata: {
+            returnTargetState,
+            returnTargetHolderUnit,
+            reasonSections: reasonSections || [],
+          },
+        });
+
+        // 9. Build transition result
+        const transitionResult: TransitionResult = {
+          proposal: result.proposal,
+          workflowLog: result.workflowLog,
+          previousState: proposal.state,
+          currentState: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        };
+
+        // 10. Audit logging (fire-and-forget)
+        this.auditHelper
+          .logWorkflowTransition(
+            {
+              proposalId,
+              proposalCode: proposal.code,
+              fromState: proposal.state,
+              toState,
+              action: action.toString(),
+              holderUnit: holder.holderUnit,
+              holderUser: holder.holderUser,
+              slaStartDate,
+              slaDeadline,
+              metadata: {
+                returnTargetState,
+                returnTargetHolderUnit,
+                reasonCode,
+                reasonSections,
+              },
+            },
+            {
+              userId: context.userId,
+              userDisplayName: actorDisplayName,
+              ip: context.ip,
+              userAgent: context.userAgent,
+              requestId: context.requestId,
+              facultyId: context.userFacultyId,
+              role: context.userRole,
+            },
+          )
+          .catch((err) => {
+            this.logger.error(
+              `Audit log failed for proposal ${proposal.code}: ${err.message}`,
+            );
+          });
+
+        this.logger.log(
+          `Proposal ${proposal.code} returned by faculty: ${proposal.state} → ${toState}`,
+        );
+
+        return transitionResult;
+      },
+    );
+
+    // Return the unwrapped result
+    return idempotencyResult.data;
+  }
+
+  /**
    * Resubmit Proposal (CHANGES_REQUESTED → return_target_state)
    * Story 4.5: Resubmit after revisions - returns to reviewer, NOT to DRAFT
    *
@@ -877,6 +1033,15 @@ export class WorkflowService {
     checkedSections: string[],
     context: TransitionContext,
   ): Promise<TransitionResult> {
+    // Phase 1 Refactor: Use new implementation if feature flag is enabled
+    if (this.useNewServices) {
+      this.logger.debug('Using NEW refactored resubmitProposal implementation');
+      return this.resubmitProposalNew(proposalId, checkedSections, context);
+    }
+
+    // Original implementation (fallback)
+    this.logger.debug('Using ORIGINAL resubmitProposal implementation');
+
     // Fix #5: Use promise cache pattern to prevent race condition in idempotency check
     if (context.idempotencyKey) {
       const cached = this.idempotencyStore.get(context.idempotencyKey);
@@ -1053,6 +1218,181 @@ export class WorkflowService {
     }
 
     return executeResubmit();
+  }
+
+  /**
+   * NEW Implementation: Resubmit Proposal using extracted services
+   * Phase 1 Refactor - Feature Flag: WORKFLOW_USE_NEW_SERVICES
+   */
+  async resubmitProposalNew(
+    proposalId: string,
+    checkedSections: string[],
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    const action = WorkflowAction.RESUBMIT;
+
+    // Atomic idempotency
+    const idempotencyResult = await this.idempotency.setIfAbsent(
+      context.idempotencyKey || `resubmit-${proposalId}`,
+      async () => {
+        // 1. Get proposal
+        const proposal = await this.prisma.proposal.findUnique({
+          where: { id: proposalId },
+          include: { owner: true, faculty: true },
+        });
+
+        if (!proposal) {
+          throw new NotFoundException('Đề tài không tồn tại');
+        }
+
+        // 2. Validate state
+        if (proposal.state !== ProjectState.CHANGES_REQUESTED) {
+          throw new BadRequestException(
+            `Chỉ có thể nộp lại đề tài ở trạng thái CHANGES_REQUESTED. Hiện tại: ${proposal.state}`,
+          );
+        }
+
+        // 3. Validate ownership
+        if (proposal.ownerId !== context.userId) {
+          throw new BadRequestException(
+            'Chỉ chủ nhiệm đề tài mới có thể nộp lại hồ sơ',
+          );
+        }
+
+        // 4. Fetch latest RETURN log to get return target
+        const lastReturnLog = await this.prisma.workflowLog.findFirst({
+          where: {
+            proposalId,
+            toState: ProjectState.CHANGES_REQUESTED,
+            action: WorkflowAction.RETURN,
+          },
+          orderBy: { timestamp: 'desc' },
+        });
+
+        if (!lastReturnLog) {
+          throw new BadRequestException(
+            'Không tìm thấy thông tin yêu cầu sửa. Vui lòng liên hệ quản trị viên.',
+          );
+        }
+
+        // 5. Extract return target from the RETURN log
+        const targetState = lastReturnLog.returnTargetState;
+        const targetHolderUnit = lastReturnLog.returnTargetHolderUnit;
+
+        if (!targetState || !targetHolderUnit) {
+          throw new BadRequestException(
+            'Thông tin return_target không đầy đủ trong log yêu cầu sửa. Vui lòng liên hệ quản trị viên.',
+          );
+        }
+
+        // 6. Validate checkedSections against revisionSections
+        let revisionSections: string[] = [];
+        try {
+          const commentParsed = JSON.parse(lastReturnLog.comment || '{}');
+          revisionSections = commentParsed.revisionSections || [];
+        } catch {
+          // If parsing fails, assume no revision sections
+        }
+
+        const invalidSections = checkedSections.filter(
+          (section) => !revisionSections.includes(section),
+        );
+        if (invalidSections.length > 0) {
+          throw new BadRequestException(
+            `Các section không hợp lệ: ${invalidSections.join(', ')}. Chỉ có thể đánh dấu sửa các section đã được yêu cầu.`,
+          );
+        }
+
+        // 7. Get user display name
+        const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+        // 8. Calculate SLA (3 business days for re-review)
+        const slaStartDate = new Date();
+        const slaDeadline = await this.slaService.calculateDeadlineWithCutoff(
+          slaStartDate,
+          3, // 3 business days
+          17, // 17:00 cutoff
+        );
+
+        // 9. Execute transaction
+        const result = await this.transaction.updateProposalWithLog({
+          proposalId,
+          userId: context.userId,
+          userDisplayName: actorDisplayName,
+          action,
+          fromState: proposal.state,
+          toState: targetState,
+          holderUnit: targetHolderUnit,
+          holderUser: lastReturnLog.actorId, // Back to original reviewer
+          slaStartDate,
+          slaDeadline,
+          comment: JSON.stringify({
+            returnLogId: lastReturnLog.id,
+            checkedSections,
+          }),
+          metadata: {
+            returnLogId: lastReturnLog.id,
+            checkedSections,
+            returnTargetState: targetState,
+            returnTargetHolderUnit: targetHolderUnit,
+          },
+        });
+
+        // 10. Build transition result
+        const transitionResult: TransitionResult = {
+          proposal: result.proposal,
+          workflowLog: result.workflowLog,
+          previousState: proposal.state,
+          currentState: targetState,
+          holderUnit: targetHolderUnit,
+          holderUser: lastReturnLog.actorId,
+        };
+
+        // 11. Audit logging (fire-and-forget)
+        this.auditHelper
+          .logWorkflowTransition(
+            {
+              proposalId,
+              proposalCode: proposal.code,
+              fromState: proposal.state,
+              toState: targetState,
+              action: action.toString(),
+              holderUnit: targetHolderUnit,
+              holderUser: lastReturnLog.actorId,
+              slaStartDate,
+              slaDeadline,
+              metadata: {
+                returnTargetState: targetState,
+                returnTargetHolderUnit: targetHolderUnit,
+                checkedSections,
+              },
+            },
+            {
+              userId: context.userId,
+              userDisplayName: actorDisplayName,
+              ip: context.ip,
+              userAgent: context.userAgent,
+              requestId: context.requestId,
+              facultyId: context.userFacultyId,
+              role: context.userRole,
+            },
+          )
+          .catch((err) => {
+            this.logger.error(
+              `Audit log failed for proposal ${proposal.code}: ${err.message}`,
+            );
+          });
+
+        this.logger.log(
+          `Proposal ${proposal.code} resubmitted: ${proposal.state} → ${targetState} (returning to ${targetHolderUnit})`,
+        );
+
+        return transitionResult;
+      },
+    );
+
+    // Return the unwrapped result
+    return idempotencyResult.data;
   }
 
   /**
@@ -3084,6 +3424,15 @@ export class WorkflowService {
     reason: string,
     context: TransitionContext,
   ): Promise<TransitionResult> {
+    // Phase 1 Refactor: Use new implementation if feature flag is enabled
+    if (this.useNewServices) {
+      this.logger.debug('Using NEW refactored returnCouncilReview implementation');
+      return this.returnCouncilReviewNew(proposalId, reason, context);
+    }
+
+    // Original implementation (fallback)
+    this.logger.debug('Using ORIGINAL returnCouncilReview implementation');
+
     // Check idempotency
     if (context.idempotencyKey) {
       const cached = this.idempotencyStore.get(context.idempotencyKey);
@@ -3204,6 +3553,140 @@ export class WorkflowService {
     );
 
     return transitionResult;
+  }
+
+  /**
+   * NEW Implementation: Return Council Review using extracted services
+   * Phase 1 Refactor - Feature Flag: WORKFLOW_USE_NEW_SERVICES
+   */
+  async returnCouncilReviewNew(
+    proposalId: string,
+    reason: string,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    const toState = ProjectState.CHANGES_REQUESTED;
+    const action = WorkflowAction.RETURN;
+
+    // Atomic idempotency
+    const idempotencyResult = await this.idempotency.setIfAbsent(
+      context.idempotencyKey || `return-council-${proposalId}`,
+      async () => {
+        // 1. Get proposal
+        const proposal = await this.prisma.proposal.findUnique({
+          where: { id: proposalId },
+          include: { owner: true, faculty: true },
+        });
+
+        if (!proposal) {
+          throw new NotFoundException('Đề tài không tồn tại');
+        }
+
+        // 2. Validation
+        await this.validator.validateTransition(
+          proposalId,
+          toState,
+          action,
+          {
+            proposal,
+            user: {
+              id: context.userId,
+              role: context.userRole,
+              facultyId: context.userFacultyId,
+            },
+          },
+        );
+
+        // 3. Calculate holder - back to owner's faculty
+        const holder = {
+          holderUnit: proposal.facultyId,
+          holderUser: proposal.ownerId,
+        };
+
+        // 4. Get user display name
+        const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+        // 5. Store return target for resubmit
+        const returnTargetState = ProjectState.OUTLINE_COUNCIL_REVIEW;
+        const returnTargetHolderUnit = proposal.councilId;
+
+        // 6. No SLA for CHANGES_REQUESTED state
+        const slaStartDate = new Date();
+        const slaDeadline = null;
+
+        // 7. Execute transaction
+        const result = await this.transaction.updateProposalWithLog({
+          proposalId,
+          userId: context.userId,
+          userDisplayName: actorDisplayName,
+          action,
+          fromState: proposal.state,
+          toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+          slaStartDate,
+          slaDeadline,
+          comment: reason,
+          metadata: {
+            returnTargetState,
+            returnTargetHolderUnit,
+          },
+        });
+
+        // 8. Build transition result
+        const transitionResult: TransitionResult = {
+          proposal: result.proposal,
+          workflowLog: result.workflowLog,
+          previousState: proposal.state,
+          currentState: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        };
+
+        // 9. Audit logging (fire-and-forget)
+        this.auditHelper
+          .logWorkflowTransition(
+            {
+              proposalId,
+              proposalCode: proposal.code,
+              fromState: proposal.state,
+              toState,
+              action: action.toString(),
+              holderUnit: holder.holderUnit,
+              holderUser: holder.holderUser,
+              slaStartDate,
+              slaDeadline,
+              metadata: {
+                returnTargetState,
+                returnTargetHolderUnit,
+                reason,
+              },
+            },
+            {
+              userId: context.userId,
+              userDisplayName: actorDisplayName,
+              ip: context.ip,
+              userAgent: context.userAgent,
+              requestId: context.requestId,
+              facultyId: context.userFacultyId,
+              role: context.userRole,
+            },
+          )
+          .catch((err) => {
+            this.logger.error(
+              `Audit log failed for proposal ${proposal.code}: ${err.message}`,
+            );
+          });
+
+        this.logger.log(
+          `Proposal ${proposal.code} returned by BAN_GIAM_HOC: ${proposal.state} → ${toState}`,
+        );
+
+        return transitionResult;
+      },
+    );
+
+    // Return the unwrapped result
+    return idempotencyResult.data;
   }
 
   /**
@@ -3482,6 +3965,15 @@ export class WorkflowService {
     reason: string,
     context: TransitionContext,
   ): Promise<TransitionResult> {
+    // Phase 1 Refactor: Use new implementation if feature flag is enabled
+    if (this.useNewServices) {
+      this.logger.debug('Using NEW refactored returnSchoolReview implementation');
+      return this.returnSchoolReviewNew(proposalId, reason, context);
+    }
+
+    // Original implementation (fallback)
+    this.logger.debug('Using ORIGINAL returnSchoolReview implementation');
+
     // Check idempotency
     if (context.idempotencyKey) {
       const cached = this.idempotencyStore.get(context.idempotencyKey);
@@ -3602,5 +4094,139 @@ export class WorkflowService {
     );
 
     return transitionResult;
+  }
+
+  /**
+   * NEW Implementation: Return School Review using extracted services
+   * Phase 1 Refactor - Feature Flag: WORKFLOW_USE_NEW_SERVICES
+   */
+  async returnSchoolReviewNew(
+    proposalId: string,
+    reason: string,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    const toState = ProjectState.CHANGES_REQUESTED;
+    const action = WorkflowAction.RETURN;
+
+    // Atomic idempotency
+    const idempotencyResult = await this.idempotency.setIfAbsent(
+      context.idempotencyKey || `return-school-${proposalId}`,
+      async () => {
+        // 1. Get proposal
+        const proposal = await this.prisma.proposal.findUnique({
+          where: { id: proposalId },
+          include: { owner: true, faculty: true },
+        });
+
+        if (!proposal) {
+          throw new NotFoundException('Đề tài không tồn tại');
+        }
+
+        // 2. Validation
+        await this.validator.validateTransition(
+          proposalId,
+          toState,
+          action,
+          {
+            proposal,
+            user: {
+              id: context.userId,
+              role: context.userRole,
+              facultyId: context.userFacultyId,
+            },
+          },
+        );
+
+        // 3. Calculate holder - back to owner's faculty
+        const holder = {
+          holderUnit: proposal.facultyId,
+          holderUser: proposal.ownerId,
+        };
+
+        // 4. Get user display name
+        const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+        // 5. Store return target for resubmit
+        const returnTargetState = ProjectState.SCHOOL_ACCEPTANCE_REVIEW;
+        const returnTargetHolderUnit = 'PHONG_KHCN';
+
+        // 6. No SLA for CHANGES_REQUESTED state
+        const slaStartDate = new Date();
+        const slaDeadline = null;
+
+        // 7. Execute transaction
+        const result = await this.transaction.updateProposalWithLog({
+          proposalId,
+          userId: context.userId,
+          userDisplayName: actorDisplayName,
+          action,
+          fromState: proposal.state,
+          toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+          slaStartDate,
+          slaDeadline,
+          comment: reason,
+          metadata: {
+            returnTargetState,
+            returnTargetHolderUnit,
+          },
+        });
+
+        // 8. Build transition result
+        const transitionResult: TransitionResult = {
+          proposal: result.proposal,
+          workflowLog: result.workflowLog,
+          previousState: proposal.state,
+          currentState: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        };
+
+        // 9. Audit logging (fire-and-forget)
+        this.auditHelper
+          .logWorkflowTransition(
+            {
+              proposalId,
+              proposalCode: proposal.code,
+              fromState: proposal.state,
+              toState,
+              action: action.toString(),
+              holderUnit: holder.holderUnit,
+              holderUser: holder.holderUser,
+              slaStartDate,
+              slaDeadline,
+              metadata: {
+                returnTargetState,
+                returnTargetHolderUnit,
+                reason,
+              },
+            },
+            {
+              userId: context.userId,
+              userDisplayName: actorDisplayName,
+              ip: context.ip,
+              userAgent: context.userAgent,
+              requestId: context.requestId,
+              facultyId: context.userFacultyId,
+              role: context.userRole,
+            },
+          )
+          .catch((err) => {
+            this.logger.error(
+              `Audit log failed for proposal ${proposal.code}: ${err.message}`,
+            );
+          });
+
+        this.logger.log(
+          `Proposal ${proposal.code} returned by BAN_GIAM_HOC: ${proposal.state} → ${toState}`,
+        );
+
+        return transitionResult;
+      },
+    );
+
+    // Return the unwrapped result
+    return idempotencyResult.data;
   }
 }
