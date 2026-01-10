@@ -76,6 +76,12 @@ export enum AuditAction {
   // Epic 6: Acceptance actions (Stories 6.3, 6.4)
   FACULTY_ACCEPT = 'FACULTY_ACCEPT',
   SCHOOL_ACCEPT = 'SCHOOL_ACCEPT',
+
+  // Generic CRUD actions (for backward compatibility)
+  CREATE = 'CREATE',
+  UPDATE = 'UPDATE',
+  DELETE = 'DELETE',
+  RESTORE = 'RESTORE',
 }
 
 /**

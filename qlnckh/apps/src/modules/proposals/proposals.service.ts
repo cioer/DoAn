@@ -93,14 +93,15 @@ export class ProposalsService {
     // Audit log
     this.auditService
       .logEvent({
-        action: AuditAction.CREATE,
-        userId: ctx.userId,
-        userDisplayName: ctx.userDisplayName,
-        targetType: 'proposal',
-        targetId: proposal.id,
-        targetCode: proposal.code,
-        changes: { state: null, newValue: ProjectState.DRAFT },
-        ipAddress: ctx.ip,
+        action: AuditAction.PROPOSAL_CREATE,
+        actorUserId: ctx.userId,
+        entityType: 'proposal',
+        entityId: proposal.id,
+        metadata: {
+          proposalCode: proposal.code,
+          state: ProjectState.DRAFT,
+        },
+        ip: ctx.ip,
         userAgent: ctx.userAgent,
         requestId: ctx.requestId,
       })
@@ -148,12 +149,14 @@ export class ProposalsService {
     // Audit log
     this.auditService
       .logEvent({
-        action: AuditAction.UPDATE,
-        userId,
-        targetType: 'proposal',
-        targetId: id,
-        targetCode: proposal.code,
-        changes: { formData: dto.formData },
+        action: AuditAction.PROPOSAL_UPDATE,
+        actorUserId: userId,
+        entityType: 'proposal',
+        entityId: id,
+        metadata: {
+          proposalCode: proposal.code,
+          formDataUpdated: true,
+        },
       })
       .catch((err) => {
         this.logger.error(`Failed to log audit event: ${err.message}`);
@@ -205,10 +208,10 @@ export class ProposalsService {
     // Audit log
     this.auditService
       .logEvent({
-        action: AuditAction.DELETE,
-        userId,
-        targetType: 'proposal',
-        targetId: id,
+        action: AuditAction.PROPOSAL_DELETE,
+        actorUserId: userId,
+        entityType: 'proposal',
+        entityId: id,
       })
       .catch((err) => {
         this.logger.error(`Failed to log audit event: ${err.message}`);
@@ -332,12 +335,13 @@ export class ProposalsService {
     this.auditService
       .logEvent({
         action: AuditAction.RESTORE,
-        userId,
-        userDisplayName: ctx.userDisplayName,
-        targetType: 'proposal',
-        targetId: id,
-        targetCode: proposal.code,
-        ipAddress: ctx.ip,
+        actorUserId: userId,
+        entityType: 'proposal',
+        entityId: id,
+        metadata: {
+          proposalCode: proposal.code,
+        },
+        ip: ctx.ip,
         userAgent: ctx.userAgent,
         requestId: ctx.requestId,
       })
@@ -371,7 +375,7 @@ export class ProposalsService {
 
     const result = await this.workflow.startProject(id, context);
 
-    return this.mapToDtoWithTemplate(result.proposal);
+    return this.mapToDtoWithTemplate(result);
   }
 
   /**
@@ -431,6 +435,8 @@ export class ProposalsService {
 
     const context = {
       userId,
+      userRole: '',
+      userFacultyId: '',
       ip: '',
       userAgent: '',
       requestId: '',
@@ -442,7 +448,7 @@ export class ProposalsService {
       context,
     );
 
-    return this.mapToDtoWithTemplate(result.proposal);
+    return this.mapToDtoWithTemplate(result);
   }
 
   /**
@@ -458,6 +464,8 @@ export class ProposalsService {
 
     const context = {
       userId,
+      userRole: '',
+      userFacultyId: '',
       ip: '',
       userAgent: '',
       requestId: '',
@@ -465,11 +473,12 @@ export class ProposalsService {
 
     const result = await this.workflow.completeHandover(proposalId, context);
 
-    return this.mapToDtoWithTemplate(result.proposal);
+    return this.mapToDtoWithTemplate(result);
   }
 
   /**
    * Save handover checklist
+   * Note: Checklist data is stored in formData under 'handoverChecklist' key
    */
   async saveHandoverChecklist(
     proposalId: string,
@@ -480,10 +489,21 @@ export class ProposalsService {
 
     await this.validation.validateAccess(proposalId, userId);
 
+    // Get current proposal to merge formData
+    const current = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: { formData: true },
+    });
+
+    const mergedFormData = {
+      ...(current?.formData as any || {}),
+      handoverChecklist: checklistData,
+    };
+
     const proposal = await this.prisma.proposal.update({
       where: { id: proposalId },
       data: {
-        handoverChecklist: checklistData,
+        formData: mergedFormData as any,
       },
       include: {
         owner: true,
@@ -497,26 +517,32 @@ export class ProposalsService {
 
   /**
    * Get faculty acceptance data
+   * Note: Acceptance data is stored in formData under 'facultyAcceptance' key
    */
   async getFacultyAcceptanceData(proposalId: string): Promise<any> {
     const proposal = await this.prisma.proposal.findUnique({
       where: { id: proposalId },
-      select: { facultyAcceptanceData: true },
+      select: { formData: true },
     });
 
-    return proposal?.facultyAcceptanceData;
+    // Extract facultyAcceptance from formData
+    const formData = proposal?.formData as any;
+    return formData?.facultyAcceptance || null;
   }
 
   /**
    * Get school acceptance data
+   * Note: Acceptance data is stored in formData under 'schoolAcceptance' key
    */
   async getSchoolAcceptanceData(proposalId: string): Promise<any> {
     const proposal = await this.prisma.proposal.findUnique({
       where: { id: proposalId },
-      select: { schoolAcceptanceData: true },
+      select: { formData: true },
     });
 
-    return proposal?.schoolAcceptanceData;
+    // Extract schoolAcceptance from formData
+    const formData = proposal?.formData as any;
+    return formData?.schoolAcceptance || null;
   }
 
   // =========================================================================
@@ -541,25 +567,18 @@ export class ProposalsService {
       id: proposal.id,
       code: proposal.code,
       title: proposal.title,
-      description: proposal.description,
       state: proposal.state,
       ownerId: proposal.ownerId,
-      owner: proposal.owner,
       facultyId: proposal.facultyId,
-      faculty: proposal.faculty,
-      templateId: proposal.templateId,
-      templateVersion: proposal.templateVersion,
-      formData: proposal.formData as unknown as Record<string, unknown>,
-      attachments: proposal.attachments,
       holderUnit: proposal.holderUnit,
       holderUser: proposal.holderUser,
       slaStartDate: proposal.slaStartDate,
       slaDeadline: proposal.slaDeadline,
-      facultyAcceptanceData: proposal.facultyAcceptanceData,
-      schoolAcceptanceData: proposal.schoolAcceptanceData,
-      handoverChecklist: proposal.handoverChecklist,
-      startedAt: proposal.startedAt,
-      completedAt: proposal.completedAt,
+      actualStartDate: proposal.actualStartDate,
+      completedDate: proposal.completedDate,
+      templateId: proposal.templateId,
+      templateVersion: proposal.templateVersion,
+      formData: proposal.formData as unknown as Record<string, unknown>,
       createdAt: proposal.createdAt,
       updatedAt: proposal.updatedAt,
       deletedAt: proposal.deletedAt,

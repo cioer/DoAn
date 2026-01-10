@@ -93,7 +93,6 @@ export class ProposalsValidationService {
     const template = await this.prisma.formTemplate.findFirst({
       where: {
         OR: [{ id: templateIdOrCode }, { code: templateIdOrCode }],
-        deletedAt: null,
       },
       select: {
         id: true,
@@ -241,11 +240,8 @@ export class ProposalsValidationService {
     }
 
     // Validate form data
-    this.validateFormData(data.formData);
-
-    // Validate attachments
-    if (data.attachments) {
-      this.validateAttachments(data.attachments);
+    if (data.formData) {
+      this.validateFormData(data.formData);
     }
 
     // Validate faculty exists
@@ -264,10 +260,6 @@ export class ProposalsValidationService {
   validateUpdateData(data: UpdateProposalDto): void {
     if (data.formData) {
       this.validateFormData(data.formData);
-    }
-
-    if (data.attachments) {
-      this.validateAttachments(data.attachments);
     }
   }
 

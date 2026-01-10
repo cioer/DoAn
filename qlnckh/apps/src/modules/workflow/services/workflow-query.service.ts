@@ -91,15 +91,6 @@ export class WorkflowQueryService {
         orderBy: { timestamp: 'desc' },
         take: limit,
         skip: offset,
-        include: {
-          actor: {
-            select: {
-              id: true,
-              displayName: true,
-              email: true,
-            },
-          },
-        },
       }),
       this.prisma.workflowLog.count({ where }),
     ]);
@@ -120,14 +111,6 @@ export class WorkflowQueryService {
     const logs = await this.prisma.workflowLog.findMany({
       where: { proposalId },
       orderBy: { timestamp: 'asc' },
-      include: {
-        actor: {
-          select: {
-            id: true,
-            displayName: true,
-          },
-        },
-      },
     });
 
     return logs.map((log) => ({
@@ -137,9 +120,9 @@ export class WorkflowQueryService {
       toState: log.toState,
       actor: {
         id: log.actorId,
-        name: log.actor?.displayName || 'Unknown User',
+        name: log.actorName || 'Unknown User',
       },
-      metadata: log.metadata as Record<string, unknown> | undefined,
+      metadata: undefined, // WorkflowLog doesn't have metadata field
     }));
   }
 

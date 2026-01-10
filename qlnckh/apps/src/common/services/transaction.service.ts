@@ -199,11 +199,11 @@ export class TransactionService {
     transactionFn?: (tx: Prisma.TransactionClient, proposal: any) => Promise<T>,
   ): Promise<{ proposal: any; additional?: T }> {
     return this.execute(async (tx) => {
-      // Update proposal with new section data
+      // Update proposal with new section data (using formData)
       const proposal = await tx.proposal.update({
         where: { id: proposalId },
         data: {
-          sections: sections as any, // Prisma Json type
+          formData: sections as any, // Prisma Json type - stored in formData field
         },
       });
 

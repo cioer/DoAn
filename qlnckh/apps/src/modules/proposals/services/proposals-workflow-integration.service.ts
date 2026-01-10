@@ -32,17 +32,27 @@ export class ProposalsWorkflowService {
 
   /**
    * Start project (APPROVED → IN_PROGRESS)
+   * Note: This method may not exist in WorkflowService yet
    */
   async startProject(proposalId: string, context: TransitionContext) {
     this.logger.log(`Starting project for proposal ${proposalId}`);
 
-    const result = await this.workflow.startProject(proposalId, context);
+    // TODO: Implement startProject in WorkflowService or use appropriate transition
+    // For now, just update the proposal state
+    const result = await this.prisma.proposal.update({
+      where: { id: proposalId },
+      data: {
+        state: ProjectState.IN_PROGRESS,
+        actualStartDate: new Date(),
+      },
+    });
 
     return result;
   }
 
   /**
    * Faculty acceptance (FACULTY_REVIEW → SCHOOL_SELECTION_REVIEW)
+   * Note: Acceptance data is stored in formData under 'facultyAcceptance' key
    */
   async facultyAcceptance(
     proposalId: string,
@@ -51,11 +61,22 @@ export class ProposalsWorkflowService {
   ) {
     this.logger.log(`Faculty acceptance for proposal ${proposalId}`);
 
-    // First, update proposal with acceptance data
+    // First, get current formData and merge acceptance data
+    const current = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: { formData: true },
+    });
+
+    const mergedFormData = {
+      ...(current?.formData as any || {}),
+      facultyAcceptance: acceptanceData,
+    };
+
+    // Update proposal with acceptance data in formData
     await this.prisma.proposal.update({
       where: { id: proposalId },
       data: {
-        facultyAcceptanceData: acceptanceData as any,
+        formData: mergedFormData as any,
       },
     });
 
@@ -67,6 +88,7 @@ export class ProposalsWorkflowService {
 
   /**
    * School acceptance (SCHOOL_SELECTION_REVIEW → SCHOOL_ACCEPTANCE_REVIEW)
+   * Note: Acceptance data is stored in formData under 'schoolAcceptance' key
    */
   async schoolAcceptance(
     proposalId: string,
@@ -75,11 +97,22 @@ export class ProposalsWorkflowService {
   ) {
     this.logger.log(`School acceptance for proposal ${proposalId}`);
 
-    // Update proposal with acceptance data
+    // Get current formData and merge acceptance data
+    const current = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: { formData: true },
+    });
+
+    const mergedFormData = {
+      ...(current?.formData as any || {}),
+      schoolAcceptance: acceptanceData,
+    };
+
+    // Update proposal with acceptance data in formData
     await this.prisma.proposal.update({
       where: { id: proposalId },
       data: {
-        schoolAcceptanceData: acceptanceData as any,
+        formData: mergedFormData as any,
       },
     });
 
@@ -134,21 +167,13 @@ export class ProposalsWorkflowService {
 
   /**
    * Get proposal workflow logs
+   * Note: WorkflowLog doesn't have actor relation, using actorId instead
    */
   async getWorkflowLogs(proposalId: string, take = 50) {
     const logs = await this.prisma.workflowLog.findMany({
       where: { proposalId },
       orderBy: { timestamp: 'desc' },
       take,
-      include: {
-        actor: {
-          select: {
-            id: true,
-            displayName: true,
-            email: true,
-          },
-        },
-      },
     });
 
     return logs;
@@ -291,7 +316,20 @@ export class ProposalsWorkflowService {
         ProjectState.REJECTED,
       ],
       [ProjectState.APPROVED]: [ProjectState.IN_PROGRESS],
-      [ProjectState.IN_PROGRESS]: [ProjectState.PAUSED, ProjectState.COMPLETED],
+      [ProjectState.IN_PROGRESS]: [
+        ProjectState.FACULTY_ACCEPTANCE_REVIEW,
+        ProjectState.PAUSED,
+        ProjectState.COMPLETED,
+      ],
+      [ProjectState.FACULTY_ACCEPTANCE_REVIEW]: [
+        ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+        ProjectState.IN_PROGRESS,
+      ],
+      [ProjectState.SCHOOL_ACCEPTANCE_REVIEW]: [
+        ProjectState.HANDOVER,
+        ProjectState.IN_PROGRESS,
+      ],
+      [ProjectState.HANDOVER]: [ProjectState.COMPLETED],
       [ProjectState.PAUSED]: [ProjectState.IN_PROGRESS],
       [ProjectState.CHANGES_REQUESTED]: [ProjectState.FACULTY_REVIEW],
       // Terminal states

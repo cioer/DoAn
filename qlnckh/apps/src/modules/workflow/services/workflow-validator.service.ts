@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../auth/prisma.service';
-import { ProjectState, WorkflowAction, Proposal, UserRole } from '@prisma/client';
+import { ProjectState, WorkflowAction, Proposal } from '@prisma/client';
 import {
   isValidTransition,
   InvalidTransitionError,
@@ -29,7 +29,7 @@ export interface ValidationContext {
     displayName?: string;
   };
   targetState?: ProjectState;
-  action: WorkflowAction;
+  action?: WorkflowAction; // Optional - action is also passed as parameter
 }
 
 /**
@@ -162,7 +162,7 @@ export class WorkflowValidatorService {
     user: { id: string; role: string },
     action: WorkflowAction,
   ): void {
-    const ownershipRequiredActions = [
+    const ownershipRequiredActions: WorkflowAction[] = [
       WorkflowAction.SUBMIT,
       WorkflowAction.WITHDRAW,
       WorkflowAction.RESUBMIT,
@@ -191,7 +191,7 @@ export class WorkflowValidatorService {
    */
   validateTerminalState(proposal: Proposal, action: WorkflowAction): void {
     // Certain actions should not be performed on terminal states
-    const blockedActions = [
+    const blockedActions: WorkflowAction[] = [
       WorkflowAction.APPROVE,
       WorkflowAction.RETURN,
       WorkflowAction.SUBMIT,

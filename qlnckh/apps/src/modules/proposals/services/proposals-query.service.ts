@@ -73,9 +73,9 @@ export class ProposalsQueryService {
       data: proposals,
       meta: {
         total,
-        skip,
-        take,
-        hasMore: skip + take < total,
+        page: Math.floor(skip / take) + 1,
+        limit: take,
+        totalPages: Math.ceil(total / take),
       },
     };
   }
@@ -118,9 +118,9 @@ export class ProposalsQueryService {
       data: proposals,
       meta: {
         total,
-        skip,
-        take,
-        hasMore: skip + take < total,
+        page: Math.floor(skip / take) + 1,
+        limit: take,
+        totalPages: Math.ceil(total / take),
       },
     };
   }
@@ -163,9 +163,9 @@ export class ProposalsQueryService {
       data: proposals,
       meta: {
         total,
-        skip,
-        take,
-        hasMore: skip + take < total,
+        page: Math.floor(skip / take) + 1,
+        limit: take,
+        totalPages: Math.ceil(total / take),
       },
     };
   }
@@ -186,7 +186,6 @@ export class ProposalsQueryService {
       OR: [
         { title: { contains: query, mode: 'insensitive' } },
         { code: { contains: query, mode: 'insensitive' } },
-        { description: { contains: query, mode: 'insensitive' } },
       ],
     };
 
@@ -228,9 +227,9 @@ export class ProposalsQueryService {
       data: proposals,
       meta: {
         total,
-        skip,
-        take,
-        hasMore: skip + take < total,
+        page: Math.floor(skip / take) + 1,
+        limit: take,
+        totalPages: Math.ceil(total / take),
       },
     };
   }
@@ -347,9 +346,9 @@ export class ProposalsQueryService {
       data: proposals,
       meta: {
         total,
-        skip,
-        take,
-        hasMore: skip + take < total,
+        page: Math.floor(skip / take) + 1,
+        limit: take,
+        totalPages: Math.ceil(total / take),
       },
     };
   }
@@ -364,7 +363,6 @@ export class ProposalsQueryService {
         owner: true,
         faculty: true,
         template: true,
-        attachments: true,
         workflowLogs: {
           orderBy: { timestamp: 'desc' },
           take: 50,
@@ -410,9 +408,9 @@ export class ProposalsQueryService {
       data: proposals,
       meta: {
         total,
-        skip,
-        take,
-        hasMore: skip + take < total,
+        page: Math.floor(skip / take) + 1,
+        limit: take,
+        totalPages: Math.ceil(total / take),
       },
     };
   }
@@ -539,9 +537,9 @@ export class ProposalsQueryService {
       data: proposals,
       meta: {
         total,
-        skip,
-        take,
-        hasMore: skip + take < total,
+        page: Math.floor(skip / take) + 1,
+        limit: take,
+        totalPages: Math.ceil(total / take),
       },
     };
   }

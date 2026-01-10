@@ -2,10 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../auth/prisma.service';
 import { WorkflowValidatorService } from './workflow-validator.service';
 import { HolderAssignmentService } from './holder-assignment.service';
-import { SlaService } from './sla.service';
-import { TransactionService } from './transaction.service';
+import { SlaService } from '../../calendar/sla.service';
+import { TransactionService } from '../../../common/services/transaction.service';
 import { AuditHelperService } from './audit-helper.service';
-import { IdempotencyService } from './idempotency.service';
+import { IdempotencyService } from '../../../common/services/idempotency.service';
 import { ProjectState, WorkflowAction } from '@prisma/client';
 import { TransitionContext, TransitionResult } from '../workflow.service';
 
@@ -145,9 +145,8 @@ export class WorkflowStateMachineService {
           holderUser: holder.holderUser,
           slaStartDate,
           slaDeadline,
-          reasonCode,
           comment,
-          metadata,
+          metadata: reasonCode ? { ...metadata, reasonCode } : metadata,
         });
 
         // 7. Build transition result

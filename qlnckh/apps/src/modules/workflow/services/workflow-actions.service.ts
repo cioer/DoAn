@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { WorkflowStateMachineService } from './workflow-state-machine.service';
 import { PrismaService } from '../../auth/prisma.service';
-import { ProjectState, WorkflowAction, RejectReasonCode } from '@prisma/client';
+import { ProjectState, WorkflowAction } from '@prisma/client';
+import { RejectReasonCode } from '../enums/reject-reason-code.enum';
 import { TransitionContext, TransitionResult } from '../workflow.service';
 
 /**

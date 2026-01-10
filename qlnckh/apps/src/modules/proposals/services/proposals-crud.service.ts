@@ -21,6 +21,20 @@ export class ProposalsCrudService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
+   * Get template version from template ID or code
+   */
+  private async getTemplateVersion(templateId: string): Promise<string> {
+    const template = await this.prisma.formTemplate.findFirst({
+      where: {
+        OR: [{ id: templateId }, { code: templateId }],
+      },
+      select: { version: true },
+    });
+
+    return template?.version || 'v1.0';
+  }
+
+  /**
    * Generate next proposal code (DT-XXX format)
    * Uses max existing code to avoid race conditions
    */
@@ -52,14 +66,13 @@ export class ProposalsCrudService {
       data: {
         code,
         title: data.title,
-        description: data.description,
         ownerId: userId,
         facultyId: data.facultyId,
         templateId: data.templateId,
-        templateVersion: data.templateVersion,
+        // Get template version from template
+        templateVersion: await this.getTemplateVersion(data.templateId),
         formData: data.formData as Prisma.InputJsonValue,
         state: ProjectState.DRAFT,
-        attachments: data.attachments || [],
         holderUnit: data.facultyId,
         holderUser: userId,
       },
@@ -150,7 +163,6 @@ export class ProposalsCrudService {
       where.OR = [
         { title: { contains: search, mode: 'insensitive' } },
         { code: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -173,9 +185,9 @@ export class ProposalsCrudService {
       data: proposals,
       meta: {
         total,
-        skip,
-        take,
-        hasMore: skip + take < total,
+        page: Math.floor(skip / take) + 1,
+        limit: take,
+        totalPages: Math.ceil(total / take),
       },
     };
   }
@@ -188,9 +200,7 @@ export class ProposalsCrudService {
       where: { id },
       data: {
         title: data.title,
-        description: data.description,
         formData: data.formData as Prisma.InputJsonValue,
-        attachments: data.attachments,
       },
       include: {
         owner: true,
@@ -212,7 +222,6 @@ export class ProposalsCrudService {
       where: { id },
       data: {
         formData: data.formData as Prisma.InputJsonValue,
-        attachments: data.attachments,
       },
       include: {
         owner: true,

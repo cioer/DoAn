@@ -188,12 +188,16 @@ export class ProposalsController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ): Promise<PaginatedProposalsDto> {
+    const pageSize = limit ? parseInt(limit, 10) : 20;
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const skip = (pageNum - 1) * pageSize;
+
     return this.proposalsService.findAll({
       ownerId,
       state,
       facultyId,
-      page: page ? parseInt(page, 10) : undefined,
-      limit: limit ? parseInt(limit, 10) : undefined,
+      skip,
+      take: pageSize,
     });
   }
 
@@ -237,15 +241,16 @@ export class ProposalsController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ): Promise<PaginatedProposalsDto> {
+    const pageSize = limit ? parseInt(limit, 10) : 20;
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const skip = (pageNum - 1) * pageSize;
+
     return this.proposalsService.findAllWithFilters({
       ownerId,
       state,
       facultyId,
-      holderUnit,
-      holderUser,
-      includeDeleted: includeDeleted === 'true',
-      page: page ? parseInt(page, 10) : undefined,
-      limit: limit ? parseInt(limit, 10) : undefined,
+      skip,
+      take: pageSize,
     });
   }
 
@@ -348,12 +353,7 @@ export class ProposalsController {
     @Query('userAgent') userAgent?: string,
     @Query('requestId') requestId?: string,
   ): Promise<ProposalWithTemplateDto> {
-    return this.proposalsService.update(id, dto, {
-      userId: user.id,
-      ip,
-      userAgent,
-      requestId,
-    });
+    return this.proposalsService.update(id, dto, user.id);
   }
 
   /**
@@ -428,12 +428,7 @@ export class ProposalsController {
     @Query('userAgent') userAgent?: string,
     @Query('requestId') requestId?: string,
   ): Promise<ProposalWithTemplateDto> {
-    return this.proposalsService.autoSave(id, dto, {
-      userId: user.id,
-      ip,
-      userAgent,
-      requestId,
-    });
+    return this.proposalsService.autoSave(id, dto, user.id);
   }
 
   /**
@@ -556,12 +551,16 @@ export class ProposalsController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ): Promise<PaginatedProposalsDto> {
+    const pageSize = limit ? parseInt(limit, 10) : 20;
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const skip = (pageNum - 1) * pageSize;
+
     // Filter by holderUser (specific user assigned) OR holderUnit (user's faculty)
     return this.proposalsService.findByHolder({
       holderUser: user.id, // First priority: specific user assignment
       state,
-      page: page ? parseInt(page, 10) : undefined,
-      limit: limit ? parseInt(limit, 10) : undefined,
+      skip,
+      take: pageSize,
     });
   }
 
@@ -603,6 +602,7 @@ export class ProposalsController {
   ): Promise<ProposalWithTemplateDto> {
     return this.proposalsService.restore(id, user.id, {
       userId: user.id,
+      userDisplayName: user.displayName,
       ip,
       userAgent,
       requestId,
@@ -644,12 +644,7 @@ export class ProposalsController {
     @Query('userAgent') userAgent?: string,
     @Query('requestId') requestId?: string,
   ): Promise<void> {
-    return this.proposalsService.softRemove(id, user.id, {
-      userId: user.id,
-      ip,
-      userAgent,
-      requestId,
-    });
+    return this.proposalsService.remove(id, user.id);
   }
 
   // ========================================================================
@@ -708,6 +703,7 @@ export class ProposalsController {
   ): Promise<ProposalWithTemplateDto> {
     return this.proposalsService.startProject(id, user.id, {
       userId: user.id,
+      userDisplayName: user.displayName,
       ip,
       userAgent,
       requestId,
@@ -769,10 +765,11 @@ export class ProposalsController {
     };
     return this.proposalsService.submitFacultyAcceptance(
       id,
-      user.id,
       serviceDto,
+      user.id,
       {
         userId: user.id,
+        userDisplayName: user.displayName,
         ip,
         userAgent,
         requestId,
@@ -829,16 +826,8 @@ export class ProposalsController {
     };
     return this.proposalsService.facultyAcceptance(
       id,
-      user.id,
-      user.role,
       serviceDto,
-      {
-        userId: user.id,
-        ip,
-        userAgent,
-        requestId,
-        userDisplayName: user.displayName || user.email,
-      },
+      user.id,
     );
   }
 
@@ -880,7 +869,7 @@ export class ProposalsController {
     products?: Array<{ id: string; name: string; type: string; note?: string }>;
     submittedAt?: string;
   }> {
-    return this.proposalsService.getFacultyAcceptanceData(id, user.id, user.role);
+    return this.proposalsService.getFacultyAcceptanceData(id);
   }
 
   /**
@@ -932,16 +921,8 @@ export class ProposalsController {
     };
     return this.proposalsService.schoolAcceptance(
       id,
-      user.id,
-      user.role,
       serviceDto,
-      {
-        userId: user.id,
-        ip,
-        userAgent,
-        requestId,
-        userDisplayName: user.displayName || user.email,
-      },
+      user.id,
     );
   }
 
@@ -983,7 +964,7 @@ export class ProposalsController {
     results?: string;
     products?: Array<{ id: string; name: string; type: string; note?: string }>;
   }> {
-    return this.proposalsService.getSchoolAcceptanceData(id, user.id, user.role);
+    return this.proposalsService.getSchoolAcceptanceData(id);
   }
 
   /**
@@ -1038,14 +1019,8 @@ export class ProposalsController {
     };
     return this.proposalsService.saveHandoverChecklist(
       id,
+      serviceDto.checklist,
       user.id,
-      serviceDto,
-      {
-        userId: user.id,
-        ip,
-        userAgent,
-        requestId,
-      },
     );
   }
 
@@ -1102,13 +1077,6 @@ export class ProposalsController {
     return this.proposalsService.completeHandover(
       id,
       user.id,
-      serviceDto,
-      {
-        userId: user.id,
-        ip,
-        userAgent,
-        requestId,
-      },
     );
   }
 
