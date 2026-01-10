@@ -47,3 +47,22 @@ prisma/migrations/
 tmp/
 temp/
 *.tmp
+
+# Test results and screenshots
+test-results/
+qlnckh/test-results/
+*.png
+*.jpg
+*.jpeg
+qlnckh/web-apps-e2e/screenshots/
+.playwright-mcp/
+.playwright/
+
+# Temporary scripts (root level only)
+/add-permissions.js
+/add-perms.js
+/check-permissions.js
+
+# Documents and templates (root level only)
+/Cac bieu mau quy dinh NCKH 2024.docx
+/E2E-TEST-RESULTS.md
