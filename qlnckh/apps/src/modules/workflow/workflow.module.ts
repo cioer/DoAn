@@ -6,33 +6,70 @@ import { AuditModule } from '../audit/audit.module';
 import { BusinessCalendarModule } from '../calendar/calendar.module';
 import { IdempotencyModule } from '../../common/interceptors';
 import { RbacModule } from '../rbac/rbac.module';
-import { WorkflowValidatorService } from './services/workflow-validator.service';
-import { HolderAssignmentService } from './services/holder-assignment.service';
-import { AuditHelperService } from './services/audit-helper.service';
+import {
+  WorkflowValidatorService,
+  HolderAssignmentService,
+  AuditHelperService,
+  SlaService,
+  TransactionService,
+  IdempotencyService,
+  WorkflowStateMachineService,
+  WorkflowActionsService,
+  WorkflowQueryService,
+  WorkflowOrchestrationService,
+} from './services';
 
 /**
  * Workflow Module
  *
- * Handles state machine transitions for proposals.
- * Provides workflow service to other modules that need to transition states.
+ * Phase 2 Refactor: Split workflow.service.ts into 4 specialized services
+ * - WorkflowStateMachineService: Generic transition executor
+ * - WorkflowActionsService: Semantic API for workflow actions
+ * - WorkflowQueryService: Read operations for workflow data
+ * - WorkflowOrchestrationService: Complex multi-step workflows (future)
  *
- * Story 3.3: Added BusinessCalendarModule import for SLA calculation
- * Story 3.4: Added WorkflowController for workflow logs endpoint
- * Story 3.5: Added queue filter endpoint with SlaService integration
- * Story 3.8: Added IdempotencyModule for idempotency on state-changing actions
- * Phase 1 Refactor: Added HolderAssignmentService for holder assignment logic
- * Phase 1 Refactor: Added AuditHelperService for audit logging with retry logic
+ * Main WorkflowService reduced from 2,303 to 409 lines (-82%)
  */
 @Module({
-  imports: [AuditModule, BusinessCalendarModule, IdempotencyModule, RbacModule],
+  imports: [
+    AuditModule,
+    BusinessCalendarModule,
+    IdempotencyModule,
+    RbacModule,
+  ],
   controllers: [WorkflowController],
   providers: [
-    WorkflowService,
     PrismaService,
+
+    // Core services (Phase 1)
     WorkflowValidatorService,
     HolderAssignmentService,
     AuditHelperService,
+    SlaService,
+    TransactionService,
+    IdempotencyService,
+
+    // New services (Phase 2)
+    WorkflowStateMachineService,
+    WorkflowActionsService,
+    WorkflowQueryService,
+    WorkflowOrchestrationService,
+
+    // Main orchestrator
+    WorkflowService,
   ],
-  exports: [WorkflowService, WorkflowValidatorService, HolderAssignmentService, AuditHelperService],
+  exports: [
+    WorkflowService,
+    WorkflowValidatorService,
+    HolderAssignmentService,
+    AuditHelperService,
+    SlaService,
+    TransactionService,
+    IdempotencyService,
+    // Export new services for testing/reuse
+    WorkflowStateMachineService,
+    WorkflowActionsService,
+    WorkflowQueryService,
+  ],
 })
 export class WorkflowModule {}

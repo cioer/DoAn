@@ -26,22 +26,15 @@ import {
   getOverdueProposalsFilter,
 } from './helpers/holder-rules.helper';
 import { RejectReasonCode } from './enums/reject-reason-code.enum';
-import {
-  WorkflowValidatorService,
-  WorkflowActionsService,
-  WorkflowQueryService,
-  WorkflowOrchestrationService,
-} from './services';
+import { WorkflowValidatorService } from './services/workflow-validator.service';
 import { IdempotencyService } from '../../../common/services/idempotency.service';
 import { TransactionService } from '../../../common/services/transaction.service';
 import { HolderAssignmentService } from './services/holder-assignment.service';
 import { AuditHelperService } from './services/audit-helper.service';
-import { SlaService } from '../calendar/sla.service';
 
 /**
  * Workflow Service Tests
  *
- * Phase 2 Refactor: Updated to test new service architecture
  * Tests follow Epic 2 lesson learned: manual DI bypass for reliable testing
  */
 
@@ -186,38 +179,6 @@ const mockAuditHelper = {
   logWorkflowTransitionsBatch: vi.fn().mockResolvedValue(undefined),
 };
 
-// Phase 2 Refactor: New service mocks for test architecture
-const mockActionsService = {
-  submit: vi.fn(),
-  approveFaculty: vi.fn(),
-  returnFaculty: vi.fn(),
-  resubmit: vi.fn(),
-  approveCouncil: vi.fn(),
-  returnCouncil: vi.fn(),
-  acceptSchool: vi.fn(),
-  returnSchool: vi.fn(),
-  cancel: vi.fn(),
-  withdraw: vi.fn(),
-  reject: vi.fn(),
-  pause: vi.fn(),
-  resume: vi.fn(),
-};
-
-const mockQueryService = {
-  getWorkflowLogs: vi.fn(),
-  getWorkflowHistory: vi.fn(),
-  getProposalTimeline: vi.fn(),
-};
-
-const mockOrchestrationService = {
-  autoApproveAfterTimeout: vi.fn(),
-  bulkApprove: vi.fn(),
-  bulkReturn: vi.fn(),
-  conditionalApprove: vi.fn(),
-  escalate: vi.fn(),
-  sendSlaReminders: vi.fn(),
-};
-
 describe('WorkflowService', () => {
   let service: WorkflowService;
 
@@ -273,11 +234,17 @@ describe('WorkflowService', () => {
   };
 
   beforeEach(() => {
-    // Phase 2 Refactor: Create service with new architecture mocks
+    // Manual DI bypass - create service directly with mocks
     service = new WorkflowService(
-      mockActionsService as any,
-      mockQueryService as any,
-      mockOrchestrationService as any,
+      mockPrisma as any,
+      mockAuditService as any,
+      mockSlaService as any, // Story 3.3: SlaService
+      // Phase 1 Refactor: New extracted services
+      mockValidator as any,
+      mockIdempotency as any,
+      mockTransaction as any,
+      mockHolder as any,
+      mockAuditHelper as any,
     );
     vi.clearAllMocks();
 
@@ -571,16 +538,22 @@ describe('WorkflowService', () => {
 
   describe('Task 4: Submit Proposal (DRAFT → FACULTY_REVIEW)', () => {
     beforeEach(() => {
-      // Phase 2 Refactor: Setup mock return values for actions service
-      mockActionsService.submit.mockResolvedValue({
-        proposal: {
+      // Set up default mock returns for submit tests
+      mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
+      // Story 3.6: Mock calculateDeadlineWithCutoff
+      mockSlaService.calculateDeadlineWithCutoff.mockResolvedValue(
+        new Date('2026-01-10T17:00:00'),
+      );
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        // Simulate transaction - mockPrisma methods should return expected values
+        mockPrisma.proposal.update.mockResolvedValue({
           ...mockProposal,
           state: ProjectState.FACULTY_REVIEW,
           holderUnit: 'faculty-1',
           slaStartDate: new Date('2026-01-06T10:00:00'),
           slaDeadline: new Date('2026-01-10T17:00:00'),
-        },
-        workflowLog: {
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-1',
           proposalId: 'proposal-1',
           action: WorkflowAction.SUBMIT,
@@ -589,11 +562,8 @@ describe('WorkflowService', () => {
           actorId: 'user-1',
           actorName: 'GIANG_VIEN',
           timestamp: new Date(),
-        } as any,
-        previousState: ProjectState.DRAFT,
-        currentState: ProjectState.FACULTY_REVIEW,
-        holderUnit: 'faculty-1',
-        holderUser: null,
+        });
+        return await callback(mockPrisma as any);
       });
     });
 
@@ -604,23 +574,37 @@ describe('WorkflowService', () => {
       expect(result.currentState).toBe(ProjectState.FACULTY_REVIEW);
       expect(result.holderUnit).toBe('faculty-1');
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.submit).toHaveBeenCalledWith('proposal-1', mockContext);
+      // Phase 1 Refactor: Verify transaction service was called with correct params
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          toState: ProjectState.FACULTY_REVIEW,
+          holderUnit: 'faculty-1',
+          holderUser: null,
+          slaStartDate: expect.any(Date),
+          slaDeadline: expect.any(Date),
+        }),
+      );
     });
 
     it('AC3.2: should create workflow_log entry with action=SUBMIT', async () => {
       await service.submitProposal('proposal-1', mockContext);
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.submit).toHaveBeenCalledWith('proposal-1', mockContext);
-      expect(mockActionsService.submit).toHaveBeenCalled();
+      // Phase 1 Refactor: Verify transaction service was called with correct action
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: WorkflowAction.SUBMIT,
+          fromState: ProjectState.DRAFT,
+          toState: ProjectState.FACULTY_REVIEW,
+        }),
+      );
     });
 
     it('AC3.3: should reject submit if proposal not in DRAFT state', async () => {
-      // Phase 2 Refactor: Mock service to throw error
-      mockActionsService.submit.mockRejectedValue(
-        new BadRequestException('Chỉ có thể thực hiện SUBMIT khi đề tài ở trạng thái DRAFT')
-      );
+      const notDraftProposal = {
+        ...mockProposal,
+        state: ProjectState.APPROVED,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(notDraftProposal);
 
       await expect(
         service.submitProposal('proposal-1', mockContext),
@@ -628,13 +612,14 @@ describe('WorkflowService', () => {
     });
 
     it('AC3.4: should reject submit if user is not owner', async () => {
-      // Phase 2 Refactor: Mock service to throw error
-      mockActionsService.submit.mockRejectedValue(
-        new BadRequestException('Chỉ chủ nhiệm đề tài mới có thể thực hiện hành động này')
-      );
+      const notOwnerContext = {
+        ...mockContext,
+        userId: 'user-2',
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
 
       await expect(
-        service.submitProposal('proposal-1', mockContext),
+        service.submitProposal('proposal-1', notOwnerContext),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -649,8 +634,11 @@ describe('WorkflowService', () => {
 
       expect(result1).toBe(result2);
 
-      // Phase 2 Refactor: Verify actions service was called (idempotency is handled by actions service)
-      expect(mockActionsService.submit).toHaveBeenCalledTimes(2);
+      // Phase 1 Refactor: With new implementation, validator also calls findUnique
+      // So we expect 2 calls per actual execution (validator + workflow)
+      // But with caching, the second request should not execute the callback at all
+      // So total calls should be 2 (not 4) for two idempotent requests
+      expect(mockPrisma.proposal.findUnique).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -667,14 +655,14 @@ describe('WorkflowService', () => {
     };
 
     beforeEach(() => {
-      // Phase 2 Refactor: Setup mock return values for actions service
-      mockActionsService.approveFaculty.mockResolvedValue({
-        proposal: {
-          ...mockProposal,
+      mockPrisma.proposal.findUnique.mockResolvedValue(facultyReviewProposal);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...facultyReviewProposal,
           state: ProjectState.SCHOOL_SELECTION_REVIEW,
           holderUnit: 'PHONG_KHCN',
-        },
-        workflowLog: {
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-2',
           proposalId: 'proposal-1',
           action: WorkflowAction.APPROVE,
@@ -683,11 +671,8 @@ describe('WorkflowService', () => {
           actorId: 'user-1',
           actorName: 'QUAN_LY_KHOA',
           timestamp: new Date(),
-        } as any,
-        previousState: ProjectState.FACULTY_REVIEW,
-        currentState: ProjectState.SCHOOL_SELECTION_REVIEW,
-        holderUnit: 'PHONG_KHCN',
-        holderUser: null,
+        });
+        return await callback(mockPrisma as any);
       });
     });
 
@@ -700,24 +685,23 @@ describe('WorkflowService', () => {
       expect(result.previousState).toBe(ProjectState.FACULTY_REVIEW);
       expect(result.currentState).toBe(ProjectState.SCHOOL_SELECTION_REVIEW);
       expect(result.holderUnit).toBe('PHONG_KHCN');
-
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.approveFaculty).toHaveBeenCalledWith('proposal-1', facultyContext);
     });
 
     it('AC4.2: should create workflow_log entry with action=APPROVE', async () => {
       await service.approveFacultyReview('proposal-1', facultyContext);
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.approveFaculty).toHaveBeenCalledWith('proposal-1', facultyContext);
-      expect(mockActionsService.approveFaculty).toHaveBeenCalled();
+      // Phase 1 Refactor: Verify transaction service was called with correct action
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: WorkflowAction.APPROVE,
+          fromState: ProjectState.FACULTY_REVIEW,
+          toState: ProjectState.SCHOOL_SELECTION_REVIEW,
+        }),
+      );
     });
 
     it('AC4.3: should reject approve if proposal not in FACULTY_REVIEW', async () => {
-      // Phase 2 Refactor: Mock service to throw error
-      mockActionsService.approveFaculty.mockRejectedValue(
-        new BadRequestException('Chỉ có thể thực hiện APPROVE từ các trạng thái review')
-      );
+      mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
 
       await expect(
         service.approveFacultyReview('proposal-1', facultyContext),
@@ -738,15 +722,15 @@ describe('WorkflowService', () => {
     };
 
     beforeEach(() => {
-      // Phase 2 Refactor: Setup mock return values for actions service
-      mockActionsService.returnFaculty.mockResolvedValue({
-        proposal: {
-          ...mockProposal,
+      mockPrisma.proposal.findUnique.mockResolvedValue(facultyReviewProposal);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...facultyReviewProposal,
           state: ProjectState.CHANGES_REQUESTED,
           holderUnit: 'faculty-1',
           holderUser: 'user-1',
-        },
-        workflowLog: {
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-3',
           proposalId: 'proposal-1',
           action: WorkflowAction.RETURN,
@@ -759,11 +743,8 @@ describe('WorkflowService', () => {
           reasonCode: 'MISSING_DOCUMENTS',
           comment: 'Cần bổ sung tài liệu',
           timestamp: new Date(),
-        } as any,
-        previousState: ProjectState.FACULTY_REVIEW,
-        currentState: ProjectState.CHANGES_REQUESTED,
-        holderUnit: 'faculty-1',
-        holderUser: 'user-1',
+        });
+        return await callback(mockPrisma as any);
       });
     });
 
@@ -780,15 +761,6 @@ describe('WorkflowService', () => {
       expect(result.currentState).toBe(ProjectState.CHANGES_REQUESTED);
       expect(result.holderUnit).toBe('faculty-1'); // owner's faculty
       expect(result.holderUser).toBe('user-1'); // owner
-
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.returnFaculty).toHaveBeenCalledWith(
-        'proposal-1',
-        'Cần bổ sung tài liệu',
-        'MISSING_DOCUMENTS',
-        [],
-        facultyContext,
-      );
     });
 
     it('AC5.2: should store return_target_state in workflow_logs', async () => {
@@ -800,22 +772,23 @@ describe('WorkflowService', () => {
         facultyContext,
       );
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.returnFaculty).toHaveBeenCalledWith(
-        'proposal-1',
-        'Cần bổ sung tài liệu',
-        'MISSING_DOCUMENTS',
-        [],
-        facultyContext,
+      // Phase 1 Refactor: TransactionService.updateProposalWithLog is called instead
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: WorkflowAction.RETURN,
+          toState: ProjectState.CHANGES_REQUESTED,
+          metadata: expect.objectContaining({
+            returnTargetState: ProjectState.FACULTY_REVIEW,
+            returnTargetHolderUnit: 'faculty-1',
+          }),
+        }),
       );
     });
 
     it.skip('AC5.3: should reject return if proposal not in FACULTY_REVIEW', async () => {
       // Phase 1 Refactor: Validation moved to WorkflowValidatorService
       // This test is now covered by validator.service.spec.ts
-      mockActionsService.returnFaculty.mockRejectedValue(
-        new BadRequestException('Chỉ có thể thực hiện RETURN từ các trạng thái review')
-      );
+      mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
 
       await expect(
         service.returnFacultyReview(
@@ -830,25 +803,40 @@ describe('WorkflowService', () => {
   });
 
   describe('AC6: General State Transition Method', () => {
-    it.skip('should validate transition before executing', async () => {
-      // Phase 2 Refactor: transitionState is deprecated and no longer supported
-      // The new architecture uses specific action methods instead
-      // This test is skipped as the method has been removed
+    it('should validate transition before executing', async () => {
+      mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
+
+      await expect(
+        service.transitionState(
+          'proposal-1',
+          ProjectState.APPROVED,
+          WorkflowAction.APPROVE,
+          mockContext,
+        ),
+      ).rejects.toThrow(BadRequestException);
     });
 
-    it.skip('should throw error for terminal state transitions', async () => {
-      // Phase 2 Refactor: transitionState is deprecated and no longer supported
-      // The new architecture uses specific action methods instead
-      // This test is skipped as the method has been removed
+    it('should throw error for terminal state transitions', async () => {
+      const completedProposal = {
+        ...mockProposal,
+        state: ProjectState.COMPLETED,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(completedProposal);
+
+      await expect(
+        service.transitionState(
+          'proposal-1',
+          ProjectState.HANDOVER,
+          WorkflowAction.FINALIZE,
+          mockContext,
+        ),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
   describe('Error Handling', () => {
     it('should throw NotFoundException if proposal not found', async () => {
-      // Phase 2 Refactor: Mock actions service to throw error
-      mockActionsService.submit.mockRejectedValue(
-        new NotFoundException('Đề tài không tồn tại')
-      );
+      mockPrisma.proposal.findUnique.mockResolvedValue(null);
 
       await expect(
         service.submitProposal('non-existent', mockContext),
@@ -872,11 +860,24 @@ describe('WorkflowService', () => {
         ...mockContext,
         userRole: 'ADMIN', // ADMIN not in SUBMIT allowed roles
       };
-
-      // Phase 2 Refactor: Mock actions service to throw error
-      mockActionsService.submit.mockRejectedValue(
-        new ForbiddenException('Vai trò ADMIN không có quyền thực hiện hành động SUBMIT')
-      );
+      mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...mockProposal,
+          state: ProjectState.FACULTY_REVIEW,
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
+          id: 'log-1',
+          proposalId: 'proposal-1',
+          action: WorkflowAction.SUBMIT,
+          fromState: ProjectState.DRAFT,
+          toState: ProjectState.FACULTY_REVIEW,
+          actorId: 'user-1',
+          actorName: 'Test User',
+          timestamp: new Date(),
+        });
+        return await callback(mockPrisma as any);
+      });
 
       await expect(
         service.submitProposal('proposal-1', wrongRoleContext),
@@ -884,15 +885,32 @@ describe('WorkflowService', () => {
     });
 
     it('should reject approve when user role lacks permission', async () => {
+      const facultyReviewProposal = {
+        ...mockProposal,
+        state: ProjectState.FACULTY_REVIEW,
+      };
       const wrongRoleContext = {
         ...mockContext,
         userRole: 'GIANG_VIEN', // GIANG_VIEN not in APPROVE allowed roles
       };
-
-      // Phase 2 Refactor: Mock actions service to throw error
-      mockActionsService.approveFaculty.mockRejectedValue(
-        new ForbiddenException('Vai trò GIANG_VIEN không có quyền thực hiện hành động APPROVE')
-      );
+      mockPrisma.proposal.findUnique.mockResolvedValue(facultyReviewProposal);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...facultyReviewProposal,
+          state: ProjectState.SCHOOL_SELECTION_REVIEW,
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
+          id: 'log-2',
+          proposalId: 'proposal-1',
+          action: WorkflowAction.APPROVE,
+          fromState: ProjectState.FACULTY_REVIEW,
+          toState: ProjectState.SCHOOL_SELECTION_REVIEW,
+          actorId: 'user-1',
+          actorName: 'Test User',
+          timestamp: new Date(),
+        });
+        return await callback(mockPrisma as any);
+      });
 
       await expect(
         service.approveFacultyReview('proposal-1', wrongRoleContext),
@@ -900,15 +918,32 @@ describe('WorkflowService', () => {
     });
 
     it('should reject return when user role lacks permission', async () => {
+      const facultyReviewProposal = {
+        ...mockProposal,
+        state: ProjectState.FACULTY_REVIEW,
+      };
       const wrongRoleContext = {
         ...mockContext,
         userRole: 'GIANG_VIEN', // GIANG_VIEN not in RETURN allowed roles
       };
-
-      // Phase 2 Refactor: Mock actions service to throw error
-      mockActionsService.returnFaculty.mockRejectedValue(
-        new ForbiddenException('Vai trò GIANG_VIEN không có quyền thực hiện hành động RETURN')
-      );
+      mockPrisma.proposal.findUnique.mockResolvedValue(facultyReviewProposal);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...facultyReviewProposal,
+          state: ProjectState.CHANGES_REQUESTED,
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
+          id: 'log-3',
+          proposalId: 'proposal-1',
+          action: WorkflowAction.RETURN,
+          fromState: ProjectState.FACULTY_REVIEW,
+          toState: ProjectState.CHANGES_REQUESTED,
+          actorId: 'user-1',
+          actorName: 'Test User',
+          timestamp: new Date(),
+        });
+        return await callback(mockPrisma as any);
+      });
 
       await expect(
         service.returnFacultyReview(
@@ -924,16 +959,13 @@ describe('WorkflowService', () => {
 
   describe('M4 Fix: User Display Name', () => {
     it('should fetch user display name for workflow log', async () => {
-      // Phase 2 Refactor: Clear any previous mock setup
-      mockActionsService.submit.mockResolvedValue({
-        proposal: {
+      mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
           ...mockProposal,
           state: ProjectState.FACULTY_REVIEW,
-          holderUnit: 'faculty-1',
-          slaStartDate: new Date('2026-01-06T10:00:00'),
-          slaDeadline: new Date('2026-01-10T17:00:00'),
-        },
-        workflowLog: {
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-1',
           proposalId: 'proposal-1',
           action: WorkflowAction.SUBMIT,
@@ -942,31 +974,35 @@ describe('WorkflowService', () => {
           actorId: 'user-1',
           actorName: 'Test User',
           timestamp: new Date(),
-        } as any,
-        previousState: ProjectState.DRAFT,
-        currentState: ProjectState.FACULTY_REVIEW,
-        holderUnit: 'faculty-1',
-        holderUser: null,
+        });
+        return await callback(mockPrisma as any);
       });
 
-      // Phase 2 Refactor: Verify actions service was called
       await service.submitProposal('proposal-1', mockContext);
 
-      expect(mockActionsService.submit).toHaveBeenCalledWith('proposal-1', mockContext);
-      expect(mockActionsService.submit).toHaveBeenCalled();
+      // Verify getUserDisplayName was called
+      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        select: { displayName: true },
+      });
+
+      // Phase 1 Refactor: Verify transaction service was called with display name
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userDisplayName: 'Test User',
+        }),
+      );
     });
 
     it('should fallback to userId when user not found', async () => {
-      // Phase 2 Refactor: Clear any previous mock setup
-      mockActionsService.submit.mockResolvedValue({
-        proposal: {
+      mockPrisma.user.findUnique.mockResolvedValue(null); // User not found
+      mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
           ...mockProposal,
           state: ProjectState.FACULTY_REVIEW,
-          holderUnit: 'faculty-1',
-          slaStartDate: new Date('2026-01-06T10:00:00'),
-          slaDeadline: new Date('2026-01-10T17:00:00'),
-        },
-        workflowLog: {
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-1',
           proposalId: 'proposal-1',
           action: WorkflowAction.SUBMIT,
@@ -975,18 +1011,18 @@ describe('WorkflowService', () => {
           actorId: 'user-1',
           actorName: 'user-1', // Fallback to userId
           timestamp: new Date(),
-        } as any,
-        previousState: ProjectState.DRAFT,
-        currentState: ProjectState.FACULTY_REVIEW,
-        holderUnit: 'faculty-1',
-        holderUser: null,
+        });
+        return await callback(mockPrisma as any);
       });
 
-      // Phase 2 Refactor: This logic is now handled by the actions service
-      // We just verify the service method was called
       await service.submitProposal('proposal-1', mockContext);
 
-      expect(mockActionsService.submit).toHaveBeenCalledWith('proposal-1', mockContext);
+      // Phase 1 Refactor: Verify transaction service was called with userId fallback
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userDisplayName: 'user-1', // Fallback when user not found
+        }),
+      );
     });
   });
 
@@ -1222,16 +1258,16 @@ describe('WorkflowService', () => {
 
   describe('Story 3.3: SLA Integration Tests', () => {
     beforeEach(() => {
-      // Phase 2 Refactor: Setup mock return values for actions service
-      mockActionsService.submit.mockResolvedValue({
-        proposal: {
+      mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
           ...mockProposal,
           state: ProjectState.FACULTY_REVIEW,
           holderUnit: 'faculty-1',
           slaStartDate: new Date('2026-01-06T10:00:00'),
           slaDeadline: new Date('2026-01-10T17:00:00'),
-        },
-        workflowLog: {
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-1',
           proposalId: 'proposal-1',
           action: WorkflowAction.SUBMIT,
@@ -1240,11 +1276,8 @@ describe('WorkflowService', () => {
           actorId: 'user-1',
           actorName: 'Test User',
           timestamp: new Date(),
-        } as any,
-        previousState: ProjectState.DRAFT,
-        currentState: ProjectState.FACULTY_REVIEW,
-        holderUnit: 'faculty-1',
-        holderUser: null,
+        });
+        return await callback(mockPrisma as any);
       });
     });
 
@@ -1254,8 +1287,12 @@ describe('WorkflowService', () => {
 
       await service.submitProposal('proposal-1', mockContext);
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.submit).toHaveBeenCalledWith('proposal-1', mockContext);
+      // Phase 1 Refactor: Verify transaction service was called with slaStartDate
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          slaStartDate: expect.any(Date),
+        }),
+      );
 
       vi.restoreAllMocks();
     });
@@ -1263,22 +1300,45 @@ describe('WorkflowService', () => {
     it('AC3.2: should set slaDeadline to 3 business days + 17:00 cutoff', async () => {
       await service.submitProposal('proposal-1', mockContext);
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.submit).toHaveBeenCalledWith('proposal-1', mockContext);
+      // Story 3.6: Now uses calculateDeadlineWithCutoff
+      expect(mockSlaService.calculateDeadlineWithCutoff).toHaveBeenCalledWith(
+        expect.any(Date),
+        3, // 3 business days
+        17, // 17:00 cutoff
+      );
+
+      // Phase 1 Refactor: Verify transaction service was called with slaDeadline
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          slaDeadline: expect.any(Date),
+        }),
+      );
     });
 
     it('AC3.3: should include SLA dates in audit log', async () => {
       await service.submitProposal('proposal-1', mockContext);
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.submit).toHaveBeenCalledWith('proposal-1', mockContext);
+      // Phase 1 Refactor: Verify audit helper was called with SLA dates
+      expect(mockAuditHelper.logWorkflowTransition).toHaveBeenCalledWith(
+        expect.objectContaining({
+          slaStartDate: expect.any(Date),
+          slaDeadline: expect.any(Date),
+        }),
+        expect.objectContaining({
+          userId: 'user-1',
+          ip: '127.0.0.1',
+          userAgent: 'test',
+          requestId: 'req-1',
+        }),
+      );
     });
 
     it('AC3.4: should use correct cutoff hour (17:00) for deadline calculation', async () => {
       await service.submitProposal('proposal-1', mockContext);
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.submit).toHaveBeenCalledWith('proposal-1', mockContext);
+      // Story 3.6: The third parameter to calculateDeadlineWithCutoff should be 17 (17:00 cutoff)
+      const callArgs = mockSlaService.calculateDeadlineWithCutoff.mock.calls[0];
+      expect(callArgs[2]).toBe(17);
     });
 
     it('AC3.5: should return proposal with SLA dates in result', async () => {
@@ -1302,17 +1362,15 @@ describe('WorkflowService', () => {
       const expectedDeadline = new Date('2026-01-08T17:00:00'); // Wednesday after weekend
 
       mockSlaService.calculateDeadlineWithCutoff.mockResolvedValue(expectedDeadline);
-
-      // Phase 2 Refactor: Override mock to return expected deadline
-      mockActionsService.submit.mockClear().mockResolvedValueOnce({
-        proposal: {
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
           ...mockProposal,
           state: ProjectState.FACULTY_REVIEW,
           holderUnit: 'faculty-1',
           slaStartDate: new Date('2026-01-03T17:00:00'),
           slaDeadline: expectedDeadline,
-        },
-        workflowLog: {
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-1',
           proposalId: 'proposal-1',
           action: WorkflowAction.SUBMIT,
@@ -1321,17 +1379,17 @@ describe('WorkflowService', () => {
           actorId: 'user-1',
           actorName: 'Test User',
           timestamp: new Date(),
-        } as any,
-        previousState: ProjectState.DRAFT,
-        currentState: ProjectState.FACULTY_REVIEW,
-        holderUnit: 'faculty-1',
-        holderUser: null,
+        });
+        return await callback(mockPrisma as any);
       });
 
       const result = await service.submitProposal('proposal-1', mockContext);
 
-      // Phase 2 Refactor: In the new architecture, the SLA service is called by the actions service
-      // We verify the result has the expected deadline
+      expect(mockSlaService.calculateDeadlineWithCutoff).toHaveBeenCalledWith(
+        expect.any(Date),
+        3, // 3 business days
+        17, // 17:00 cutoff
+      );
       expect(result.proposal.slaDeadline).toEqual(expectedDeadline);
     });
 
@@ -1343,8 +1401,8 @@ describe('WorkflowService', () => {
 
       mockSlaService.calculateDeadlineWithCutoff.mockResolvedValue(expectedDeadline);
 
-      // Phase 2 Refactor: Override mock to return expected deadline
-      mockActionsService.submit.mockClear().mockResolvedValueOnce({
+      // Phase 1 Refactor: Override transaction mock to return expected deadline
+      mockTransaction.updateProposalWithLog.mockResolvedValueOnce({
         proposal: {
           ...mockProposal,
           state: ProjectState.FACULTY_REVIEW,
@@ -1361,11 +1419,7 @@ describe('WorkflowService', () => {
           actorId: 'user-1',
           actorName: 'Test User',
           timestamp: new Date(),
-        } as any,
-        previousState: ProjectState.DRAFT,
-        currentState: ProjectState.FACULTY_REVIEW,
-        holderUnit: 'faculty-1',
-        holderUser: null,
+        },
       });
 
       const result = await service.submitProposal('proposal-1', mockContext);
@@ -1378,18 +1432,16 @@ describe('WorkflowService', () => {
       const expectedDeadline = new Date('2026-01-09T17:00:00'); // 3 business days + 17:00
 
       // Story 3.6: Uses calculateDeadlineWithCutoff for proper cutoff time handling
-      mockSlaService.calculateDeadlineWithCutoff.mockClear().mockResolvedValue(expectedDeadline);
-
-      // Phase 2 Refactor: Override mock to return expected deadline
-      mockActionsService.submit.mockClear().mockResolvedValueOnce({
-        proposal: {
+      mockSlaService.calculateDeadlineWithCutoff.mockResolvedValue(expectedDeadline);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
           ...mockProposal,
           state: ProjectState.FACULTY_REVIEW,
           holderUnit: 'faculty-1',
           slaStartDate: submitDate,
           slaDeadline: expectedDeadline,
-        },
-        workflowLog: {
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-1',
           proposalId: 'proposal-1',
           action: WorkflowAction.SUBMIT,
@@ -1398,16 +1450,16 @@ describe('WorkflowService', () => {
           actorId: 'user-1',
           actorName: 'Test User',
           timestamp: new Date(),
-        } as any,
-        previousState: ProjectState.DRAFT,
-        currentState: ProjectState.FACULTY_REVIEW,
-        holderUnit: 'faculty-1',
-        holderUser: null,
+        });
+        return await callback(mockPrisma as any);
       });
 
       const result = await service.submitProposal('proposal-1', mockContext);
 
-      // Phase 2 Refactor: Verify the result has correct time (17:00 cutoff)
+      // Story 3.6: Verify the cutoff hour parameter
+      const deadlineArg = mockSlaService.calculateDeadlineWithCutoff.mock.calls[0];
+      expect(deadlineArg[2]).toBe(17); // cutoff hour
+      // Verify the result has correct time
       expect(result.proposal.slaDeadline?.getHours()).toBe(17);
       expect(result.proposal.slaDeadline?.getMinutes()).toBe(0);
     });
@@ -1430,16 +1482,16 @@ describe('WorkflowService', () => {
     };
 
     beforeEach(() => {
-      // Phase 2 Refactor: Setup mock return values for actions service
-      mockActionsService.cancel.mockResolvedValue({
-        proposal: {
-          ...mockProposal,
+      mockPrisma.proposal.findUnique.mockResolvedValue(draftProposal);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...draftProposal,
           state: ProjectState.CANCELLED,
           holderUnit: 'faculty-1',
           holderUser: 'user-1',
           cancelledAt: new Date(),
-        },
-        workflowLog: {
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-cancel',
           proposalId: 'proposal-1',
           action: WorkflowAction.CANCEL,
@@ -1449,11 +1501,11 @@ describe('WorkflowService', () => {
           actorName: 'Test User',
           comment: 'Hủy đề tài',
           timestamp: new Date(),
-        } as any,
-        previousState: ProjectState.DRAFT,
-        currentState: ProjectState.CANCELLED,
-        holderUnit: 'faculty-1',
-        holderUser: 'user-1',
+        });
+        return await callback(mockPrisma as any);
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        displayName: 'Test User',
       });
     });
 
@@ -1464,23 +1516,31 @@ describe('WorkflowService', () => {
       expect(result.previousState).toBe(ProjectState.DRAFT);
       expect(result.holderUnit).toBe('faculty-1');
       expect(result.holderUser).toBe('user-1');
-
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.cancel).toHaveBeenCalledWith('proposal-1', undefined, ownerContext);
     });
 
     it('AC2: should set cancelledAt timestamp', async () => {
       await service.cancelProposal('proposal-1', undefined, ownerContext);
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.cancel).toHaveBeenCalledWith('proposal-1', undefined, ownerContext);
+      // Phase 1 Refactor: Verify transaction service was called with cancelledAt
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            cancelledAt: expect.any(Date),
+          }),
+        }),
+      );
     });
 
     it('AC3: should create workflow log with CANCEL action', async () => {
       await service.cancelProposal('proposal-1', 'Không còn nhu cầu', ownerContext);
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.cancel).toHaveBeenCalledWith('proposal-1', 'Không còn nhu cầu', ownerContext);
+      // Phase 1 Refactor: Verify transaction service was called with CANCEL action
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: WorkflowAction.CANCEL,
+          toState: ProjectState.CANCELLED,
+        }),
+      );
     });
 
     it.skip('AC4: should only allow owner to cancel', async () => {
@@ -1491,10 +1551,6 @@ describe('WorkflowService', () => {
         userId: 'user-2',
       };
 
-      mockActionsService.cancel.mockRejectedValue(
-        new ForbiddenException('Chỉ chủ nhiệm đề tài mới có thể thực hiện hành động này')
-      );
-
       await expect(
         service.cancelProposal('proposal-1', undefined, nonOwnerContext),
       ).rejects.toThrow(ForbiddenException);
@@ -1503,9 +1559,11 @@ describe('WorkflowService', () => {
     it.skip('AC5: should reject cancel if not in DRAFT state', async () => {
       // Phase 1 Refactor: State validation now handled by WorkflowValidatorService
       // This test is skipped as it's covered by validator.service.spec.ts
-      mockActionsService.cancel.mockRejectedValue(
-        new BadRequestException('Chỉ có thể thực hiện CANCEL từ trạng thái DRAFT')
-      );
+      const nonDraftProposal = {
+        ...mockProposal,
+        state: ProjectState.FACULTY_REVIEW,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(nonDraftProposal);
 
       await expect(
         service.cancelProposal('proposal-1', undefined, ownerContext),
@@ -1515,8 +1573,17 @@ describe('WorkflowService', () => {
     it('AC6: should log audit event', async () => {
       await service.cancelProposal('proposal-1', 'Test reason', ownerContext);
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.cancel).toHaveBeenCalledWith('proposal-1', 'Test reason', ownerContext);
+      // Phase 1 Refactor: Verify audit helper was called
+      expect(mockAuditHelper.logWorkflowTransition).toHaveBeenCalledWith(
+        expect.objectContaining({
+          proposalId: 'proposal-1',
+          action: 'CANCEL',
+          comment: 'Test reason',
+        }),
+        expect.objectContaining({
+          userId: 'user-1',
+        }),
+      );
     });
   });
 
@@ -1534,16 +1601,16 @@ describe('WorkflowService', () => {
     };
 
     beforeEach(() => {
-      // Phase 2 Refactor: Setup mock return values for actions service
-      mockActionsService.withdraw.mockResolvedValue({
-        proposal: {
-          ...mockProposal,
+      mockPrisma.proposal.findUnique.mockResolvedValue(facultyReviewProposal);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...facultyReviewProposal,
           state: ProjectState.WITHDRAWN,
           holderUnit: 'faculty-1',
           holderUser: 'user-1',
           withdrawnAt: new Date(),
-        },
-        workflowLog: {
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-withdraw',
           proposalId: 'proposal-1',
           action: WorkflowAction.WITHDRAW,
@@ -1553,11 +1620,11 @@ describe('WorkflowService', () => {
           actorName: 'Test User',
           comment: 'Rút hồ sơ',
           timestamp: new Date(),
-        } as any,
-        previousState: ProjectState.FACULTY_REVIEW,
-        currentState: ProjectState.WITHDRAWN,
-        holderUnit: 'faculty-1',
-        holderUser: 'user-1',
+        });
+        return await callback(mockPrisma as any);
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        displayName: 'Test User',
       });
     });
 
@@ -1566,47 +1633,59 @@ describe('WorkflowService', () => {
 
       expect(result.currentState).toBe(ProjectState.WITHDRAWN);
       expect(result.previousState).toBe(ProjectState.FACULTY_REVIEW);
-
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.withdraw).toHaveBeenCalledWith('proposal-1', undefined, ownerContext);
     });
 
     it('AC2: should withdraw from SCHOOL_SELECTION_REVIEW successfully', async () => {
+      const schoolReviewProposal = {
+        ...mockProposal,
+        state: ProjectState.SCHOOL_SELECTION_REVIEW,
+        holderUnit: 'PHONG_KHCN',
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(schoolReviewProposal);
+
       const result = await service.withdrawProposal('proposal-1', undefined, ownerContext);
 
       expect(result.currentState).toBe(ProjectState.WITHDRAWN);
-      expect(result.previousState).toBe(ProjectState.FACULTY_REVIEW);
-
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.withdraw).toHaveBeenCalledWith('proposal-1', undefined, ownerContext);
+      expect(result.previousState).toBe(ProjectState.SCHOOL_SELECTION_REVIEW);
     });
 
     it('AC3: should withdraw from OUTLINE_COUNCIL_REVIEW successfully', async () => {
+      const councilReviewProposal = {
+        ...mockProposal,
+        state: ProjectState.OUTLINE_COUNCIL_REVIEW,
+        holderUnit: 'council-1',
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(councilReviewProposal);
+
       const result = await service.withdrawProposal('proposal-1', undefined, ownerContext);
 
       expect(result.currentState).toBe(ProjectState.WITHDRAWN);
-      expect(result.previousState).toBe(ProjectState.FACULTY_REVIEW);
-
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.withdraw).toHaveBeenCalledWith('proposal-1', undefined, ownerContext);
+      expect(result.previousState).toBe(ProjectState.OUTLINE_COUNCIL_REVIEW);
     });
 
     it('AC4: should withdraw from CHANGES_REQUESTED successfully', async () => {
+      const changesRequestedProposal = {
+        ...mockProposal,
+        state: ProjectState.CHANGES_REQUESTED,
+        holderUnit: 'faculty-1',
+        holderUser: 'user-1',
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(changesRequestedProposal);
+
       const result = await service.withdrawProposal('proposal-1', undefined, ownerContext);
 
       expect(result.currentState).toBe(ProjectState.WITHDRAWN);
-      expect(result.previousState).toBe(ProjectState.FACULTY_REVIEW);
-
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.withdraw).toHaveBeenCalledWith('proposal-1', undefined, ownerContext);
+      expect(result.previousState).toBe(ProjectState.CHANGES_REQUESTED);
     });
 
     it.skip('AC5: should NOT allow withdraw from IN_PROGRESS (after APPROVED)', async () => {
       // Phase 1 Refactor: State validation now handled by WorkflowValidatorService
       // This test is skipped as it's covered by validator.service.spec.ts
-      mockActionsService.withdraw.mockRejectedValue(
-        new BadRequestException('Không thể rút đề tài từ trạng thái IN_PROGRESS')
-      );
+      const inProgressProposal = {
+        ...mockProposal,
+        state: ProjectState.IN_PROGRESS,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(inProgressProposal);
 
       await expect(
         service.withdrawProposal('proposal-1', undefined, ownerContext),
@@ -1621,10 +1700,6 @@ describe('WorkflowService', () => {
         userId: 'user-2',
       };
 
-      mockActionsService.withdraw.mockRejectedValue(
-        new ForbiddenException('Chỉ chủ nhiệm đề tài mới có thể thực hiện hành động này')
-      );
-
       await expect(
         service.withdrawProposal('proposal-1', undefined, nonOwnerContext),
       ).rejects.toThrow(ForbiddenException);
@@ -1633,15 +1708,29 @@ describe('WorkflowService', () => {
     it('AC7: should set withdrawnAt timestamp', async () => {
       await service.withdrawProposal('proposal-1', undefined, ownerContext);
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.withdraw).toHaveBeenCalledWith('proposal-1', undefined, ownerContext);
+      // Phase 1 Refactor: Verify transaction service was called with withdrawnAt
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            withdrawnAt: expect.any(Date),
+          }),
+        }),
+      );
     });
 
     it('AC8: should log audit event', async () => {
       await service.withdrawProposal('proposal-1', 'Test reason', ownerContext);
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.withdraw).toHaveBeenCalledWith('proposal-1', 'Test reason', ownerContext);
+      // Phase 1 Refactor: Verify audit helper was called
+      expect(mockAuditHelper.logWorkflowTransition).toHaveBeenCalledWith(
+        expect.objectContaining({
+          proposalId: 'proposal-1',
+          action: 'WITHDRAW',
+        }),
+        expect.objectContaining({
+          userId: 'user-1',
+        }),
+      );
     });
   });
 
@@ -1658,17 +1747,17 @@ describe('WorkflowService', () => {
     };
 
     beforeEach(() => {
-      // Phase 2 Refactor: Setup mock return values for actions service
-      mockActionsService.reject.mockResolvedValue({
-        proposal: {
-          ...mockProposal,
+      mockPrisma.proposal.findUnique.mockResolvedValue(facultyReviewProposal);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...facultyReviewProposal,
           state: ProjectState.REJECTED,
           holderUnit: 'faculty-1',
           holderUser: 'manager-1',
           rejectedAt: new Date(),
           rejectedById: 'manager-1',
-        },
-        workflowLog: {
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-reject',
           proposalId: 'proposal-1',
           action: WorkflowAction.REJECT,
@@ -1679,11 +1768,11 @@ describe('WorkflowService', () => {
           reasonCode: RejectReasonCode.NOT_SCIENTIFIC,
           comment: 'Nội dung không đạt yêu cầu',
           timestamp: new Date(),
-        } as any,
-        previousState: ProjectState.FACULTY_REVIEW,
-        currentState: ProjectState.REJECTED,
-        holderUnit: 'faculty-1',
-        holderUser: 'manager-1',
+        });
+        return await callback(mockPrisma as any);
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        displayName: 'Manager',
       });
     });
 
@@ -1697,14 +1786,6 @@ describe('WorkflowService', () => {
 
       expect(result.currentState).toBe(ProjectState.REJECTED);
       expect(result.previousState).toBe(ProjectState.FACULTY_REVIEW);
-
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.reject).toHaveBeenCalledWith(
-        'proposal-1',
-        RejectReasonCode.NOT_SCIENTIFIC,
-        'Nội dung không đạt yêu cầu',
-        managerContext,
-      );
     });
 
     it('AC2: PHONG_KHCN can reject from FACULTY_REVIEW', async () => {
@@ -1721,14 +1802,6 @@ describe('WorkflowService', () => {
       );
 
       expect(result.currentState).toBe(ProjectState.REJECTED);
-
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.reject).toHaveBeenCalledWith(
-        'proposal-1',
-        RejectReasonCode.NOT_FEASIBLE,
-        'Không khả thi',
-        phongKHNCContext,
-      );
     });
 
     it('AC3: BAN_GIAM_HOC can reject from any review state', async () => {
@@ -1736,6 +1809,13 @@ describe('WorkflowService', () => {
         ...managerContext,
         userRole: 'BAN_GIAM_HOC',
       };
+
+      // Test OUTLINE_COUNCIL_REVIEW
+      const councilReviewProposal = {
+        ...mockProposal,
+        state: ProjectState.OUTLINE_COUNCIL_REVIEW,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(councilReviewProposal);
 
       const result = await service.rejectProposal(
         'proposal-1',
@@ -1745,17 +1825,15 @@ describe('WorkflowService', () => {
       );
 
       expect(result.currentState).toBe(ProjectState.REJECTED);
-
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.reject).toHaveBeenCalledWith(
-        'proposal-1',
-        RejectReasonCode.BUDGET_UNREASONABLE,
-        'Kinh phí quá cao',
-        banGiamHocContext,
-      );
     });
 
     it('AC4: THU_KY_HOI_DONG can reject from OUTLINE_COUNCIL_REVIEW', async () => {
+      const councilReviewProposal = {
+        ...mockProposal,
+        state: ProjectState.OUTLINE_COUNCIL_REVIEW,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(councilReviewProposal);
+
       const secretaryContext: TransitionContext = {
         ...managerContext,
         userRole: 'THU_KY_HOI_DONG',
@@ -1769,14 +1847,6 @@ describe('WorkflowService', () => {
       );
 
       expect(result.currentState).toBe(ProjectState.REJECTED);
-
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.reject).toHaveBeenCalledWith(
-        'proposal-1',
-        RejectReasonCode.NOT_COMPLIANT,
-        'Không phù hợp quy định',
-        secretaryContext,
-      );
     });
 
     it('AC5: should reject if user lacks permission for current state', async () => {
@@ -1784,10 +1854,6 @@ describe('WorkflowService', () => {
         ...managerContext,
         userRole: 'GIANG_VIEN',
       };
-
-      mockActionsService.reject.mockRejectedValue(
-        new ForbiddenException('Vai trò GIANG_VIEN không có quyền thực hiện hành động REJECT')
-      );
 
       await expect(
         service.rejectProposal(
@@ -1802,9 +1868,11 @@ describe('WorkflowService', () => {
     it.skip('AC6: should NOT allow reject from IN_PROGRESS or APPROVED', async () => {
       // Phase 1 Refactor: State validation now handled by WorkflowValidatorService
       // This test is skipped as it's covered by validator.service.spec.ts
-      mockActionsService.reject.mockRejectedValue(
-        new BadRequestException('Không thể reject từ trạng thái APPROVED')
-      );
+      const approvedProposal = {
+        ...mockProposal,
+        state: ProjectState.APPROVED,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(approvedProposal);
 
       await expect(
         service.rejectProposal(
@@ -1824,12 +1892,14 @@ describe('WorkflowService', () => {
         managerContext,
       );
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.reject).toHaveBeenCalledWith(
-        'proposal-1',
-        RejectReasonCode.NOT_SCIENTIFIC,
-        'Test',
-        managerContext,
+      // Phase 1 Refactor: Verify transaction service was called with rejectedAt
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            rejectedAt: expect.any(Date),
+            rejectedById: 'manager-1',
+          }),
+        }),
       );
     });
 
@@ -1841,12 +1911,12 @@ describe('WorkflowService', () => {
         managerContext,
       );
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.reject).toHaveBeenCalledWith(
-        'proposal-1',
-        RejectReasonCode.NOT_SCIENTIFIC,
-        'Nội dung không đạt yêu cầu khoa học',
-        managerContext,
+      // Phase 1 Refactor: Verify transaction service was called with reasonCode and comment
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reasonCode: RejectReasonCode.NOT_SCIENTIFIC,
+          comment: 'Nội dung không đạt yêu cầu khoa học',
+        }),
       );
     });
 
@@ -1858,12 +1928,15 @@ describe('WorkflowService', () => {
         managerContext,
       );
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.reject).toHaveBeenCalledWith(
-        'proposal-1',
-        RejectReasonCode.NOT_FEASIBLE,
-        'Test reason',
-        managerContext,
+      // Phase 1 Refactor: Verify audit helper was called
+      expect(mockAuditHelper.logWorkflowTransition).toHaveBeenCalledWith(
+        expect.objectContaining({
+          proposalId: 'proposal-1',
+          action: 'REJECT',
+        }),
+        expect.objectContaining({
+          userId: 'manager-1',
+        }),
       );
     });
   });
@@ -1884,10 +1957,10 @@ describe('WorkflowService', () => {
     };
 
     beforeEach(() => {
-      // Phase 2 Refactor: Setup mock return values for actions service
-      mockActionsService.pause.mockResolvedValue({
-        proposal: {
-          ...mockProposal,
+      mockPrisma.proposal.findUnique.mockResolvedValue(inProgressProposal);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...inProgressProposal,
           state: ProjectState.PAUSED,
           holderUnit: 'PHONG_KHCN',
           holderUser: null,
@@ -1897,8 +1970,8 @@ describe('WorkflowService', () => {
           prePauseState: ProjectState.IN_PROGRESS,
           prePauseHolderUnit: 'faculty-1',
           prePauseHolderUser: 'user-1',
-        },
-        workflowLog: {
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-pause',
           proposalId: 'proposal-1',
           action: WorkflowAction.PAUSE,
@@ -1908,11 +1981,11 @@ describe('WorkflowService', () => {
           actorName: 'PKHCN User',
           comment: expect.any(String),
           timestamp: new Date(),
-        } as any,
-        previousState: ProjectState.IN_PROGRESS,
-        currentState: ProjectState.PAUSED,
-        holderUnit: 'PHONG_KHCN',
-        holderUser: null,
+        });
+        return await callback(mockPrisma as any);
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        displayName: 'PKHCN User',
       });
     });
 
@@ -1926,14 +1999,6 @@ describe('WorkflowService', () => {
 
       expect(result.currentState).toBe(ProjectState.PAUSED);
       expect(result.previousState).toBe(ProjectState.IN_PROGRESS);
-
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.pause).toHaveBeenCalledWith(
-        'proposal-1',
-        'Tạm dừng để kiểm tra',
-        new Date('2026-01-15T00:00:00'),
-        phongKHNCContext,
-      );
     });
 
     it('AC2: should store pre-pause state for resume', async () => {
@@ -1944,12 +2009,15 @@ describe('WorkflowService', () => {
         phongKHNCContext,
       );
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.pause).toHaveBeenCalledWith(
-        'proposal-1',
-        'Tạm dừng',
-        undefined,
-        phongKHNCContext,
+      // Phase 1 Refactor: Verify transaction service was called with pre-pause state
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            prePauseState: ProjectState.IN_PROGRESS,
+            prePauseHolderUnit: 'faculty-1',
+            prePauseHolderUser: 'user-1',
+          }),
+        }),
       );
     });
 
@@ -1961,12 +2029,13 @@ describe('WorkflowService', () => {
         phongKHNCContext,
       );
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.pause).toHaveBeenCalledWith(
-        'proposal-1',
-        'Cần bổ sung hồ sơ',
-        undefined,
-        phongKHNCContext,
+      // Phase 1 Refactor: Verify transaction service was called with pause reason
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            pauseReason: 'Cần bổ sung hồ sơ',
+          }),
+        }),
       );
     });
 
@@ -1979,21 +2048,18 @@ describe('WorkflowService', () => {
         phongKHNCContext,
       );
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.pause).toHaveBeenCalledWith(
-        'proposal-1',
-        'Tạm dừng',
-        expectedDate,
-        phongKHNCContext,
+      // Phase 1 Refactor: Verify transaction service was called with expectedResumeAt
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            expectedResumeAt: expectedDate,
+          }),
+        }),
       );
     });
 
     it('AC5: should reject if expectedResumeAt is in the past', async () => {
       const pastDate = new Date('2025-01-01T00:00:00');
-
-      mockActionsService.pause.mockRejectedValue(
-        new BadRequestException('expectedResumeAt không thể là thời điểm trong quá khứ')
-      );
 
       await expect(
         service.pauseProposal(
@@ -2006,9 +2072,11 @@ describe('WorkflowService', () => {
     });
 
     it('AC6: should NOT allow pause on terminal states', async () => {
-      mockActionsService.pause.mockRejectedValue(
-        new BadRequestException('Không thể pause từ trạng thái terminal')
-      );
+      const completedProposal = {
+        ...mockProposal,
+        state: ProjectState.COMPLETED,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(completedProposal);
 
       await expect(
         service.pauseProposal(
@@ -2025,10 +2093,6 @@ describe('WorkflowService', () => {
         ...phongKHNCContext,
         userRole: 'GIANG_VIEN',
       };
-
-      mockActionsService.pause.mockRejectedValue(
-        new ForbiddenException('Vai trò GIANG_VIEN không có quyền thực hiện hành động PAUSE')
-      );
 
       await expect(
         service.pauseProposal(
@@ -2048,12 +2112,12 @@ describe('WorkflowService', () => {
         phongKHNCContext,
       );
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.pause).toHaveBeenCalledWith(
-        'proposal-1',
-        'Tạm dừng',
-        undefined,
-        phongKHNCContext,
+      // Phase 1 Refactor: Verify transaction service was called with PHONG_KHCN holder
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          holderUnit: 'PHONG_KHCN',
+          holderUser: null,
+        }),
       );
     });
 
@@ -2066,12 +2130,11 @@ describe('WorkflowService', () => {
         phongKHNCContext,
       );
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.pause).toHaveBeenCalledWith(
-        'proposal-1',
-        'Tạm dừng',
-        expectedDate,
-        phongKHNCContext,
+      // Phase 1 Refactor: Verify transaction service was called with pause comment
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          comment: expect.stringContaining('15/1/2026'),
+        }),
       );
     });
 
@@ -2083,12 +2146,15 @@ describe('WorkflowService', () => {
         phongKHNCContext,
       );
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.pause).toHaveBeenCalledWith(
-        'proposal-1',
-        'Tạm dừng',
-        undefined,
-        phongKHNCContext,
+      // Phase 1 Refactor: Verify audit helper was called
+      expect(mockAuditHelper.logWorkflowTransition).toHaveBeenCalledWith(
+        expect.objectContaining({
+          proposalId: 'proposal-1',
+          action: 'PAUSE',
+        }),
+        expect.objectContaining({
+          userId: 'pkhcn-1',
+        }),
       );
     });
   });
@@ -2113,10 +2179,10 @@ describe('WorkflowService', () => {
     };
 
     beforeEach(() => {
-      // Phase 2 Refactor: Setup mock return values for actions service
-      mockActionsService.resume.mockResolvedValue({
-        proposal: {
-          ...mockProposal,
+      mockPrisma.proposal.findUnique.mockResolvedValue(pausedProposal);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...pausedProposal,
           state: ProjectState.IN_PROGRESS,
           holderUnit: 'faculty-1',
           holderUser: 'user-1',
@@ -2126,8 +2192,8 @@ describe('WorkflowService', () => {
           prePauseState: null,
           prePauseHolderUnit: null,
           prePauseHolderUser: null,
-        },
-        workflowLog: {
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-resume',
           proposalId: 'proposal-1',
           action: WorkflowAction.RESUME,
@@ -2137,11 +2203,11 @@ describe('WorkflowService', () => {
           actorName: 'PKHCN User',
           comment: 'Tiếp tục đề tài',
           timestamp: new Date(),
-        } as any,
-        previousState: ProjectState.PAUSED,
-        currentState: ProjectState.IN_PROGRESS,
-        holderUnit: 'faculty-1',
-        holderUser: 'user-1',
+        });
+        return await callback(mockPrisma as any);
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        displayName: 'PKHCN User',
       });
     });
 
@@ -2154,13 +2220,6 @@ describe('WorkflowService', () => {
 
       expect(result.currentState).toBe(ProjectState.IN_PROGRESS);
       expect(result.previousState).toBe(ProjectState.PAUSED);
-
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.resume).toHaveBeenCalledWith(
-        'proposal-1',
-        undefined,
-        phongKHNCContext,
-      );
     });
 
     it('AC2: should restore pre-pause state', async () => {
@@ -2170,17 +2229,20 @@ describe('WorkflowService', () => {
         phongKHNCContext,
       );
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.resume).toHaveBeenCalledWith(
-        'proposal-1',
-        undefined,
-        phongKHNCContext,
+      // Phase 1 Refactor: Verify transaction service was called with pre-pause state
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          toState: ProjectState.IN_PROGRESS,
+          holderUnit: 'faculty-1',
+          holderUser: 'user-1',
+        }),
       );
     });
 
     it('AC3: should extend SLA deadline by paused duration', async () => {
-      // Phase 2 Refactor: Override mock to return extended deadline
-      mockActionsService.resume.mockResolvedValueOnce({
+      // Phase 1 Refactor: Override mock to return extended deadline
+      // The test expects: original deadline (2026-01-20) + 3 days (paused duration) = 2026-01-23
+      mockTransaction.updateProposalWithLog.mockResolvedValueOnce({
         proposal: {
           ...pausedProposal,
           state: ProjectState.IN_PROGRESS,
@@ -2197,11 +2259,7 @@ describe('WorkflowService', () => {
           actorId: 'pkhcn-1',
           actorName: 'PKHCN User',
           timestamp: new Date(),
-        } as any,
-        previousState: ProjectState.PAUSED,
-        currentState: ProjectState.IN_PROGRESS,
-        holderUnit: 'faculty-1',
-        holderUser: 'user-1',
+        },
       });
 
       const result = await service.resumeProposal(
@@ -2210,7 +2268,7 @@ describe('WorkflowService', () => {
         phongKHNCContext,
       );
 
-      // Phase 2 Refactor: Verify result has extended deadline
+      // Phase 1 Refactor: Verify result has extended deadline
       expect(result.proposal.slaDeadline).toEqual(new Date('2026-01-23T17:00:00'));
     });
 
@@ -2221,11 +2279,16 @@ describe('WorkflowService', () => {
         phongKHNCContext,
       );
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.resume).toHaveBeenCalledWith(
-        'proposal-1',
-        undefined,
-        phongKHNCContext,
+      // Phase 1 Refactor: Verify transaction service was called to clear pause tracking
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            pausedAt: null,
+            prePauseState: null,
+            prePauseHolderUnit: null,
+            prePauseHolderUser: null,
+          }),
+        }),
       );
     });
 
@@ -2236,11 +2299,13 @@ describe('WorkflowService', () => {
         phongKHNCContext,
       );
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.resume).toHaveBeenCalledWith(
-        'proposal-1',
-        undefined,
-        phongKHNCContext,
+      // Phase 1 Refactor: Verify transaction service was called with resumedAt
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            resumedAt: expect.any(Date),
+          }),
+        }),
       );
     });
 
@@ -2249,10 +2314,6 @@ describe('WorkflowService', () => {
         ...phongKHNCContext,
         userRole: 'GIANG_VIEN',
       };
-
-      mockActionsService.resume.mockRejectedValue(
-        new ForbiddenException('Vai trò GIANG_VIEN không có quyền thực hiện hành động RESUME')
-      );
 
       await expect(
         service.resumeProposal(
@@ -2264,9 +2325,11 @@ describe('WorkflowService', () => {
     });
 
     it('AC7: should reject if proposal not paused', async () => {
-      mockActionsService.resume.mockRejectedValue(
-        new BadRequestException('Chỉ có thể resume từ trạng thái PAUSED')
-      );
+      const inProgressProposal = {
+        ...mockProposal,
+        state: ProjectState.IN_PROGRESS,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(inProgressProposal);
 
       await expect(
         service.resumeProposal(
@@ -2278,9 +2341,11 @@ describe('WorkflowService', () => {
     });
 
     it('AC8: should reject if prePauseState is missing', async () => {
-      mockActionsService.resume.mockRejectedValue(
-        new BadRequestException('Thiếu thông tin prePauseState')
-      );
+      const pausedWithoutPreState = {
+        ...pausedProposal,
+        prePauseState: null,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(pausedWithoutPreState);
 
       await expect(
         service.resumeProposal(
@@ -2298,11 +2363,11 @@ describe('WorkflowService', () => {
         phongKHNCContext,
       );
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.resume).toHaveBeenCalledWith(
-        'proposal-1',
-        'Đã giải quyết xong vấn đề',
-        phongKHNCContext,
+      // Phase 1 Refactor: Verify transaction service was called with comment
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          comment: 'Đã giải quyết xong vấn đề',
+        }),
       );
     });
 
@@ -2313,24 +2378,34 @@ describe('WorkflowService', () => {
         phongKHNCContext,
       );
 
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.resume).toHaveBeenCalledWith(
-        'proposal-1',
-        undefined,
-        phongKHNCContext,
+      // Phase 1 Refactor: Verify audit helper was called
+      expect(mockAuditHelper.logWorkflowTransition).toHaveBeenCalledWith(
+        expect.objectContaining({
+          proposalId: 'proposal-1',
+          action: 'RESUME',
+        }),
+        expect.objectContaining({
+          userId: 'pkhcn-1',
+        }),
       );
     });
 
     it('AC11: should handle different pre-pause states', async () => {
-      // Override mock for FACULTY_REVIEW state
-      mockActionsService.resume.mockResolvedValueOnce({
-        proposal: {
-          ...pausedProposal,
+      const pausedFromFacultyReview = {
+        ...pausedProposal,
+        prePauseState: ProjectState.FACULTY_REVIEW,
+        prePauseHolderUnit: 'faculty-1',
+        prePauseHolderUser: null,
+      };
+      mockPrisma.proposal.findUnique.mockResolvedValue(pausedFromFacultyReview);
+      mockPrisma.$transaction.mockImplementation(async (callback) => {
+        mockPrisma.proposal.update.mockResolvedValue({
+          ...pausedFromFacultyReview,
           state: ProjectState.FACULTY_REVIEW,
           holderUnit: 'faculty-1',
           holderUser: null,
-        },
-        workflowLog: {
+        });
+        mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-resume',
           proposalId: 'proposal-1',
           action: WorkflowAction.RESUME,
@@ -2340,11 +2415,8 @@ describe('WorkflowService', () => {
           actorName: 'PKHCN User',
           comment: 'Tiếp tục',
           timestamp: new Date(),
-        } as any,
-        previousState: ProjectState.PAUSED,
-        currentState: ProjectState.FACULTY_REVIEW,
-        holderUnit: 'faculty-1',
-        holderUser: null,
+        });
+        return await callback(mockPrisma as any);
       });
 
       const result = await service.resumeProposal(
@@ -2354,13 +2426,6 @@ describe('WorkflowService', () => {
       );
 
       expect(result.currentState).toBe(ProjectState.FACULTY_REVIEW);
-
-      // Phase 2 Refactor: Verify actions service was called
-      expect(mockActionsService.resume).toHaveBeenCalledWith(
-        'proposal-1',
-        undefined,
-        phongKHNCContext,
-      );
     });
   });
 });
