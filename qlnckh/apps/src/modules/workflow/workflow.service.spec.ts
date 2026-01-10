@@ -26,6 +26,11 @@ import {
   getOverdueProposalsFilter,
 } from './helpers/holder-rules.helper';
 import { RejectReasonCode } from './enums/reject-reason-code.enum';
+import { WorkflowValidatorService } from './services/workflow-validator.service';
+import { IdempotencyService } from '../../../common/services/idempotency.service';
+import { TransactionService } from '../../../common/services/transaction.service';
+import { HolderAssignmentService } from './services/holder-assignment.service';
+import { AuditHelperService } from './services/audit-helper.service';
 
 /**
  * Workflow Service Tests
@@ -57,6 +62,121 @@ const mockAuditService = {
 const mockSlaService = {
   calculateDeadline: vi.fn(),
   calculateDeadlineWithCutoff: vi.fn(),
+};
+
+// Phase 1 Refactor: New service mocks
+// Smart validator mock that performs real validation logic
+const mockValidator = {
+  validateTransition: vi.fn().mockImplementation(async (
+    proposalId: string,
+    targetState: ProjectState,
+    action: WorkflowAction,
+    validationContext: any,
+  ) => {
+    // Get proposal from the prisma mock
+    const proposal = await mockPrisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: { owner: true, faculty: true },
+    });
+
+    // Proposal exists check
+    if (!proposal) {
+      const { NotFoundException } = await import('@nestjs/common');
+      throw new NotFoundException('Đề tài không tồn tại');
+    }
+
+    const user = validationContext.user;
+
+    // Ownership check
+    const ownershipRequiredActions = [WorkflowAction.SUBMIT, WorkflowAction.WITHDRAW, WorkflowAction.RESUBMIT];
+    if (ownershipRequiredActions.includes(action) && proposal.ownerId !== user.id) {
+      const { BadRequestException } = await import('@nestjs/common');
+      throw new BadRequestException('Chỉ chủ nhiệm đề tài mới có thể thực hiện hành động này');
+    }
+
+    // Role-based permission check (simplified for tests)
+    const canRolePerformAction = (action: WorkflowAction, role: string) => {
+      const actionPermissions: Record<string, string[]> = {
+        SUBMIT: ['GIANG_VIEN', 'SINH_VIEN'],
+        APPROVE: ['QUAN_LY_KHOA', 'PHONG_KHCN', 'KHOA', 'PKHCN'],
+        RETURN: ['QUAN_LY_KHOA', 'PHONG_KHCN', 'KHOA', 'PKHCN'],
+        REQUEST_CHANGES: ['QUAN_LY_KHOA', 'PHONG_KHCN', 'KHOA', 'PKHCN'],
+        WITHDRAW: ['GIANG_VIEN', 'SINH_VIEN'],
+        RESUBMIT: ['GIANG_VIEN', 'SINH_VIEN'],
+        CANCEL: ['GIANG_VIEN', 'SINH_VIEN'],
+        REJECT: ['PHONG_KHCN', 'PKHCN'],
+        PAUSE: ['PKHCN'],
+        RESUME: ['PKHCN'],
+        ACCEPT: ['KHOA', 'PHONG_KHCN'],
+        START_PROJECT: ['GIANG_VIEN', 'SINH_VIEN'],
+        COMPLETE_HANDOVER: ['GIANG_VIEN', 'SINH_VIEN'],
+      };
+      return actionPermissions[action]?.includes(role) ?? false;
+    };
+
+    if (!canRolePerformAction(action, user.role)) {
+      const { ForbiddenException } = await import('@nestjs/common');
+      throw new ForbiddenException(
+        `Vai trò '${user.role}' không có quyền thực hiện hành động ${action}`,
+      );
+    }
+
+    // State transition check for SUBMIT action
+    if (action === WorkflowAction.SUBMIT && proposal.state !== ProjectState.DRAFT) {
+      const { BadRequestException } = await import('@nestjs/common');
+      throw new BadRequestException(
+        `Chỉ có thể thực hiện SUBMIT khi đề tài ở trạng thái DRAFT. Hiện tại: ${proposal.state}`,
+      );
+    }
+
+    // State transition check for APPROVE action
+    if (action === WorkflowAction.APPROVE) {
+      const validStates = [
+        ProjectState.FACULTY_REVIEW,
+        ProjectState.SCHOOL_SELECTION_REVIEW,
+        ProjectState.OUTLINE_COUNCIL_REVIEW,
+      ];
+      if (!validStates.includes(proposal.state)) {
+        const { BadRequestException } = await import('@nestjs/common');
+        throw new BadRequestException(
+          `Chỉ có thể thực hiện APPROVE từ các trạng thái review. Hiện tại: ${proposal.state}`,
+        );
+      }
+    }
+  }),
+};
+
+const mockIdempotency = {
+  setIfAbsent: vi.fn(),
+  get: vi.fn(),
+  delete: vi.fn(),
+  clear: vi.fn(),
+};
+
+const mockTransaction = {
+  updateProposalWithLog: vi.fn(),
+  execute: vi.fn(),
+  executeWithRetry: vi.fn(),
+  updateProposalSections: vi.fn(),
+  batchUpdateProposals: vi.fn(),
+  healthCheck: vi.fn().mockResolvedValue(true),
+};
+
+const mockHolder = {
+  getHolderForState: vi.fn(),
+  canUserActOnProposal: vi.fn(),
+  getHolderDisplayName: vi.fn(),
+  isTerminalQueueState: vi.fn(),
+  getMyQueueProposalsFilter: vi.fn(),
+  getMyProposalsFilter: vi.fn(),
+  getOverdueProposalsFilter: vi.fn(),
+  getUpcomingProposalsFilter: vi.fn(),
+  getStats: vi.fn(),
+};
+
+const mockAuditHelper = {
+  logWorkflowTransition: vi.fn().mockResolvedValue(undefined),
+  logWorkflowTransitionsBatch: vi.fn().mockResolvedValue(undefined),
 };
 
 describe('WorkflowService', () => {
@@ -119,6 +239,12 @@ describe('WorkflowService', () => {
       mockPrisma as any,
       mockAuditService as any,
       mockSlaService as any, // Story 3.3: SlaService
+      // Phase 1 Refactor: New extracted services
+      mockValidator as any,
+      mockIdempotency as any,
+      mockTransaction as any,
+      mockHolder as any,
+      mockAuditHelper as any,
     );
     vi.clearAllMocks();
 
@@ -131,6 +257,58 @@ describe('WorkflowService', () => {
     mockSlaService.calculateDeadline.mockResolvedValue(
       new Date('2026-01-10T17:00:00'),
     );
+
+    // Phase 1 Refactor: Setup default mock implementations
+    // Implement proper idempotency caching for tests
+    const idempotencyCache = new Map<string, any>();
+    mockIdempotency.setIfAbsent.mockImplementation(async (key, fn) => {
+      if (!idempotencyCache.has(key)) {
+        const result = await fn();
+        idempotencyCache.set(key, result);
+      }
+      // Return IdempotencyResult structure (matching real service)
+      return {
+        data: idempotencyCache.get(key),
+        isCached: idempotencyCache.has(key),
+        key,
+      };
+    });
+    // Clear cache before each test
+    idempotencyCache.clear();
+
+    mockHolder.getHolderForState.mockImplementation((state, proposal) => {
+      return getHolderForState(state, proposal);
+    });
+
+    // Phase 1 Refactor: Setup TransactionService mock to simulate transaction execution
+    mockTransaction.updateProposalWithLog.mockImplementation(async (params) => {
+      // Simulate successful proposal update
+      const updatedProposal = {
+        ...mockProposal,
+        state: params.toState,
+        holderUnit: params.holderUnit,
+        holderUser: params.holderUser,
+        slaStartDate: params.slaStartDate,
+        slaDeadline: params.slaDeadline,
+      };
+
+      // Simulate workflow log creation
+      const workflowLog = {
+        id: `log-${Date.now()}`,
+        proposalId: params.proposalId,
+        action: params.action,
+        fromState: params.fromState,
+        toState: params.toState,
+        actorId: params.userId,
+        actorName: params.userDisplayName,
+        timestamp: new Date(),
+      };
+
+      return {
+        proposal: updatedProposal,
+        workflowLog,
+      };
+    });
   });
 
   describe('Task 1 & 2: State Machine Helper Tests', () => {
@@ -395,28 +573,30 @@ describe('WorkflowService', () => {
       expect(result.previousState).toBe(ProjectState.DRAFT);
       expect(result.currentState).toBe(ProjectState.FACULTY_REVIEW);
       expect(result.holderUnit).toBe('faculty-1');
-      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
-        where: { id: 'proposal-1' },
-        data: expect.objectContaining({
-          state: ProjectState.FACULTY_REVIEW,
+
+      // Phase 1 Refactor: Verify transaction service was called with correct params
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          toState: ProjectState.FACULTY_REVIEW,
           holderUnit: 'faculty-1',
           holderUser: null,
           slaStartDate: expect.any(Date),
           slaDeadline: expect.any(Date),
         }),
-      });
+      );
     });
 
     it('AC3.2: should create workflow_log entry with action=SUBMIT', async () => {
       await service.submitProposal('proposal-1', mockContext);
 
-      expect(mockPrisma.workflowLog.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
+      // Phase 1 Refactor: Verify transaction service was called with correct action
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
           action: WorkflowAction.SUBMIT,
           fromState: ProjectState.DRAFT,
           toState: ProjectState.FACULTY_REVIEW,
         }),
-      });
+      );
     });
 
     it('AC3.3: should reject submit if proposal not in DRAFT state', async () => {
@@ -453,8 +633,12 @@ describe('WorkflowService', () => {
       const result2 = await service.submitProposal('proposal-1', contextWithKey);
 
       expect(result1).toBe(result2);
-      // findUnique should be called only once for idempotent requests (first call reads, second uses cache)
-      expect(mockPrisma.proposal.findUnique).toHaveBeenCalledTimes(1);
+
+      // Phase 1 Refactor: With new implementation, validator also calls findUnique
+      // So we expect 2 calls per actual execution (validator + workflow)
+      // But with caching, the second request should not execute the callback at all
+      // So total calls should be 2 (not 4) for two idempotent requests
+      expect(mockPrisma.proposal.findUnique).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -794,12 +978,12 @@ describe('WorkflowService', () => {
         select: { displayName: true },
       });
 
-      // Verify workflow log uses display name
-      expect(mockPrisma.workflowLog.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          actorName: 'Test User', // Not 'GIANG_VIEN' role
+      // Phase 1 Refactor: Verify transaction service was called with display name
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userDisplayName: 'Test User',
         }),
-      });
+      );
     });
 
     it('should fallback to userId when user not found', async () => {
@@ -825,11 +1009,12 @@ describe('WorkflowService', () => {
 
       await service.submitProposal('proposal-1', mockContext);
 
-      expect(mockPrisma.workflowLog.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          actorName: 'user-1', // Fallback when user not found
+      // Phase 1 Refactor: Verify transaction service was called with userId fallback
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userDisplayName: 'user-1', // Fallback when user not found
         }),
-      });
+      );
     });
   });
 
@@ -1094,14 +1279,14 @@ describe('WorkflowService', () => {
 
       await service.submitProposal('proposal-1', mockContext);
 
-      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
-        where: { id: 'proposal-1' },
-        data: expect.objectContaining({
+      // Phase 1 Refactor: Verify transaction service was called with slaStartDate
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
           slaStartDate: expect.any(Date),
         }),
-      });
+      );
 
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     });
 
     it('AC3.2: should set slaDeadline to 3 business days + 17:00 cutoff', async () => {
@@ -1114,31 +1299,30 @@ describe('WorkflowService', () => {
         17, // 17:00 cutoff
       );
 
-      // Verify the update includes slaDeadline
-      expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
-        where: { id: 'proposal-1' },
-        data: expect.objectContaining({
+      // Phase 1 Refactor: Verify transaction service was called with slaDeadline
+      expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
+        expect.objectContaining({
           slaDeadline: expect.any(Date),
         }),
-      });
+      );
     });
 
     it('AC3.3: should include SLA dates in audit log', async () => {
       await service.submitProposal('proposal-1', mockContext);
 
-      expect(mockAuditService.logEvent).toHaveBeenCalledWith({
-        action: 'PROPOSAL_SUBMIT',
-        actorUserId: 'user-1',
-        entityType: 'Proposal',
-        entityId: 'proposal-1',
-        metadata: expect.objectContaining({
-          slaStartDate: expect.any(String),
-          slaDeadline: expect.any(String),
+      // Phase 1 Refactor: Verify audit helper was called with SLA dates
+      expect(mockAuditHelper.logWorkflowTransition).toHaveBeenCalledWith(
+        expect.objectContaining({
+          slaStartDate: expect.any(Date),
+          slaDeadline: expect.any(Date),
         }),
-        ip: '127.0.0.1',
-        userAgent: 'test',
-        requestId: 'req-1',
-      });
+        expect.objectContaining({
+          userId: 'user-1',
+          ip: '127.0.0.1',
+          userAgent: 'test',
+          requestId: 'req-1',
+        }),
+      );
     });
 
     it('AC3.4: should use correct cutoff hour (17:00) for deadline calculation', async () => {
@@ -1207,16 +1391,18 @@ describe('WorkflowService', () => {
       const submitDate = new Date('2026-01-06T10:00:00'); // Tuesday
       const expectedDeadline = new Date('2026-01-10T17:00:00'); // Friday after holiday
 
-      mockSlaService.calculateDeadline.mockResolvedValue(expectedDeadline);
-      mockPrisma.$transaction.mockImplementation(async (callback) => {
-        mockPrisma.proposal.update.mockResolvedValue({
+      mockSlaService.calculateDeadlineWithCutoff.mockResolvedValue(expectedDeadline);
+
+      // Phase 1 Refactor: Override transaction mock to return expected deadline
+      mockTransaction.updateProposalWithLog.mockResolvedValueOnce({
+        proposal: {
           ...mockProposal,
           state: ProjectState.FACULTY_REVIEW,
           holderUnit: 'faculty-1',
           slaStartDate: submitDate,
           slaDeadline: expectedDeadline,
-        });
-        mockPrisma.workflowLog.create.mockResolvedValue({
+        },
+        workflowLog: {
           id: 'log-1',
           proposalId: 'proposal-1',
           action: WorkflowAction.SUBMIT,
@@ -1225,8 +1411,7 @@ describe('WorkflowService', () => {
           actorId: 'user-1',
           actorName: 'Test User',
           timestamp: new Date(),
-        });
-        return await callback(mockPrisma as any);
+        },
       });
 
       const result = await service.submitProposal('proposal-1', mockContext);

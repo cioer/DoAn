@@ -24,6 +24,11 @@ import {
 } from './helpers/workflow.constants';
 import { SlaService } from '../calendar/sla.service';
 import { RejectReasonCode } from './enums/reject-reason-code.enum';
+import { WorkflowValidatorService } from './services/workflow-validator.service';
+import { IdempotencyService } from '../../../common/services/idempotency.service';
+import { TransactionService } from '../../../common/services/transaction.service';
+import { HolderAssignmentService } from './services/holder-assignment.service';
+import { AuditHelperService } from './services/audit-helper.service';
 
 /**
  * Context for state transitions
@@ -74,10 +79,20 @@ export class WorkflowService {
   // Can store either TransitionResult or Promise<TransitionResult> for race condition handling
   private readonly idempotencyStore = new Map<string, TransitionResult | Promise<TransitionResult>>();
 
+  // Feature flag to enable new refactored services
+  // Set to true in .env: WORKFLOW_USE_NEW_SERVICES=true
+  private readonly useNewServices = process.env.WORKFLOW_USE_NEW_SERVICES === 'true';
+
   constructor(
     private prisma: PrismaService,
     private auditService: AuditService,
     private slaService: SlaService,
+    // Phase 1 Refactor: New extracted services
+    private validator: WorkflowValidatorService,
+    private idempotency: IdempotencyService,
+    private transaction: TransactionService,
+    private holder: HolderAssignmentService,
+    private auditHelper: AuditHelperService,
   ) {}
 
   /**
@@ -127,6 +142,8 @@ export class WorkflowService {
    * - holder_unit = faculty_id of proposal
    * - workflow_logs entry created with action=SUBMIT
    *
+   * Phase 1 Refactor: Routes to submitProposalNew if feature flag enabled
+   *
    * @param proposalId - Proposal ID
    * @param context - Transition context
    * @returns Transition result
@@ -135,6 +152,14 @@ export class WorkflowService {
     proposalId: string,
     context: TransitionContext,
   ): Promise<TransitionResult> {
+    // Phase 1 Refactor: Use new implementation if feature flag is enabled
+    if (this.useNewServices) {
+      this.logger.debug('Using NEW refactored submitProposal implementation');
+      return this.submitProposalNew(proposalId, context);
+    }
+
+    // Original implementation (fallback)
+    this.logger.debug('Using ORIGINAL submitProposal implementation');
     // Check idempotency
     if (context.idempotencyKey) {
       const cached = this.idempotencyStore.get(context.idempotencyKey);
@@ -273,6 +298,146 @@ export class WorkflowService {
     );
 
     return transitionResult;
+  }
+
+  /**
+   * Submit Proposal - NEW Refactored Implementation
+   * Phase 1 Refactor: Uses extracted services
+   *
+   * This method demonstrates the refactored approach using:
+   * - IdempotencyService for atomic idempotency
+   * - WorkflowValidatorService for validation
+   * - HolderAssignmentService for holder calculation
+   * - TransactionService for transaction orchestration
+   * - AuditHelperService for audit logging with retry
+   *
+   * Enable with: WORKFLOW_USE_NEW_SERVICES=true
+   *
+   * @param proposalId - Proposal ID
+   * @param context - Transition context
+   * @returns Transition result
+   */
+  async submitProposalNew(
+    proposalId: string,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    const toState = ProjectState.FACULTY_REVIEW;
+    const action = WorkflowAction.SUBMIT;
+
+    // Use IdempotencyService for atomic idempotency check
+    const idempotencyResult = await this.idempotency.setIfAbsent(
+      context.idempotencyKey || `submit-${proposalId}`,
+      async () => {
+        // Get proposal
+        const proposal = await this.prisma.proposal.findUnique({
+          where: { id: proposalId },
+          include: { owner: true, faculty: true },
+        });
+
+        if (!proposal) {
+          throw new NotFoundException('Đề tài không tồn tại');
+        }
+
+        // Use WorkflowValidatorService for validation
+        await this.validator.validateTransition(
+          proposalId,
+          toState,
+          action,
+          {
+            proposal,
+            user: {
+              id: context.userId,
+              role: context.userRole,
+              facultyId: context.userFacultyId,
+            },
+          },
+        );
+
+        // Calculate holder using HolderAssignmentService
+        const holder = this.holder.getHolderForState(
+          toState,
+          proposal,
+          context.userId,
+          context.userFacultyId,
+        );
+
+        // Get user display name for audit log
+        const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+        // Calculate SLA dates
+        const slaStartDate = new Date();
+        const slaDeadline = await this.slaService.calculateDeadlineWithCutoff(
+          slaStartDate,
+          3, // 3 business days for faculty review
+          17, // 17:00 cutoff hour (5 PM)
+        );
+
+        // Use TransactionService for transaction orchestration
+        const result = await this.transaction.updateProposalWithLog({
+          proposalId,
+          userId: context.userId,
+          userDisplayName: actorDisplayName,
+          action,
+          fromState: proposal.state,
+          toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+          slaStartDate,
+          slaDeadline,
+        });
+
+        // Build transition result
+        const transitionResult: TransitionResult = {
+          proposal: result.proposal,
+          workflowLog: result.workflowLog,
+          previousState: proposal.state,
+          currentState: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        };
+
+        // Use AuditHelperService for audit logging with retry (fire-and-forget)
+        // This runs outside the transaction and won't block the response
+        this.auditHelper
+          .logWorkflowTransition(
+            {
+              proposalId,
+              proposalCode: proposal.code,
+              fromState: proposal.state,
+              toState,
+              action: 'SUBMIT',
+              holderUnit: holder.holderUnit,
+              holderUser: holder.holderUser,
+              slaStartDate,
+              slaDeadline,
+            },
+            {
+              userId: context.userId,
+              userDisplayName: actorDisplayName,
+              ip: context.ip,
+              userAgent: context.userAgent,
+              requestId: context.requestId,
+              facultyId: context.userFacultyId,
+              role: context.userRole,
+            },
+          )
+          .catch((err) => {
+            this.logger.error(
+              `Audit log failed for proposal ${proposal.code}: ${err.message}`,
+            );
+            // Could send to dead letter queue here
+          });
+
+        this.logger.log(
+          `Proposal ${proposal.code} submitted (NEW): ${proposal.state} → ${toState}`,
+        );
+
+        return transitionResult;
+      },
+    );
+
+    // Return the unwrapped result
+    return idempotencyResult.data;
   }
 
   /**
