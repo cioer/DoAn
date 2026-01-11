@@ -5,6 +5,8 @@ import {
   UseGuards,
   Req,
   Param,
+  ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuditService, AuditStatistics } from './audit.service';
@@ -52,7 +54,27 @@ export class AuditController {
    * @returns Paginated audit events
    */
   @Get()
-  async getAuditLogs(@Query() query: AuditQueryDto) {
+  async getAuditLogs(
+    @Query('entity_type') entity_type?: string,
+    @Query('entity_id') entity_id?: string,
+    @Query('actor_user_id') actor_user_id?: string,
+    @Query('action') action?: string,
+    @Query('from_date') from_date?: string,
+    @Query('to_date') to_date?: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit = 50,
+  ) {
+    const query: AuditQueryDto = {
+      entity_type,
+      entity_id,
+      actor_user_id,
+      action,
+      from_date,
+      to_date,
+      page,
+      limit,
+    };
+
     const result = await this.auditService.getAuditEvents(query);
 
     return {
@@ -127,7 +149,27 @@ export class AuditController {
     status: 200,
     description: 'Grouped audit events retrieved successfully',
   })
-  async getGroupedAuditLogs(@Query() query: AuditQueryDto) {
+  async getGroupedAuditLogs(
+    @Query('entity_type') entity_type?: string,
+    @Query('entity_id') entity_id?: string,
+    @Query('actor_user_id') actor_user_id?: string,
+    @Query('action') action?: string,
+    @Query('from_date') from_date?: string,
+    @Query('to_date') to_date?: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit = 50,
+  ) {
+    const query: AuditQueryDto = {
+      entity_type,
+      entity_id,
+      actor_user_id,
+      action,
+      from_date,
+      to_date,
+      page,
+      limit,
+    };
+
     const result = await this.auditService.getAuditEventsGroupedByAction(query);
 
     return {
@@ -151,7 +193,27 @@ export class AuditController {
     status: 200,
     description: 'Timeline retrieved successfully',
   })
-  async getAuditTimeline(@Query() query: AuditQueryDto) {
+  async getAuditTimeline(
+    @Query('entity_type') entity_type?: string,
+    @Query('entity_id') entity_id?: string,
+    @Query('actor_user_id') actor_user_id?: string,
+    @Query('action') action?: string,
+    @Query('from_date') from_date?: string,
+    @Query('to_date') to_date?: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit = 50,
+  ) {
+    const query: AuditQueryDto = {
+      entity_type,
+      entity_id,
+      actor_user_id,
+      action,
+      from_date,
+      to_date,
+      page,
+      limit,
+    };
+
     const result = await this.auditService.getAuditTimeline(query);
 
     return {

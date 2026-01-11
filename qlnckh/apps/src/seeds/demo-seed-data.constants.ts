@@ -579,8 +579,13 @@ export interface DemoRolePermission {
  * Extends existing role-permissions.seed.ts with demo-specific permissions
  */
 export const DEMO_ROLE_PERMISSIONS: DemoRolePermission[] = [
-  // GIANG_VIEN permissions
+  // GIANG_VIEN permissions - same as DEFAULT_ROLE_PERMISSIONS in role-permissions.seed.ts
+  { role: UserRole.GIANG_VIEN, permission: 'PROPOSAL_CREATE' },
+  { role: UserRole.GIANG_VIEN, permission: 'PROPOSAL_EDIT' },
   { role: UserRole.GIANG_VIEN, permission: 'DEMO_SWITCH_PERSONA' },
+  { role: UserRole.GIANG_VIEN, permission: 'VIEW_EVALUATION_RESULTS' },
+  { role: UserRole.GIANG_VIEN, permission: 'EXPORT_PROPOSAL_PDF' },
+  { role: UserRole.GIANG_VIEN, permission: 'DASHBOARD_VIEW' },
 
   // QUAN_LY_KHOA permissions
   { role: UserRole.QUAN_LY_KHOA, permission: 'DEMO_SWITCH_PERSONA' },

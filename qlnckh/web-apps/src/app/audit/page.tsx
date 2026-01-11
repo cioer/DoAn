@@ -172,9 +172,9 @@ export default function AuditLogPage() {
         limit,
       });
 
-      setTimelineGroups(response.data.groups);
-      setTotal(response.data.meta.total);
-      setTotalPages(response.data.meta.totalGroups);
+      setTimelineGroups(response.data.timeline);
+      setTotal(response.data.timeline.reduce((sum, g) => sum + g.count, 0));
+      setTotalPages(Math.ceil(response.data.timeline.length / limit));
     } catch (err: any) {
       console.error('Failed to load timeline:', err);
       setError(err.message || 'Không thể tải nhật ký');
@@ -306,19 +306,19 @@ export default function AuditLogPage() {
             />
             <StatsCard
               title="Loại hành động"
-              value={Object.keys(statistics.byActionType).length}
+              value={Object.keys(statistics.eventsByAction).length}
               icon={<FileText className="h-5 w-5" />}
               color="green"
             />
             <StatsCard
               title="Loại đối tượng"
-              value={Object.keys(statistics.byEntityType).length}
+              value={Object.keys(statistics.eventsByEntityType).length}
               icon={<Eye className="h-5 w-5" />}
               color="purple"
             />
             <StatsCard
               title="Người dùng hoạt động"
-              value={Object.keys(statistics.byActor).length}
+              value={statistics.topActors.length}
               icon={<Users className="h-5 w-5" />}
               color="orange"
             />
@@ -335,7 +335,7 @@ export default function AuditLogPage() {
                 Theo hành động
               </h3>
               <div className="space-y-2">
-                {Object.entries(statistics.byActionType)
+                {Object.entries(statistics.eventsByAction)
                   .sort(([, a], [, b]) => b - a)
                   .slice(0, 5)
                   .map(([action, count]) => (
@@ -354,7 +354,7 @@ export default function AuditLogPage() {
                 Theo đối tượng
               </h3>
               <div className="space-y-2">
-                {Object.entries(statistics.byEntityType)
+                {Object.entries(statistics.eventsByEntityType)
                   .sort(([, a], [, b]) => b - a)
                   .slice(0, 5)
                   .map(([entity, count]) => (
@@ -373,13 +373,13 @@ export default function AuditLogPage() {
                 Theo người dùng
               </h3>
               <div className="space-y-2">
-                {Object.entries(statistics.byActor)
-                  .sort(([, a], [, b]) => b.count - a.count)
+                {statistics.topActors
+                  .sort((a, b) => b.count - a.count)
                   .slice(0, 5)
-                  .map(([userId, data]) => (
-                    <div key={userId} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600 truncate">{data.name}</span>
-                      <span className="font-medium text-gray-900">{data.count}</span>
+                  .map((actor) => (
+                    <div key={actor.userId} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600 truncate">{actor.displayName}</span>
+                      <span className="font-medium text-gray-900">{actor.count}</span>
                     </div>
                   ))}
               </div>
@@ -602,7 +602,7 @@ export default function AuditLogPage() {
                       {events.map((event) => (
                         <tr key={event.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                            {formatDate(event.createdAt)}
+                            {formatDate(event.occurredAt)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
@@ -621,14 +621,14 @@ export default function AuditLogPage() {
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-600">
                             <div>
-                              <div className="font-medium text-gray-900">{event.actorName}</div>
+                              <div className="font-medium text-gray-900">{event.actorDisplayName}</div>
                               <div className="text-gray-500 text-xs">{event.actorEmail}</div>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
-                            {event.changes && Object.keys(event.changes).length > 0 && (
+                            {event.metadata && Object.keys(event.metadata).length > 0 && (
                               <span className="text-xs">
-                                {Object.keys(event.changes).length} thay đổi
+                                {Object.keys(event.metadata).length} thay đổi
                               </span>
                             )}
                           </td>
@@ -692,7 +692,7 @@ export default function AuditLogPage() {
                       <div key={event.id} className="p-4 hover:bg-gray-50">
                         <div className="flex items-start gap-4">
                           <div className="flex-shrink-0 w-16 text-sm text-gray-500">
-                            {new Date(event.createdAt).toLocaleTimeString('vi-VN', {
+                            {new Date(event.occurredAt).toLocaleTimeString('vi-VN', {
                               hour: '2-digit',
                               minute: '2-digit',
                             })}
@@ -711,25 +711,20 @@ export default function AuditLogPage() {
                               </span>
                             </div>
                             <div className="text-sm">
-                              <span className="font-medium text-gray-900">{event.actorName}</span>
+                              <span className="font-medium text-gray-900">{event.actorDisplayName}</span>
                               <span className="text-gray-600"> đã thực hiện hành động trên </span>
                               <span className="font-medium text-gray-900">{event.entityId}</span>
                             </div>
-                            {event.changes && Object.keys(event.changes).length > 0 && (
+                            {event.metadata && Object.keys(event.metadata).length > 0 && (
                               <details className="mt-2">
                                 <summary className="text-xs text-blue-600 cursor-pointer hover:text-blue-800">
                                   Xem chi tiết thay đổi
                                 </summary>
                                 <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
-                                  {Object.entries(event.changes).map(([field, change]) => (
+                                  {Object.entries(event.metadata).map(([field, value]) => (
                                     <div key={field} className="mb-1">
                                       <span className="font-medium text-gray-700">{field}:</span>{' '}
-                                      {change.old && (
-                                        <span className="text-red-600 line-through mr-2">
-                                          {String(change.old)}
-                                        </span>
-                                      )}
-                                      <span className="text-green-600">{String(change.new)}</span>
+                                      <span className="text-gray-900">{String(value)}</span>
                                     </div>
                                   ))}
                                 </div>

@@ -1,8 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { Permission } from '../../shared/types/permissions';
-import { PersonaDropdown } from '../demo/PersonaDropdown';
-import { ResetDemoButton } from '../demo/ResetDemoButton';
 import { Button } from '../ui';
 
 /**
@@ -12,8 +10,6 @@ import { Button } from '../ui';
  * - App title/logo
  * - Navigation links
  * - User info
- * - Persona dropdown (demo mode only)
- * - Reset demo button (demo mode only)
  * - Logout button
  */
 export function Header() {
@@ -34,6 +30,7 @@ export function Header() {
   const canViewAuditLog = hasPermission(Permission.AUDIT_VIEW);
   const canViewFormTemplates = hasPermission(Permission.FORM_TEMPLATE_IMPORT);
   const canViewImport = effectiveUser?.role === 'ADMIN'; // Story 10.1: Import Excel - ADMIN only
+  const canManageUsers = hasPermission(Permission.USER_MANAGE);
 
   const handleLogout = async () => {
     try {
@@ -116,17 +113,20 @@ export function Header() {
                   Import
                 </button>
               )}
+
+              {canManageUsers && (
+                <button
+                  onClick={() => navigate('/admin/users')}
+                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                >
+                  Quản trị
+                </button>
+              )}
             </nav>
           </div>
 
-          {/* Right side: User info, Persona dropdown, Reset Demo button, Logout */}
+          {/* Right side: User info, Logout */}
           <div className="flex items-center gap-4">
-            {/* Persona dropdown (demo mode) */}
-            <PersonaDropdown />
-
-            {/* Reset Demo button (demo mode) */}
-            <ResetDemoButton />
-
             {/* User info */}
             <div className="text-sm text-gray-700">
               <span className="font-medium">{displayName}</span>

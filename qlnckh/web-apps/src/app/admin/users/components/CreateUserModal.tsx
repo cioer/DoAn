@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Copy, Check } from 'lucide-react';
-import { usersApi } from '../../../../lib/api/users';
+import { usersApi, facultiesApi, FacultySelectItem } from '../../../../lib/api/users';
 import type { CreateUserRequest, CreateUserResponse } from '../../../../shared/types/users';
 import { UserRole } from '../../../../shared/types/auth';
 
@@ -40,6 +40,20 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
 
   // Optional facultyId (not required for form submission)
   const [facultyId, setFacultyId] = useState('');
+  const [faculties, setFaculties] = useState<FacultySelectItem[]>([]);
+  const [isLoadingFaculties, setIsLoadingFaculties] = useState(false);
+
+  // Load faculties for dropdown
+  useEffect(() => {
+    if (isOpen) {
+      setIsLoadingFaculties(true);
+      facultiesApi
+        .getFacultiesForSelect()
+        .then((data) => setFaculties(data))
+        .catch(() => setFaculties([]))
+        .finally(() => setIsLoadingFaculties(false));
+    }
+  }, [isOpen]);
 
   // Reset form state
   const resetForm = () => {
@@ -196,16 +210,25 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
                 htmlFor="facultyId"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                Mã đơn vị (Khoa/Phòng)
+                Đơn vị (Khoa/Phòng)
               </label>
-              <input
+              <select
                 id="facultyId"
-                type="text"
                 value={facultyId}
                 onChange={(e) => setFacultyId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="KHOA.CNTT"
-              />
+                disabled={isLoadingFaculties}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                <option value="">-- Không chọn --</option>
+                {faculties.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.code} - {f.name}
+                  </option>
+                ))}
+              </select>
+              {isLoadingFaculties && (
+                <p className="mt-1 text-xs text-gray-500">Đang tải danh sách khoa...</p>
+              )}
             </div>
 
             <div className="flex justify-end gap-3 pt-4">

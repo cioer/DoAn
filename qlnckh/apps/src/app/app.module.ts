@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from '../modules/auth/auth.module';
 import { UsersModule } from '../modules/users/users.module';
+import { FacultiesModule } from '../modules/faculties/faculties.module';
 import { AuditModule } from '../modules/audit/audit.module';
 import { DemoModule } from '../modules/demo/demo.module';
 import { BusinessCalendarModule } from '../modules/calendar/calendar.module';
@@ -44,6 +45,7 @@ import { BackupModule } from '../modules/backup/backup.module';
     }),
     AuthModule,
     UsersModule,
+    FacultiesModule,
     AuditModule,
     DemoModule,
     BusinessCalendarModule,

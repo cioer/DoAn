@@ -8,6 +8,83 @@ import type {
   UserListParams,
 } from '../../shared/types/users';
 
+// Faculty types
+export interface Faculty {
+  id: string;
+  code: string;
+  name: string;
+  type: 'FACULTY' | 'DEPARTMENT';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FacultyListResponse {
+  faculties: Faculty[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface FacultySelectItem {
+  id: string;
+  code: string;
+  name: string;
+}
+
+/**
+ * Faculties API Client
+ */
+export const facultiesApi = {
+  getFaculties: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    type?: string;
+  }): Promise<FacultyListResponse> => {
+    const response = await apiClient.get<{ success: true; data: Faculty[]; meta: any }>(
+      '/faculties',
+      { params: params || {} },
+    );
+    return {
+      faculties: response.data.data,
+      meta: response.data.meta,
+    };
+  },
+
+  getFacultiesForSelect: async (): Promise<FacultySelectItem[]> => {
+    const response = await apiClient.get<{ success: true; data: FacultySelectItem[] }>(
+      '/faculties/select',
+    );
+    return response.data.data;
+  },
+
+  createFaculty: async (data: { code: string; name: string; type?: string }): Promise<Faculty> => {
+    const response = await apiClient.post<{ success: true; data: Faculty }>(
+      '/faculties',
+      data,
+    );
+    return response.data.data;
+  },
+
+  updateFaculty: async (id: string, data: { code?: string; name?: string; type?: string }): Promise<Faculty> => {
+    const response = await apiClient.patch<{ success: true; data: Faculty }>(
+      `/faculties/${id}`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  deleteFaculty: async (id: string): Promise<Faculty> => {
+    const response = await apiClient.delete<{ success: true; data: Faculty }>(
+      `/faculties/${id}`,
+    );
+    return response.data.data;
+  },
+};
+
 /**
  * Users API Client
  *

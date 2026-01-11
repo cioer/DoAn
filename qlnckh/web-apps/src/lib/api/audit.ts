@@ -8,13 +8,17 @@ export interface AuditEvent {
   entityType: string;
   entityId: string;
   action: string;
-  actorId: string;
-  actorName: string;
+  actorUserId: string;
+  actorDisplayName: string;
   actorEmail: string;
-  changes?: Record<string, { old?: unknown; new?: unknown }>;
-  ipAddress?: string;
+  actingAsUserId?: string;
+  actingAsDisplayName?: string;
+  actingAsEmail?: string;
+  metadata?: Record<string, unknown>;
+  ip?: string;
   userAgent?: string;
-  createdAt: string;
+  requestId?: string;
+  occurredAt: string;
 }
 
 /**
@@ -22,10 +26,17 @@ export interface AuditEvent {
  */
 export interface AuditStatistics {
   totalEvents: number;
-  byActionType: Record<string, number>;
-  byEntityType: Record<string, number>;
-  byActor: Record<string, { name: string; email: string; count: number }>;
-  byDate: Record<string, number>;
+  eventsByAction: Record<string, number>;
+  eventsByEntityType: Record<string, number>;
+  topActors: Array<{
+    userId: string;
+    displayName: string;
+    email: string;
+    count: number;
+  }>;
+  todayEvents: number;
+  thisWeekEvents: number;
+  thisMonthEvents: number;
 }
 
 /**
@@ -81,11 +92,7 @@ export interface TimelineGroup {
 export interface AuditTimelineResponse {
   success: true;
   data: {
-    groups: TimelineGroup[];
-    meta: {
-      total: number;
-      totalGroups: number;
-    };
+    timeline: TimelineGroup[];
   };
 }
 

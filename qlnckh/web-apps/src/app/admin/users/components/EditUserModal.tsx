@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { usersApi } from '../../../../lib/api/users';
+import { usersApi, facultiesApi, FacultySelectItem } from '../../../../lib/api/users';
 import type { UserListItem, UpdateUserRequest } from '../../../../shared/types/users';
 import { UserRole } from '../../../../shared/types/auth';
 
@@ -36,6 +36,20 @@ export function EditUserModal({ isOpen, user, onClose, onSuccess }: EditUserModa
 
   // Track original values for change detection
   const [originalValues, setOriginalValues] = useState<UpdateUserRequest>({});
+  const [faculties, setFaculties] = useState<FacultySelectItem[]>([]);
+  const [isLoadingFaculties, setIsLoadingFaculties] = useState(false);
+
+  // Load faculties for dropdown
+  useEffect(() => {
+    if (isOpen) {
+      setIsLoadingFaculties(true);
+      facultiesApi
+        .getFacultiesForSelect()
+        .then((data) => setFaculties(data))
+        .catch(() => setFaculties([]))
+        .finally(() => setIsLoadingFaculties(false));
+    }
+  }, [isOpen]);
 
   // Update form when user prop changes
   useEffect(() => {
@@ -190,23 +204,32 @@ export function EditUserModal({ isOpen, user, onClose, onSuccess }: EditUserModa
               htmlFor="edit-facultyId"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Mã đơn vị (Khoa/Phòng)
+              Đơn vị (Khoa/Phòng)
               {isFieldChanged('facultyId') && (
                 <span className="ml-2 text-xs text-orange-600">(Đã thay đổi)</span>
               )}
             </label>
-            <input
+            <select
               id="edit-facultyId"
-              type="text"
               value={formData.facultyId}
               onChange={(e) => setFormData({ ...formData, facultyId: e.target.value })}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              disabled={isLoadingFaculties}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 ${
                 isFieldChanged('facultyId')
                   ? 'border-orange-300 bg-orange-50'
                   : 'border-gray-300'
               }`}
-              placeholder="KHOA.CNTT"
-            />
+            >
+              <option value="">-- Không chọn --</option>
+              {faculties.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.code} - {f.name}
+                </option>
+              ))}
+            </select>
+            {isLoadingFaculties && (
+              <p className="mt-1 text-xs text-gray-500">Đang tải danh sách khoa...</p>
+            )}
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
