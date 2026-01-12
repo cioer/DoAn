@@ -20,16 +20,28 @@ export class ProposalsValidationService {
 
   /**
    * Validate user can access proposal
+   *
+   * Access rules:
+   * - Owner: Full access (view + edit)
+   * - Same faculty users: Read-only access (for viewing/reviewing)
+   * - ADMIN/PHONG_KHCN: Read-only access to all proposals
    */
   async validateAccess(
     proposalId: string,
     userId: string,
     userRole?: string,
+    userFacultyId?: string | null,
   ): Promise<void> {
-    const proposal = await this.prisma.proposal.findUnique({
-      where: { id: proposalId },
-      select: { id: true, ownerId: true, deletedAt: true },
-    });
+    const [proposal, user] = await Promise.all([
+      this.prisma.proposal.findUnique({
+        where: { id: proposalId },
+        select: { id: true, ownerId: true, facultyId: true, deletedAt: true },
+      }),
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, facultyId: true, role: true },
+      }),
+    ]);
 
     if (!proposal || proposal.deletedAt) {
       throw new NotFoundException('Proposal not found');
@@ -40,8 +52,16 @@ export class ProposalsValidationService {
       return;
     }
 
-    // Add role-based access logic here if needed
-    // For now, only owner can access their own proposals
+    // Users in the same faculty can access (for review/management)
+    const facultyId = userFacultyId || user?.facultyId;
+    if (facultyId && proposal.facultyId === facultyId) {
+      return;
+    }
+
+    // ADMIN and PHONG_KHCN can access all proposals
+    if (user?.role === 'ADMIN' || user?.role === 'PHONG_KHCN') {
+      return;
+    }
 
     throw new ForbiddenException('You do not have permission to access this proposal');
   }
@@ -105,17 +125,18 @@ export class ProposalsValidationService {
 
   /**
    * Validate form data structure
+   *
+   * Note: Frontend uses section IDs (e.g., SEC_INFO_GENERAL) as keys,
+   * not camelCase names (e.g., infoGeneral). This validation is kept minimal
+   * to allow flexibility in form data structure.
    */
   validateFormData(formData: Record<string, unknown>): void {
     if (!formData || typeof formData !== 'object') {
       throw new BadRequestException('Form data must be a valid object');
     }
 
-    // Validate required sections
-    if (!formData.infoGeneral || typeof formData.infoGeneral !== 'object') {
-      throw new BadRequestException('infoGeneral section is required');
-    }
-
+    // Form data structure is flexible - frontend uses section IDs as keys
+    // Specific field validation is done at template level
     // Add more validation as needed based on your schema
   }
 
@@ -285,15 +306,20 @@ export class ProposalsValidationService {
       throw new NotFoundException('Proposal not found');
     }
 
-    // Validate required fields in formData
+    // Validate that form data exists and has some content
     const formData = proposal.formData as Record<string, unknown> | null;
-    if (!formData || !formData.infoGeneral) {
-      throw new BadRequestException('Proposal must have infoGeneral section filled');
+    if (!formData || Object.keys(formData).length === 0) {
+      throw new BadRequestException('Proposal must have form data filled');
     }
 
-    const infoGeneral = formData.infoGeneral as Record<string, unknown>;
-    if (!infoGeneral.projectName || !infoGeneral.researchField) {
-      throw new BadRequestException('Project name and research field are required');
+    // Check for at least one required section with content
+    // Note: Frontend uses section IDs (e.g., SEC_INFO_GENERAL) as keys
+    const hasContent = Object.values(formData).some(
+      value => value && typeof value === 'string' && value.trim().length > 0
+    );
+
+    if (!hasContent) {
+      throw new BadRequestException('Proposal must have at least one section filled');
     }
   }
 }

@@ -21,6 +21,7 @@ const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   PHONG_KHCN: [
     Permission.CALENDAR_MANAGE,
     Permission.DASHBOARD_VIEW,
+    Permission.EXPORT_PROPOSAL_PDF, // PHONG_KHCN can export proposals for review
   ],
   GIANG_VIEN: [
     Permission.PROPOSAL_CREATE,
@@ -32,6 +33,12 @@ const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
   QUAN_LY_KHOA: [
     Permission.DEMO_SWITCH_PERSONA,
+    Permission.FACULTY_APPROVE, // Approve proposal at faculty level
+    Permission.FACULTY_RETURN, // Return proposal for revision
+    Permission.PROPOSAL_VIEW_FACULTY, // View proposals from own faculty
+    Permission.FACULTY_DASHBOARD_VIEW, // Access faculty dashboard
+    Permission.FACULTY_USER_MANAGE, // Manage users within own faculty
+    Permission.EXPORT_PROPOSAL_PDF, // QUAN_LY_KHOA can export faculty proposals for review
   ],
   THU_KY_KHOA: [
     Permission.DEMO_SWITCH_PERSONA,

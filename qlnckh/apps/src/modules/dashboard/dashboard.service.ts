@@ -3,12 +3,19 @@ import { PrismaService } from '../auth/prisma.service';
 import { ProjectState } from '@prisma/client';
 import { SlaService } from '../calendar/sla.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RbacService } from '../rbac/rbac.service';
+import { Permission } from '../rbac/permissions.enum';
 import {
   DashboardKpiDto,
   DashboardDataDto,
   OverdueProposalDto,
   REVIEW_STATES,
 } from './dto/dashboard.dto';
+import {
+  FacultyDashboardKpiDto,
+  FacultyDashboardDataDto,
+  FACULTY_DASHBOARD_STATE_MAPPING,
+} from './dto/faculty-dashboard.dto';
 
 /**
  * Context for dashboard operations
@@ -43,6 +50,7 @@ export class DashboardService {
     private prisma: PrismaService,
     private slaService: SlaService,
     private notificationsService: NotificationsService,
+    private rbacService: RbacService,
   ) {}
 
   /**
@@ -248,14 +256,17 @@ export class DashboardService {
 
   /**
    * Validate user has permission to view dashboard
-   * Only PHONG_KHCN and ADMIN can view dashboard
+   * Uses permission-based check instead of role-based (DEBT MITIGATION)
    *
    * @param userRole - User's role
    * @throws BadRequestException if user lacks permission
    */
-  validateDashboardPermission(userRole: string): void {
-    const allowedRoles = ['PHONG_KHCN', 'ADMIN'];
-    if (!allowedRoles.includes(userRole)) {
+  async validateDashboardPermission(userRole: string): Promise<void> {
+    const hasPermission = await this.rbacService.hasPermission(
+      userRole as any,
+      Permission.DASHBOARD_VIEW,
+    );
+    if (!hasPermission) {
       throw new BadRequestException({
         success: false,
         error: {
@@ -264,6 +275,111 @@ export class DashboardService {
         },
       });
     }
+  }
+
+  /**
+   * Get faculty dashboard data for QUAN_LY_KHOA
+   * Faculty-specific KPI and proposal list
+   *
+   * @param facultyId - Faculty ID to filter data
+   * @returns Faculty dashboard data with KPI and recent proposals
+   */
+  async getFacultyDashboardData(facultyId: string): Promise<FacultyDashboardDataDto> {
+    // Count proposals by state for faculty KPI
+    const [
+      totalProposals,
+      pendingReview,
+      approved,
+      returned,
+      inProgress,
+      completed,
+    ] = await Promise.all([
+      // Total proposals for this faculty
+      this.prisma.proposal.count({
+        where: { facultyId, deletedAt: null },
+      }),
+      // Pending review (FACULTY_REVIEW)
+      this.prisma.proposal.count({
+        where: {
+          facultyId,
+          state: { in: FACULTY_DASHBOARD_STATE_MAPPING.pendingReview },
+          deletedAt: null,
+        },
+      }),
+      // Approved (in higher review stages)
+      this.prisma.proposal.count({
+        where: {
+          facultyId,
+          state: { in: FACULTY_DASHBOARD_STATE_MAPPING.approved },
+          deletedAt: null,
+        },
+      }),
+      // Returned for changes
+      this.prisma.proposal.count({
+        where: {
+          facultyId,
+          state: { in: FACULTY_DASHBOARD_STATE_MAPPING.returned },
+          deletedAt: null,
+        },
+      }),
+      // In progress (DRAFT)
+      this.prisma.proposal.count({
+        where: {
+          facultyId,
+          state: { in: FACULTY_DASHBOARD_STATE_MAPPING.inProgress },
+          deletedAt: null,
+        },
+      }),
+      // Completed (HANDOVER, APPROVED, COMPLETED)
+      this.prisma.proposal.count({
+        where: {
+          facultyId,
+          state: { in: FACULTY_DASHBOARD_STATE_MAPPING.completed },
+          deletedAt: null,
+        },
+      }),
+    ]);
+
+    // Get recent proposals for this faculty (latest 10)
+    const recentProposals = await this.prisma.proposal.findMany({
+      where: { facultyId, deletedAt: null },
+      include: {
+        owner: true,
+        faculty: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
+    const kpi: FacultyDashboardKpiDto = {
+      totalProposals,
+      pendingReview,
+      approved,
+      returned,
+      inProgress,
+      completed,
+    };
+
+    this.logger.log(
+      `Faculty dashboard data retrieved for faculty ${facultyId}: ${totalProposals} total, ${pendingReview} pending, ${approved} approved`,
+    );
+
+    // Fetch faculty name for display
+    const faculty = await this.prisma.faculty.findUnique({
+      where: { id: facultyId },
+      select: { id: true, name: true, code: true },
+    });
+
+    const facultyName = faculty
+      ? `${faculty.name} (${faculty.code})`
+      : 'Khoa không xác định';
+
+    return {
+      kpi,
+      recentProposals,
+      facultyName,
+      facultyId,
+    };
   }
 
   /**

@@ -44,12 +44,15 @@ import {
   TERMINAL_QUEUE_STATES,
 } from './helpers/holder-rules.helper';
 import { ProjectState, Prisma, UserRole } from '@prisma/client';
+import { Permission } from '../rbac/permissions.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequireRoles } from '../../common/decorators/roles.decorator';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../rbac/guards/roles.guard';
 import { IdempotencyInterceptor } from '../../common/interceptors';
 import {
+  SubmitProposalDto,
   ApproveFacultyReviewDto,
   ReturnFacultyReviewDto,
   ResubmitProposalDto,
@@ -435,6 +438,143 @@ export class WorkflowController {
   }
 
   /**
+   * POST /api/workflow/:proposalId/submit
+   * GIANG_VIEN Feature: Submit Proposal Action
+   *
+   * Submits a proposal at DRAFT state, transitioning it to
+   * FACULTY_REVIEW. Only GIANG_VIEN (proposal owner) can perform this action.
+   *
+   * AC3: When owner submits:
+   * - State transitions DRAFT → FACULTY_REVIEW
+   * - holder_unit = faculty_id of proposal
+   * - workflow_logs entry with action=SUBMIT
+   */
+  @Post(':proposalId/submit')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.GIANG_VIEN)
+  @ApiOperation({
+    summary: 'Gửi duyệt đề tài',
+    description:
+      'Gửi đề tài từ trạng thái DRAFT sang FACULTY_REVIEW để Quản lý khoa duyệt. Chỉ GIANG_VIEN (chủ đề tài) mới có thể gửi.',
+  })
+  @ApiParam({
+    name: 'proposalId',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Đề tài được gửi thành công',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          proposalId: 'proposal-uuid',
+          previousState: 'DRAFT',
+          currentState: 'FACULTY_REVIEW',
+          action: 'SUBMIT',
+          holderUnit: 'faculty-id',
+          holderUser: null,
+          workflowLogId: 'log-uuid',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - proposal not in DRAFT state',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_DRAFT',
+          message: 'Chỉ có thể gửi đề tài ở trạng thái DRAFT',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user not owner or lacks required role',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Bạn không có quyền gửi đề tài này',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Không tìm thấy đề tài',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflict - duplicate idempotency key',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'ALREADY_PROCESSED',
+          message: 'Yêu cầu đã được xử lý',
+        },
+      },
+    },
+  })
+  async submitProposal(
+    @Param('proposalId') proposalId: string,
+    @Body() dto: SubmitProposalDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+  ): Promise<
+    | TransitionResponseDto
+    | {
+        success: false;
+        error: { code: string; message: string; details?: Record<string, unknown> };
+      }
+  > {
+    const context = {
+      userId: user.id,
+      userRole: user.role,
+      userFacultyId: user.facultyId,
+      idempotencyKey: dto.idempotencyKey,
+      ip,
+      userAgent,
+      requestId: `submit-${proposalId}-${Date.now()}`,
+    };
+
+    const result = await this.workflowService.submitProposal(
+      proposalId,
+      context,
+    );
+
+    return {
+      success: true,
+      data: {
+        proposalId: result.proposal.id,
+        previousState: result.previousState,
+        currentState: result.currentState,
+        action: 'SUBMIT',
+        holderUnit: result.holderUnit,
+        holderUser: result.holderUser,
+        workflowLogId: result.workflowLog.id,
+      },
+    };
+  }
+
+  /**
    * POST /api/workflow/:proposalId/approve-faculty
    * Story 4.1: Faculty Approve Action
    *
@@ -450,6 +590,7 @@ export class WorkflowController {
   @Post(':proposalId/approve-faculty')
   @HttpCode(HttpStatus.OK)
   @RequireRoles(UserRole.QUAN_LY_KHOA, UserRole.THU_KY_KHOA)
+  @RequirePermissions(Permission.FACULTY_APPROVE)
   @ApiOperation({
     summary: 'Duyệt đề tài ở cấp Khoa',
     description:
@@ -606,6 +747,7 @@ export class WorkflowController {
   @Post(':proposalId/return-faculty')
   @HttpCode(HttpStatus.OK)
   @RequireRoles(UserRole.QUAN_LY_KHOA, UserRole.THU_KY_KHOA)
+  @RequirePermissions(Permission.FACULTY_RETURN)
   @ApiOperation({
     summary: 'Yêu cầu sửa hồ sơ ở cấp Khoa',
     description:

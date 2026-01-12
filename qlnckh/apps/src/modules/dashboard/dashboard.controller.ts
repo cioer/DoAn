@@ -52,7 +52,7 @@ interface RequestUser {
  */
 @ApiTags('dashboard')
 @Controller('dashboard')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @ApiBearerAuth()
 export class DashboardController {
   constructor(
@@ -75,6 +75,7 @@ export class DashboardController {
   @Get()
   @HttpCode(HttpStatus.OK)
   @RequireRoles(UserRole.PHONG_KHCN, UserRole.ADMIN)
+  @RequirePermissions(Permission.DASHBOARD_VIEW)
   @ApiOperation({
     summary: 'Lấy dữ liệu dashboard tổng quan',
     description:
@@ -363,6 +364,80 @@ export class DashboardController {
   })
   async getResearcherDashboard(@CurrentUser() user: RequestUser) {
     const data = await this.dashboardService.getResearcherDashboardData(user.id);
+
+    return {
+      success: true,
+      data,
+    };
+  }
+
+  /**
+   * GET /api/dashboard/faculty
+   * Faculty Dashboard for QUAN_LY_KHOA
+   * Returns faculty-specific KPI and proposal list
+   */
+  @Get('faculty')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.QUAN_LY_KHOA)
+  @RequirePermissions(Permission.FACULTY_DASHBOARD_VIEW)
+  @ApiOperation({
+    summary: 'Lấy dữ liệu dashboard cấp Khoa',
+    description:
+      'Trả về KPI và danh sách đề tài của khoa. Chỉ QUAN_LY_KHOA có quyền FACULTY_DASHBOARD_VIEW mới có thể truy cập.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Faculty dashboard data retrieved successfully',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          kpi: {
+            totalProposals: 25,
+            pendingReview: 5,
+            approved: 10,
+            returned: 2,
+            inProgress: 3,
+            completed: 5,
+          },
+          recentProposals: [
+            {
+              id: 'uuid-1',
+              code: 'DT-2024-001',
+              title: 'Nghiên cứu AI',
+              state: 'FACULTY_REVIEW',
+            },
+          ],
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user lacks required role or permission',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'INSUFFICIENT_PERMISSIONS',
+          message: 'Bạn không có quyền thực hiện thao tác này',
+        },
+      },
+    },
+  })
+  async getFacultyDashboard(@CurrentUser() user: RequestUser) {
+    // Validate faculty context
+    if (!user.facultyId) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'FACULTY_CONTEXT_REQUIRED',
+          message: 'Faculty context required for QUAN_LY_KHOA role',
+        },
+      });
+    }
+
+    const data = await this.dashboardService.getFacultyDashboardData(user.facultyId);
 
     return {
       success: true,

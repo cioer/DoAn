@@ -57,7 +57,7 @@ export class AuthService {
         if (this.auditService) {
           await this.auditService.logEvent({
             action: AuditAction.LOGIN_FAIL,
-            actorUserId: 'anonymous',
+            actorUserId: '00000000-0000-0000-0000-000000000000', // System user for anonymous events
             entityType: 'users',
             entityId: email,
             metadata: { email, reason: 'USER_NOT_FOUND' },
@@ -74,7 +74,7 @@ export class AuthService {
         if (this.auditService) {
           await this.auditService.logEvent({
             action: AuditAction.LOGIN_FAIL,
-            actorUserId: 'anonymous',
+            actorUserId: '00000000-0000-0000-0000-000000000000', // System user for anonymous events
             entityType: 'users',
             entityId: email,
             metadata: { email, reason: 'USER_DELETED' },
@@ -90,7 +90,7 @@ export class AuthService {
         if (this.auditService) {
           await this.auditService.logEvent({
             action: AuditAction.LOGIN_FAIL,
-            actorUserId: 'anonymous',
+            actorUserId: '00000000-0000-0000-0000-000000000000', // System user for anonymous events
             entityType: 'users',
             entityId: email,
             metadata: { email, userId: user.id, reason: 'INVALID_PASSWORD' },

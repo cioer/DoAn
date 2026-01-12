@@ -10,8 +10,8 @@ import { Alert, Button } from '../ui';
  * - File name and size
  * - Upload date
  * - Download button
- * - Replace button (DRAFT only, Story 2.5)
- * - Delete button (DRAFT only, Story 2.5)
+ * - Replace button (DRAFT and CHANGES_REQUESTED only, Story 2.5)
+ * - Delete button (DRAFT and CHANGES_REQUESTED only, Story 2.5)
  * - Total size warning when > 50MB
  *
  * @param proposalId - Proposal ID
@@ -45,6 +45,7 @@ export function AttachmentList({
   const [selectedAttachmentId, setSelectedAttachmentId] = useState<string | null>(null);
 
   const isDraft = proposalState === 'DRAFT';
+  const isEditable = proposalState === 'DRAFT' || proposalState === 'CHANGES_REQUESTED';
   const formatFileSize = attachmentsApi.formatFileSize;
   const isOverLimit = totalSize > MAX_TOTAL_SIZE;
 
@@ -164,7 +165,7 @@ export function AttachmentList({
         accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
         onChange={handleFileSelect}
         className="hidden"
-        disabled={!isDraft}
+        disabled={!isEditable}
       />
 
       {/* Attachments list */}
@@ -200,8 +201,8 @@ export function AttachmentList({
                   <Download className="h-4 w-4" />
                 </a>
 
-                {/* Replace button - DRAFT only */}
-                {isDraft && (
+                {/* Replace button - DRAFT and CHANGES_REQUESTED only */}
+                {isEditable && (
                   <Button
                     variant="ghost"
                     size="xxs"
@@ -215,8 +216,8 @@ export function AttachmentList({
                   </Button>
                 )}
 
-                {/* Delete button - DRAFT only */}
-                {isDraft && (
+                {/* Delete button - DRAFT and CHANGES_REQUESTED only */}
+                {isEditable && (
                   <Button
                     variant="ghost"
                     size="xxs"
@@ -230,8 +231,8 @@ export function AttachmentList({
                   </Button>
                 )}
 
-                {/* Lock icon for non-DRAFT */}
-                {!isDraft && (
+                {/* Lock icon for non-editable states */}
+                {!isEditable && (
                   <span
                     className="p-2 text-gray-400 cursor-help"
                     title="Không thể sửa sau khi nộp. Vui lòng liên hệ admin nếu cần sửa."

@@ -17,7 +17,7 @@ export class AttachmentQueryService {
    * Get proposal for validation
    *
    * @param proposalId - Proposal ID
-   * @returns Proposal with id, code, state, ownerId
+   * @returns Proposal with id, code, state, ownerId, holderUser
    */
   async getProposalForValidation(proposalId: string) {
     return this.prisma.proposal.findUnique({
@@ -27,6 +27,7 @@ export class AttachmentQueryService {
         code: true,
         state: true,
         ownerId: true,
+        holderUser: true,
       },
     });
   }

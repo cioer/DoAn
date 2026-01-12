@@ -157,12 +157,13 @@ export class PdfService {
    * Get proposal for export with ownership verification
    *
    * @param proposalId - Proposal UUID
-   * @returns Proposal with code and ownerId
+   * @returns Proposal with code, ownerId, and facultyId
    */
   async getProposalForExport(proposalId: string): Promise<{
     id: string;
     code: string;
     ownerId: string;
+    facultyId: string | null;
   }> {
     return this.data.getProposalForExport(proposalId);
   }

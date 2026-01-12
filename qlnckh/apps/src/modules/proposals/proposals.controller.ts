@@ -182,6 +182,7 @@ export class ProposalsController {
     description: 'Unauthorized',
   })
   async findAll(
+    @CurrentUser() user: RequestUser,
     @Query('ownerId') ownerId?: string,
     @Query('state') state?: ProjectState,
     @Query('facultyId') facultyId?: string,
@@ -198,6 +199,7 @@ export class ProposalsController {
       facultyId,
       skip,
       take: pageSize,
+      user,
     });
   }
 

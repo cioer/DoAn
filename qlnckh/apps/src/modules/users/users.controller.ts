@@ -17,11 +17,12 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto, UpdateUserDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../rbac/guards/permissions.guard';
-import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { AnyPermissionsGuard } from '../rbac/guards/any-permissions.guard';
+import { RequireAnyPermissions } from '../../common/decorators/permissions.decorator';
 import { Permission } from '../rbac/permissions.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Request } from 'express';
+import { UserRole } from '@prisma/client';
 
 /**
  * Current User Interface from JWT
@@ -43,11 +44,13 @@ interface CurrentUserData {
  * - PATCH /api/users/:id - Update user
  * - DELETE /api/users/:id - Soft delete user
  *
- * All endpoints require USER_MANAGE permission
+ * All endpoints require USER_MANAGE or FACULTY_USER_MANAGE permission:
+ * - USER_MANAGE: Full admin access to all users
+ * - FACULTY_USER_MANAGE: QUAN_LY_KHOA access to users in their faculty only
  */
 @Controller('users')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions(Permission.USER_MANAGE)
+@UseGuards(JwtAuthGuard, AnyPermissionsGuard)
+@RequireAnyPermissions(Permission.USER_MANAGE, Permission.FACULTY_USER_MANAGE)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -68,6 +71,8 @@ export class UsersController {
     const result = await this.usersService.createUser(
       createUserDto,
       currentUser.id,
+      currentUser.role,
+      currentUser.facultyId,
       req.ip,
       req.headers['user-agent'],
     );
@@ -88,6 +93,10 @@ export class UsersController {
    * - role: Filter by role
    * - facultyId: Filter by faculty
    * - search: Search by email/displayName
+   *
+   * Faculty Isolation for QUAN_LY_KHOA:
+   * - Auto-filters by user's facultyId
+   * - Cannot access users outside their faculty
    */
   @Get()
   @HttpCode(HttpStatus.OK)
@@ -97,12 +106,29 @@ export class UsersController {
     @Query('role') role?: string,
     @Query('facultyId') facultyId?: string,
     @Query('search') search?: string,
+    @CurrentUser() currentUser?: CurrentUserData,
   ) {
+    // Faculty isolation for QUAN_LY_KHOA
+    let effectiveFacultyId = facultyId;
+    if (currentUser?.role === UserRole.QUAN_LY_KHOA) {
+      // QUAN_LY_KHOA can only see users in their own faculty
+      if (facultyId && facultyId !== currentUser.facultyId) {
+        return {
+          success: false,
+          error: {
+            error_code: 'CANNOT_VIEW_OTHER_FACULTY',
+            message: 'QUAN_LY_KHOA can only view users within their own faculty',
+          },
+        };
+      }
+      effectiveFacultyId = currentUser.facultyId;
+    }
+
     const result = await this.usersService.getUsers(
       page,
       limit,
       role as any,
-      facultyId,
+      effectiveFacultyId,
       search,
     );
 
@@ -145,6 +171,8 @@ export class UsersController {
       id,
       updateUserDto,
       currentUser.id,
+      currentUser.role,
+      currentUser.facultyId,
       req.ip,
       req.headers['user-agent'],
     );
@@ -170,6 +198,8 @@ export class UsersController {
     const user = await this.usersService.softDeleteUser(
       id,
       currentUser.id,
+      currentUser.role,
+      currentUser.facultyId,
       req.ip,
       req.headers['user-agent'],
     );

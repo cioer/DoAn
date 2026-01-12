@@ -419,8 +419,12 @@ export class PdfController {
       // Get proposal to verify ownership
       const proposal = await this.pdfService.getProposalForExport(id);
 
-      // Verify user is the proposal owner
-      if (proposal.ownerId !== req.user.id) {
+      // Check access: owner, QUAN_LY_KHOA (same faculty), PHONG_KHCN, ADMIN
+      const isOwner = proposal.ownerId === req.user.id;
+      const isFacultyManager = req.user.role === UserRole.QUAN_LY_KHOA && proposal.facultyId === req.user.facultyId;
+      const isSchoolAdmin = req.user.role === UserRole.PHONG_KHCN || req.user.role === UserRole.ADMIN;
+
+      if (!isOwner && !isFacultyManager && !isSchoolAdmin) {
         throw new ForbiddenException({
           success: false,
           error: {

@@ -136,13 +136,14 @@ export class PdfDataService {
    * Get proposal minimal info for export authorization
    *
    * @param proposalId - Proposal UUID
-   * @returns Proposal with code and ownerId
+   * @returns Proposal with code, ownerId, and facultyId
    * @throws NotFoundException if proposal not found
    */
   async getProposalForExport(proposalId: string): Promise<{
     id: string;
     code: string;
     ownerId: string;
+    facultyId: string | null;
   }> {
     const proposal = await this.prisma.proposal.findUnique({
       where: { id: proposalId },
@@ -150,6 +151,7 @@ export class PdfDataService {
         id: true,
         code: true,
         ownerId: true,
+        facultyId: true,
       },
     });
 

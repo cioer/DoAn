@@ -78,7 +78,7 @@ export class AttachmentsController {
 
   /**
    * POST /api/proposals/:id/attachments - Upload file to proposal
-   * Only proposal owner can upload to their own DRAFT proposals
+   * Proposal owner or holder can upload to DRAFT or CHANGES_REQUESTED proposals
    */
   @Post()
   @UseInterceptors(FileInterceptor('file'))
@@ -193,7 +193,7 @@ export class AttachmentsController {
       file,
       userId,
       {
-        uploadDir: process.env.UPLOAD_DIR || '/app/uploads',
+        uploadDir: process.env.UPLOAD_DIR || '/tmp/qlnckh-uploads',
         maxFileSize: parseInt(
           process.env.MAX_FILE_SIZE || String(5 * 1024 * 1024),
           10,
@@ -382,7 +382,7 @@ export class AttachmentsController {
       file,
       userId,
       {
-        uploadDir: process.env.UPLOAD_DIR || '/app/uploads',
+        uploadDir: process.env.UPLOAD_DIR || '/tmp/qlnckh-uploads',
         maxFileSize: parseInt(
           process.env.MAX_FILE_SIZE || String(5 * 1024 * 1024),
           10,
@@ -472,7 +472,7 @@ export class AttachmentsController {
       attachmentId,
       userId,
       {
-        uploadDir: process.env.UPLOAD_DIR || '/app/uploads',
+        uploadDir: process.env.UPLOAD_DIR || '/tmp/qlnckh-uploads',
       },
     );
 

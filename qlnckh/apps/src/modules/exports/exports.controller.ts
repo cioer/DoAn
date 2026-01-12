@@ -67,11 +67,11 @@ export class ExportsController {
    */
   @Post('excel')
   @HttpCode(HttpStatus.OK)
-  @RequireRoles(UserRole.PHONG_KHCN, UserRole.ADMIN)
+  @RequireRoles(UserRole.PHONG_KHCN, UserRole.ADMIN, UserRole.QUAN_LY_KHOA)
   @ApiOperation({
     summary: 'Xuất danh sách hồ sơ ra Excel',
     description:
-      'Xuất danh sách hồ sơ ra file Excel theo bộ lọc. Chỉ PHONG_KHCN và ADMIN mới có thể thực hiện.',
+      'Xuất danh sách hồ sơ ra file Excel theo bộ lọc. PHONG_KHCN, ADMIN và QUAN_LY_KHOA có thể thực hiện.',
   })
   @ApiResponse({
     status: 200,

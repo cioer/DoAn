@@ -21,6 +21,7 @@ import { DashboardModule } from '../modules/dashboard/dashboard.module';
 import { ImportModule } from '../modules/import/import.module';
 import { HolidaysModule } from '../modules/holidays/holidays.module';
 import { BackupModule } from '../modules/backup/backup.module';
+import { DocumentTemplatesModule } from '../modules/document-templates/document-templates.module';
 
 /**
  * Application Module
@@ -62,6 +63,7 @@ import { BackupModule } from '../modules/backup/backup.module';
     ImportModule,
     HolidaysModule,
     BackupModule,
+    DocumentTemplatesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

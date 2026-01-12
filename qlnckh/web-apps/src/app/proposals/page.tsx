@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Download } from 'lucide-react';
 import { proposalsApi, type ProposalListParams } from '../../lib/api/proposals';
 import { exportsApi } from '../../lib/api/exports';
@@ -26,20 +26,25 @@ import { Select, SelectOption } from '../../components/ui/Select';
 
 const stateOptions: SelectOption[] = [
   { value: '', label: 'Tất cả trạng thái' },
-  { value: 'DRAFT', label: 'Nháp (DRAFT)' },
-  { value: 'FACULTY_REVIEW', label: 'Thẩm duyệt Khoa (FACULTY_REVIEW)' },
-  { value: 'SCHOOL_SELECTION_REVIEW', label: 'Thẩm duyệt Phòng (SCHOOL_SELECTION_REVIEW)' },
-  { value: 'OUTLINE_COUNCIL_REVIEW', label: 'Thẩm duyệt Hội đồng (OUTLINE_COUNCIL_REVIEW)' },
-  { value: 'CHANGES_REQUESTED', label: 'Yêu cầu sửa (CHANGES_REQUESTED)' },
-  { value: 'APPROVED', label: 'Đã duyệt (APPROVED)' },
-  { value: 'IN_PROGRESS', label: 'Đang thực hiện (IN_PROGRESS)' },
-  { value: 'COMPLETED', label: 'Đã hoàn thành (COMPLETED)' },
-  { value: 'CANCELLED', label: 'Đã hủy (CANCELLED)' },
-  { value: 'REJECTED', label: 'Đã từ chối (REJECTED)' },
+  { value: 'DRAFT', label: 'Nháp' },
+  { value: 'FACULTY_REVIEW', label: 'Đang xét (Khoa)' },
+  { value: 'SCHOOL_SELECTION_REVIEW', label: 'Đang xét (Trường)' },
+  { value: 'OUTLINE_COUNCIL_REVIEW', label: 'Đang xét (Hội đồng)' },
+  { value: 'CHANGES_REQUESTED', label: 'Yêu cầu sửa' },
+  { value: 'APPROVED', label: 'Đã duyệt' },
+  { value: 'IN_PROGRESS', label: 'Đang thực hiện' },
+  { value: 'FACULTY_ACCEPTANCE_REVIEW', label: 'Nghiệm thu (Khoa)' },
+  { value: 'SCHOOL_ACCEPTANCE_REVIEW', label: 'Nghiệm thu (Trường)' },
+  { value: 'HANDOVER', label: 'Bàn giao' },
+  { value: 'COMPLETED', label: 'Đã hoàn thành' },
+  { value: 'CANCELLED', label: 'Đã hủy' },
+  { value: 'REJECTED', label: 'Từ chối' },
+  { value: 'PAUSED', label: 'Tạm dừng' },
 ];
 
 export default function ProposalsPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { hasPermission, user } = useAuthStore();
 
   // State
@@ -50,13 +55,6 @@ export default function ProposalsPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [pageSize] = useState(20);
 
-  // Filters
-  const [filters, setFilters] = useState<FilterType>({
-    state: '',
-    facultyId: '',
-    search: '',
-  });
-
   // Export dialog state
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -64,6 +62,17 @@ export default function ProposalsPage() {
 
   // Check if user can create proposals
   const canCreate = hasPermission(Permission.PROPOSAL_CREATE);
+
+  // Filters - initialize from URL params on first render
+  const [filters, setFilters] = useState<FilterType>(() => {
+    const stateParam = searchParams.get('state');
+    const facultyIdParam = searchParams.get('facultyId');
+    return {
+      state: stateParam || '',
+      facultyId: facultyIdParam || '',
+      search: '',
+    };
+  });
 
   // Load proposals
   useEffect(() => {
@@ -160,7 +169,7 @@ export default function ProposalsPage() {
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <ProposalFilters
             filters={filters}
-            onFiltersChange={setFilters}
+            onFiltersChange={(newFilters) => setFilters(newFilters)}
           />
         </div>
 

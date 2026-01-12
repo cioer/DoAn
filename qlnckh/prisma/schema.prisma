@@ -39,6 +39,12 @@ enum Permission {
   VIEW_EVALUATION_RESULTS  // Xem kết quả đánh giá (GIANG_VIEN Feature)
   EXPORT_PROPOSAL_PDF     // Xuất đề tài ra PDF (GIANG_VIEN Feature)
   FORM_TEMPLATE_IMPORT    // Import biểu mẫu từ Word (ADMIN)
+  // Faculty Management (QUAN_LY_KHOA Features)
+  FACULTY_APPROVE         // Duyệt đề tài cấp khoa
+  FACULTY_RETURN          // Trả về đề tài cần sửa
+  PROPOSAL_VIEW_FACULTY   // Xem đề tài trong khoa
+  FACULTY_DASHBOARD_VIEW  // Xem dashboard khoa
+  FACULTY_USER_MANAGE     // Quản lý người dùng trong khoa
 }
 
 // ============================================================

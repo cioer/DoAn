@@ -35,6 +35,7 @@ import { evaluationApi, Evaluation } from '../../../lib/api/evaluations';
 import { FileUpload } from '../../../components/forms/FileUpload';
 import { AttachmentList } from '../../../components/forms/AttachmentList';
 import { useAuthStore } from '../../../stores/authStore';
+import { getStateLabel } from '../../../lib/constants/states';
 
 export default function ProposalDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -299,7 +300,7 @@ export default function ProposalDetailPage() {
               {proposal.title}
             </h1>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Mã: {proposal.code} • Trạng thái: {proposal.state}
+              Mã: {proposal.code} • Trạng thái: {getStateLabel(proposal.state)}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -312,7 +313,7 @@ export default function ProposalDetailPage() {
               hasEvaluation={evaluation !== null}
             />
             <div className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-              {proposal.state.replace(/_/g, ' ')}
+              {getStateLabel(proposal.state)}
             </div>
           </div>
         </div>
@@ -395,9 +396,11 @@ export default function ProposalDetailPage() {
           )}
 
           {/* Story 4.1, 4.2: Faculty Review Actions for QUAN_LY_KHOA/THU_KY_KHOA */}
+          {/* GIANG_VIEN Feature: Submit button for proposal owner at DRAFT state */}
           <ProposalActions
             proposalId={proposal.id}
             proposalState={proposal.state}
+            ownerId={proposal.ownerId}
             currentUser={{
               id: currentUser.id,
               role: user?.role || currentUser.role, // Use actual user role for permissions
@@ -441,16 +444,20 @@ export default function ProposalDetailPage() {
             <div>
               <dt className="text-gray-600 dark:text-gray-400">Trạng thái:</dt>
               <dd className="font-medium text-gray-900 dark:text-gray-100">
-                {proposal.state.replace(/_/g, ' ')}
+                {getStateLabel(proposal.state)}
               </dd>
             </div>
             <div>
               <dt className="text-gray-600 dark:text-gray-400">Người tạo:</dt>
-              <dd className="font-medium text-gray-900 dark:text-gray-100">{proposal.ownerId}</dd>
+              <dd className="font-medium text-gray-900 dark:text-gray-100">
+                {proposal.owner?.displayName || proposal.ownerId}
+              </dd>
             </div>
             <div>
               <dt className="text-gray-600 dark:text-gray-400">Khoa:</dt>
-              <dd className="font-medium text-gray-900 dark:text-gray-100">{proposal.facultyId}</dd>
+              <dd className="font-medium text-gray-900 dark:text-gray-100">
+                {proposal.faculty?.name || proposal.facultyId}
+              </dd>
             </div>
             {proposal.councilId && (
               <div>
@@ -461,7 +468,9 @@ export default function ProposalDetailPage() {
             {proposal.holderUser && (
               <div>
                 <dt className="text-gray-600 dark:text-gray-400">Người xử lý:</dt>
-                <dd className="font-medium text-gray-900 dark:text-gray-100">{proposal.holderUser}</dd>
+                <dd className="font-medium text-gray-900 dark:text-gray-100">
+                  {proposal.holderUser}
+                </dd>
               </div>
             )}
           </dl>
@@ -531,7 +540,7 @@ export default function ProposalDetailPage() {
               <FileUpload
                 proposalId={proposal.id}
                 onUploadSuccess={handleUploadSuccess}
-                disabled={!proposal || proposal.state !== 'DRAFT'}
+                disabled={!proposal || (proposal.state !== 'DRAFT' && proposal.state !== 'CHANGES_REQUESTED')}
                 currentTotalSize={attachmentsTotalSize}
               />
             </div>

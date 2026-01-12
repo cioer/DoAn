@@ -25,6 +25,8 @@ export function Header() {
 
   // Check navigation permissions
   const canViewDashboard = effectiveUser?.role === 'PHONG_KHCN' || effectiveUser?.role === 'ADMIN';
+  const canViewResearcherDashboard = hasPermission(Permission.DASHBOARD_VIEW);
+  const canViewFacultyDashboard = hasPermission(Permission.FACULTY_DASHBOARD_VIEW);
   const canViewCalendar = hasPermission(Permission.CALENDAR_MANAGE);
   const canViewBulkOps = effectiveUser?.role === 'PHONG_KHCN' || effectiveUser?.role === 'ADMIN';
   const canViewAuditLog = hasPermission(Permission.AUDIT_VIEW);
@@ -60,12 +62,30 @@ export function Header() {
                 Đề tài
               </button>
 
+              {canViewResearcherDashboard && (
+                <button
+                  onClick={() => navigate('/dashboard/researcher')}
+                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                >
+                  Dashboard
+                </button>
+              )}
+
+              {canViewFacultyDashboard && (
+                <button
+                  onClick={() => navigate('/dashboard/faculty')}
+                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                >
+                  Dashboard Khoa
+                </button>
+              )}
+
               {canViewDashboard && (
                 <button
                   onClick={() => navigate('/dashboard')}
                   className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
                 >
-                  Dashboard
+                  Thống kê
                 </button>
               )}
 

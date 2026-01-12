@@ -95,12 +95,12 @@ const getStatusColor = (state: ProposalStatus): string => {
 const getStatusLabel = (state: ProposalStatus): string => {
   const labels = {
     DRAFT: 'Nháp',
-    FACULTY_REVIEW: 'Đang duyệt Khoa',
-    SCHOOL_REVIEW: 'Đang duyệt Trường',
-    COUNCIL_REVIEW: 'Đang đánh giá',
+    FACULTY_REVIEW: 'Đang xét (Khoa)',
+    SCHOOL_REVIEW: 'Đang xét (Trường)',
+    COUNCIL_REVIEW: 'Đang xét (Hội đồng)',
     APPROVED: 'Đã duyệt',
-    REJECTED: 'Bị từ chối',
-    CHANGES_REQUESTED: 'Cần sửa',
+    REJECTED: 'Từ chối',
+    CHANGES_REQUESTED: 'Yêu cầu sửa',
     CANCELLED: 'Đã hủy',
     WITHDRAWN: 'Đã rút',
   };

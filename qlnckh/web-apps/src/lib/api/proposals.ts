@@ -227,36 +227,39 @@ export const proposalsApi = {
 
   /**
    * Create a new proposal (DRAFT state)
+   * Note: Backend returns proposal directly, not wrapped in { success: true, data: ... }
    */
   createProposal: async (data: CreateProposalRequest): Promise<Proposal> => {
-    const response = await apiClient.post<{ success: true; data: Proposal }>(
+    const response = await apiClient.post<Proposal>(
       '/proposals',
       data,
     );
-    return response.data.data;
+    return response.data;
   },
 
   /**
    * Update proposal (DRAFT only)
+   * Note: Backend returns proposal directly
    */
   updateProposal: async (id: string, data: UpdateProposalRequest): Promise<Proposal> => {
-    const response = await apiClient.put<{ success: true; data: Proposal }>(
+    const response = await apiClient.put<Proposal>(
       `/proposals/${id}`,
       data,
     );
-    return response.data.data;
+    return response.data;
   },
 
   /**
    * Auto-save proposal form data (Story 2.3)
    * Deep merges partial form data with existing data
+   * Note: Backend returns proposal directly
    */
   autoSave: async (id: string, data: AutoSaveProposalRequest): Promise<Proposal> => {
-    const response = await apiClient.patch<{ success: true; data: Proposal }>(
+    const response = await apiClient.patch<Proposal>(
       `/proposals/${id}/auto-save`,
       data,
     );
-    return response.data.data;
+    return response.data;
   },
 
   /**
@@ -274,21 +277,21 @@ export const proposalsApi = {
    * Story 6.1: Start project execution (APPROVED → IN_PROGRESS)
    */
   startProject: async (id: string): Promise<Proposal> => {
-    const response = await apiClient.post<{ success: true; data: Proposal }>(
+    const response = await apiClient.post<Proposal>(
       `/proposals/${id}/start`,
     );
-    return response.data.data;
+    return response.data;
   },
 
   /**
    * Story 6.2: Submit faculty acceptance review (IN_PROGRESS → FACULTY_ACCEPTANCE_REVIEW)
    */
   submitFacultyAcceptance: async (id: string, data: SubmitFacultyAcceptanceRequest): Promise<Proposal> => {
-    const response = await apiClient.post<{ success: true; data: Proposal }>(
+    const response = await apiClient.post<Proposal>(
       `/proposals/${id}/faculty-acceptance`,
       data,
     );
-    return response.data.data;
+    return response.data;
   },
 
   /**
@@ -300,21 +303,22 @@ export const proposalsApi = {
     submittedAt?: string;
   }> => {
     const response = await apiClient.get<{
-      success: true;
-      data: { results?: string; products?: Array<{ id: string; name: string; type: string; note?: string }>; submittedAt?: string };
+      results?: string;
+      products?: Array<{ id: string; name: string; type: string; note?: string }>;
+      submittedAt?: string;
     }>(`/proposals/${id}/faculty-acceptance-data`);
-    return response.data.data;
+    return response.data;
   },
 
   /**
    * Story 6.3: Submit faculty acceptance decision
    */
   submitFacultyDecision: async (id: string, data: FacultyAcceptanceDecisionRequest): Promise<Proposal> => {
-    const response = await apiClient.post<{ success: true; data: Proposal }>(
+    const response = await apiClient.post<Proposal>(
       `/proposals/${id}/faculty-acceptance-decision`,
       data,
     );
-    return response.data.data;
+    return response.data;
   },
 
   /**
@@ -326,66 +330,63 @@ export const proposalsApi = {
     products?: Array<{ id: string; name: string; type: string; note?: string }>;
   }> => {
     const response = await apiClient.get<{
-      success: true;
-      data: {
-        facultyDecision?: { decision: string; decidedAt: string; comments?: string };
-        results?: string;
-        products?: Array<{ id: string; name: string; type: string; note?: string }>;
-      };
+      facultyDecision?: { decision: string; decidedAt: string; comments?: string };
+      results?: string;
+      products?: Array<{ id: string; name: string; type: string; note?: string }>;
     }>(`/proposals/${id}/school-acceptance-data`);
-    return response.data.data;
+    return response.data;
   },
 
   /**
    * Story 6.4: Submit school acceptance decision
    */
   submitSchoolDecision: async (id: string, data: SchoolAcceptanceDecisionRequest): Promise<Proposal> => {
-    const response = await apiClient.post<{ success: true; data: Proposal }>(
+    const response = await apiClient.post<Proposal>(
       `/proposals/${id}/school-acceptance-decision`,
       data,
     );
-    return response.data.data;
+    return response.data;
   },
 
   /**
    * Story 6.5: Save handover checklist draft
    */
   saveHandoverChecklist: async (id: string, checklist: HandoverChecklistItem[]): Promise<Proposal> => {
-    const response = await apiClient.patch<{ success: true; data: Proposal }>(
+    const response = await apiClient.patch<Proposal>(
       `/proposals/${id}/handover-checklist`,
       { checklist },
     );
-    return response.data.data;
+    return response.data;
   },
 
   /**
    * Story 6.5: Complete handover (HANDOVER → COMPLETED)
    */
   completeHandover: async (id: string, checklist: HandoverChecklistItem[]): Promise<Proposal> => {
-    const response = await apiClient.post<{ success: true; data: Proposal }>(
+    const response = await apiClient.post<Proposal>(
       `/proposals/${id}/complete-handover`,
       { checklist },
     );
-    return response.data.data;
+    return response.data;
   },
 
   /**
    * Story 6.6: Get dossier pack status
    */
   getDossierPackStatus: async (id: string, packType: DossierPackType): Promise<DossierPackStatus> => {
-    const response = await apiClient.get<{ success: true; data: DossierPackStatus }>(
+    const response = await apiClient.get<DossierPackStatus>(
       `/proposals/${id}/dossier-status/${packType}`,
     );
-    return response.data.data;
+    return response.data;
   },
 
   /**
    * Story 6.6: Generate dossier pack ZIP
    */
   generateDossierPack: async (id: string, packType: DossierPackType): Promise<DossierExportResponse> => {
-    const response = await apiClient.post<{ success: true; data: DossierExportResponse }>(
+    const response = await apiClient.post<DossierExportResponse>(
       `/proposals/${id}/dossier/${packType}`,
     );
-    return response.data.data;
+    return response.data;
   },
 };

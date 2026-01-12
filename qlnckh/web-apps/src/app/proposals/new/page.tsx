@@ -69,19 +69,12 @@ export default function CreateProposalPage() {
     const template = templates.find((t) => t.id === templateId);
     setSelectedTemplate(template || null);
 
-    // Initialize form data with default values
+    // Initialize form data with default values for each section
     if (template) {
       const initialData: Record<string, unknown> = {};
       template.sections.forEach((section) => {
-        section.fields.forEach((field) => {
-          if (field.type === 'checkbox') {
-            initialData[field.id] = false;
-          } else if (field.type === 'number') {
-            initialData[field.id] = 0;
-          } else {
-            initialData[field.id] = '';
-          }
-        });
+        // Initialize each section with empty string
+        initialData[section.sectionId] = '';
       });
       setFormData(initialData);
     }
@@ -118,15 +111,11 @@ export default function CreateProposalPage() {
       newErrors.faculty = 'Vui lòng chọn đơn vị';
     }
 
-    // Validate required fields from template
+    // Validate required sections from template
     if (selectedTemplate) {
       selectedTemplate.sections.forEach((section) => {
-        if (section.required) {
-          section.fields.forEach((field) => {
-            if (field.required && !formData[field.id]) {
-              newErrors[field.id] = `${field.label} là bắt buộc`;
-            }
-          });
+        if (section.isRequired && !formData[section.sectionId]) {
+          newErrors[section.sectionId] = `${section.label} là bắt buộc`;
         }
       });
     }

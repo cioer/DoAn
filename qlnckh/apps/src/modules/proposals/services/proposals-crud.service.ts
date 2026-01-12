@@ -3,10 +3,22 @@ import {
   Logger,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../auth/prisma.service';
-import { ProjectState, Prisma } from '@prisma/client';
+import { ProjectState, Prisma, UserRole } from '@prisma/client';
 import { CreateProposalDto, UpdateProposalDto, AutoSaveProposalDto } from '../dto';
+
+/**
+ * RequestUser interface for user context from JWT
+ */
+interface RequestUser {
+  id: string;
+  email: string;
+  role: string;
+  facultyId: string | null;
+}
 
 /**
  * Proposals CRUD Service
@@ -127,6 +139,11 @@ export class ProposalsCrudService {
 
   /**
    * List proposals with pagination
+   *
+   * Faculty Isolation for QUAN_LY_KHOA:
+   * - QUAN_LY_KHOA users can only see proposals from their own faculty
+   * - If QUAN_LY_KHOA passes facultyId != user.facultyId, throw 403
+   * - If QUAN_LY_KHOA has no facultyId, throw 400
    */
   async findAll(filters: {
     skip?: number;
@@ -135,6 +152,7 @@ export class ProposalsCrudService {
     ownerId?: string;
     state?: ProjectState;
     search?: string;
+    user?: any;
   }) {
     const {
       skip = 0,
@@ -143,11 +161,38 @@ export class ProposalsCrudService {
       ownerId,
       state,
       search,
+      user,
     } = filters;
 
     const where: Prisma.ProposalWhereInput = {};
 
-    if (facultyId) {
+    // Faculty isolation for QUAN_LY_KHOA
+    if (user?.role === UserRole.QUAN_LY_KHOA) {
+      if (!user.facultyId) {
+        throw new BadRequestException({
+          success: false,
+          error: {
+            code: 'FACULTY_CONTEXT_REQUIRED',
+            message: 'Faculty context required for QUAN_LY_KHOA role',
+          },
+        });
+      }
+
+      // If explicit facultyId is provided, validate it matches user's faculty
+      if (facultyId && facultyId !== user.facultyId) {
+        throw new ForbiddenException({
+          success: false,
+          error: {
+            code: 'CANNOT_ACCESS_OTHER_FACULTY',
+            message: 'Cannot access proposals outside your faculty',
+          },
+        });
+      }
+
+      // Auto-filter by user's faculty
+      where.facultyId = user.facultyId;
+    } else if (facultyId) {
+      // Non-QUAN_LY_KHOA users can use explicit facultyId filter
       where.facultyId = facultyId;
     }
 

@@ -49,7 +49,7 @@ const mockValidationService = {
 
 // Mock Storage Service
 const mockStorageService = {
-  DEFAULT_UPLOAD_DIR: '/app/uploads',
+  DEFAULT_UPLOAD_DIR: '/tmp/qlnckh-uploads',
   saveFile: vi.fn().mockResolvedValue(undefined),
   deleteFile: vi.fn().mockResolvedValue(undefined),
   buildFilePath: vi.fn(),

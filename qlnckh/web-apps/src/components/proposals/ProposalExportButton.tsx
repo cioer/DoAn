@@ -8,26 +8,21 @@
  * - Include attachments list
  * - Download with progress indicator
  * - Export options (summary, full, evaluation results)
- *
- * Aesthetic Direction:
- * - Modern export dialog with option cards
- * - Visual preview of what will be exported
- * - Progress animation during generation
  */
 
 import { useState } from 'react';
 import {
   Download,
   FileText,
-  Settings,
   CheckCircle2,
   Loader2,
-  Eye,
   FileCheck,
+  AlertCircle,
 } from 'lucide-react';
 import { Dialog, DialogBody, DialogHeader } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
+import { apiClient } from '../../lib/auth/auth';
 
 export interface ProposalExportButtonProps {
   proposalId: string;
@@ -45,7 +40,6 @@ interface ExportConfig {
   title: string;
   description: string;
   icon: typeof FileText;
-  features: string[];
 }
 
 const exportOptions: ExportConfig[] = [
@@ -54,102 +48,20 @@ const exportOptions: ExportConfig[] = [
     title: 'Tóm tắt',
     description: 'Xuất thông tin cơ bản của đề tài',
     icon: FileText,
-    features: [
-      'Thông tin chung',
-      'Nội dung chính',
-      'Danh sách đính kèm',
-    ],
   },
   {
     id: 'full',
     title: 'Đầy đủ',
     description: 'Xuất toàn bộ nội dung đề tài',
     icon: FileCheck,
-    features: [
-      'Tất cả thông tin cơ bản',
-      'Nội dung chi tiết từng mục',
-      'Danh sách đính kèm đầy đủ',
-      'Lịch sử thay đổi',
-    ],
   },
   {
     id: 'with_evaluation',
     title: 'Có kết quả đánh giá',
     description: 'Bao gồm cả kết quả đánh giá của hội đồng',
     icon: FileCheck,
-    features: [
-      'Tất cả nội dung đầy đủ',
-      'Điểm số chi tiết',
-      'Nhận xét của hội đồng',
-      'Kết luận cuối cùng',
-    ],
   },
 ];
-
-/**
- * Export Option Card Component
- */
-function ExportOptionCard({
-  config,
-  selected,
-  disabled,
-  onSelect,
-}: {
-  config: ExportConfig;
-  selected: boolean;
-  disabled?: boolean;
-  onSelect: () => void;
-}) {
-  const Icon = config.icon;
-
-  return (
-    <button
-      onClick={onSelect}
-      disabled={disabled}
-      className={`
-        group relative overflow-hidden rounded-xl border-2 p-5 text-left transition-all duration-200
-        ${
-          selected
-            ? 'border-blue-500 bg-blue-50 shadow-md'
-            : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-        }
-        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-      `}
-    >
-      {/* Selection indicator */}
-      {selected && (
-        <div className="absolute right-3 top-3 rounded-full bg-blue-500 p-1">
-          <CheckCircle2 className="h-4 w-4 text-white" />
-        </div>
-      )}
-
-      {/* Icon and Title */}
-      <div className="flex items-start gap-3">
-        <div className={`rounded-lg p-2.5 ${selected ? 'bg-blue-500' : 'bg-gray-100'}`}>
-          <Icon className={`h-5 w-5 ${selected ? 'text-white' : 'text-gray-600'}`} />
-        </div>
-        <div className="flex-1">
-          <h3 className={`font-semibold ${selected ? 'text-blue-900' : 'text-gray-900'}`}>
-            {config.title}
-          </h3>
-          <p className={`mt-1 text-sm ${selected ? 'text-blue-700' : 'text-gray-500'}`}>
-            {config.description}
-          </p>
-        </div>
-      </div>
-
-      {/* Features list */}
-      <ul className="mt-4 space-y-1.5">
-        {config.features.map((feature, index) => (
-          <li key={index} className="flex items-center gap-2 text-sm text-gray-600">
-            <div className={`h-1 w-1 rounded-full ${selected ? 'bg-blue-500' : 'bg-gray-400'}`} />
-            {feature}
-          </li>
-        ))}
-      </ul>
-    </button>
-  );
-}
 
 /**
  * Main Export Button Component
@@ -167,40 +79,82 @@ export function ProposalExportButton({
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [previewReady, setPreviewReady] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const handleExport = async () => {
     setIsExporting(true);
     setExportProgress(0);
     setPreviewReady(false);
+    setExportError(null);
 
-    // Simulate export progress
-    const stages = [
-      { progress: 20, message: 'Đang chuẩn bị dữ liệu...' },
-      { progress: 40, message: 'Đang tạo PDF...' },
-      { progress: 70, message: 'Đang định dạng nội dung...' },
-      { progress: 90, message: 'Đang hoàn thiện...' },
-      { progress: 100, message: 'Hoàn tất!' },
-    ];
+    try {
+      // Simulate progress while fetching
+      const progressInterval = setInterval(() => {
+        setExportProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
 
-    for (const stage of stages) {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      setExportProgress(stage.progress);
+      // Call the actual PDF export API
+      const response = await apiClient.get(`/proposals/${proposalId}/export`, {
+        responseType: 'blob',
+      });
+
+      clearInterval(progressInterval);
+      setExportProgress(100);
+
+      // Create download link from blob
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+
+      // Generate filename: {code}_{timestamp}.pdf
+      const timestamp = new Date().getTime();
+      link.download = `${proposalCode}_${timestamp}.pdf`;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      setPreviewReady(true);
+      setIsExporting(false);
+
+      // Notify parent
+      onExportComplete?.(`/api/proposals/${proposalId}/export?type=${selectedOption}`);
+
+      // Close dialog after showing success
+      setTimeout(() => {
+        setShowDialog(false);
+        setPreviewReady(false);
+      }, 1500);
+    } catch (error: any) {
+      setIsExporting(false);
+      setExportProgress(0);
+
+      // Parse error response
+      let errorMessage = 'Không thể xuất PDF. Vui lòng thử lại.';
+      if (error.response?.data) {
+        try {
+          const errorData = JSON.parse(
+            new TextDecoder().decode(error.response.data)
+          );
+          errorMessage = errorData.error?.message || errorMessage;
+        } catch {
+          // If parsing fails, use default message
+        }
+      }
+
+      setExportError(errorMessage);
+
+      // Auto-clear error after 3 seconds
+      setTimeout(() => setExportError(null), 3000);
     }
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    setPreviewReady(true);
-    setIsExporting(false);
-
-    // Notify parent
-    onExportComplete?.(`/api/proposals/${proposalId}/export?type=${selectedOption}`);
-
-    // Close dialog after showing success
-    setTimeout(() => {
-      setShowDialog(false);
-      setPreviewReady(false);
-    }, 1500);
   };
 
   const handleQuickExport = () => {
@@ -226,24 +180,43 @@ export function ProposalExportButton({
         onClose={() => !isExporting && setShowDialog(false)}
         title="Xuất đề tài ra PDF"
         size="lg"
+        footer={
+          <div className="flex justify-between items-center w-full">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDialog(false)}
+              disabled={isExporting}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleExport}
+              isLoading={isExporting}
+              disabled={previewReady}
+              leftIcon={<Download className="h-4 w-4" />}
+            >
+              {isExporting ? 'Đang xuất...' : previewReady ? 'Đã xuất!' : 'Xuất PDF'}
+            </Button>
+          </div>
+        }
       >
         <DialogHeader
           title="Xuất đề tài ra PDF"
           description="Chọn loại file PDF bạn muốn xuất"
         />
-        <DialogBody className="space-y-6">
-          {/* Proposal Preview */}
-          <div className="rounded-lg bg-gradient-to-br from-slate-50 to-gray-100 p-4 border border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-white p-2 shadow-sm">
-                <FileText className="h-6 w-6 text-blue-600" />
-              </div>
+        <DialogBody className="space-y-4 max-h-[60vh] overflow-y-auto">
+          {/* Proposal Preview - Simplified */}
+          <div className="rounded-lg bg-gray-50 p-3 border border-gray-200">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-blue-600 shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="text-xs text-gray-500">{proposalCode}</p>
-                <h3 className="font-medium text-gray-900 truncate">{proposalTitle}</h3>
+                <h3 className="font-medium text-gray-900 truncate text-sm">{proposalTitle}</h3>
               </div>
               {hasEvaluation && (
-                <Badge variant="success" className="shrink-0">
+                <Badge variant="success" size="sm" className="shrink-0">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
                   Đã đánh giá
                 </Badge>
@@ -251,22 +224,44 @@ export function ProposalExportButton({
             </div>
           </div>
 
-          {/* Export Options */}
+          {/* Export Options - Simplified cards */}
           <div>
-            <h4 className="font-semibold text-gray-900 mb-3">Chọn loại xuất</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <h4 className="font-semibold text-gray-900 mb-2 text-sm">Chọn loại xuất</h4>
+            <div className="space-y-2">
               {exportOptions.map((option) => (
-                <ExportOptionCard
+                <button
                   key={option.id}
-                  config={option}
-                  selected={selectedOption === option.id}
+                  onClick={() => setSelectedOption(option.id)}
                   disabled={option.id === 'with_evaluation' && !hasEvaluation}
-                  onSelect={() => setSelectedOption(option.id)}
-                />
+                  className={`
+                    w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all
+                    ${
+                      selectedOption === option.id
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }
+                    ${(option.id === 'with_evaluation' && !hasEvaluation) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                  `}
+                >
+                  <div className={`rounded-lg p-2 ${selectedOption === option.id ? 'bg-blue-500' : 'bg-gray-100'}`}>
+                    <option.icon className={`h-4 w-4 ${selectedOption === option.id ? 'text-white' : 'text-gray-600'}`} />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className={`font-medium text-sm ${selectedOption === option.id ? 'text-blue-900' : 'text-gray-900'}`}>
+                      {option.title}
+                    </h3>
+                    <p className={`text-xs ${selectedOption === option.id ? 'text-blue-700' : 'text-gray-500'}`}>
+                      {option.description}
+                    </p>
+                  </div>
+                  {selectedOption === option.id && (
+                    <CheckCircle2 className="h-5 w-5 text-blue-500 shrink-0" />
+                  )}
+                </button>
               ))}
             </div>
             {selectedOption === 'with_evaluation' && !hasEvaluation && (
-              <p className="mt-2 text-sm text-amber-600">
+              <p className="mt-2 text-xs text-amber-600">
                 ⚠️ Đề tài này chưa có kết quả đánh giá
               </p>
             )}
@@ -274,75 +269,50 @@ export function ProposalExportButton({
 
           {/* Export Progress */}
           {isExporting && (
-            <div className="rounded-lg bg-blue-50 p-5 border border-blue-100">
+            <div className="rounded-lg bg-blue-50 p-3 border border-blue-100">
               <div className="flex items-center gap-3">
-                <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+                <Loader2 className="h-4 w-4 text-blue-600 animate-spin shrink-0" />
                 <div className="flex-1">
-                  <p className="font-medium text-blue-900">Đang xuất PDF...</p>
-                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-blue-200">
+                  <p className="text-sm font-medium text-blue-900">Đang xuất PDF...</p>
+                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-blue-200">
                     <div
                       className="h-full rounded-full bg-blue-600 transition-all duration-300"
                       style={{ width: `${exportProgress}%` }}
                     />
                   </div>
                 </div>
-                <span className="text-sm font-medium text-blue-700">{exportProgress}%</span>
+                <span className="text-xs font-medium text-blue-700">{exportProgress}%</span>
               </div>
             </div>
           )}
 
           {/* Success Message */}
           {previewReady && (
-            <div className="rounded-lg bg-emerald-50 p-4 border border-emerald-100">
-              <div className="flex items-center gap-3">
-                <div className="rounded-full bg-emerald-500 p-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-white" />
+            <div className="rounded-lg bg-emerald-50 p-3 border border-emerald-100">
+              <div className="flex items-center gap-2">
+                <div className="rounded-full bg-emerald-500 p-1">
+                  <CheckCircle2 className="h-3 w-3 text-white" />
                 </div>
-                <div>
-                  <p className="font-medium text-emerald-900">Xuất PDF thành công!</p>
-                  <p className="text-sm text-emerald-700">File đang được tải xuống...</p>
-                </div>
+                <p className="text-sm font-medium text-emerald-900">Xuất PDF thành công! File đang được tải xuống...</p>
               </div>
             </div>
           )}
 
-          {/* Features Info */}
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <div className="flex items-start gap-3">
-              <div className="rounded-lg bg-blue-100 p-2">
-                <Eye className="h-4 w-4 text-blue-600" />
-              </div>
-              <div>
-                <h4 className="font-medium text-sm text-gray-900">Xem trước khi xuất</h4>
-                <p className="mt-1 text-xs text-gray-600">
-                  File PDF sẽ được định dạng theo chuẩn của trường. Bạn có thể xem trước
-                  nội dung trước khi tải về.
-                </p>
+          {/* Error Message */}
+          {exportError && (
+            <div className="rounded-lg bg-red-50 p-3 border border-red-100">
+              <div className="flex items-center gap-2">
+                <div className="rounded-full bg-red-500 p-1">
+                  <AlertCircle className="h-3 w-3 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-red-900">Xuất PDF thất bại!</p>
+                  <p className="text-xs text-red-700">{exportError}</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </DialogBody>
-
-        {/* Footer */}
-        <div className="p-6 border-t bg-gray-50 rounded-b-lg flex justify-between items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowDialog(false)}
-            disabled={isExporting}
-          >
-            Hủy
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleExport}
-            isLoading={isExporting}
-            disabled={previewReady}
-            leftIcon={<Download className="h-4 w-4" />}
-          >
-            {isExporting ? 'Đang xuất...' : previewReady ? 'Đã xuất!' : 'Xuất PDF'}
-          </Button>
-        </div>
       </Dialog>
     </>
   );

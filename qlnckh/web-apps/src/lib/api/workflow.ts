@@ -502,7 +502,7 @@ export const workflowApi = {
     reason?: string,
   ): Promise<TransitionResult> => {
     const response = await apiClient.post<{ success: true; data: TransitionResult }>(
-      `/proposals/${proposalId}/cancel`,
+      `/workflow/${proposalId}/cancel`,
       { reason },
       {
         headers: {
@@ -532,7 +532,7 @@ export const workflowApi = {
     reason?: string,
   ): Promise<TransitionResult> => {
     const response = await apiClient.post<{ success: true; data: TransitionResult }>(
-      `/proposals/${proposalId}/withdraw`,
+      `/workflow/${proposalId}/withdraw`,
       { reason },
       {
         headers: {
@@ -564,7 +564,7 @@ export const workflowApi = {
     comment: string,
   ): Promise<TransitionResult> => {
     const response = await apiClient.post<{ success: true; data: TransitionResult }>(
-      `/proposals/${proposalId}/reject`,
+      `/workflow/${proposalId}/reject`,
       { reasonCode, comment },
       {
         headers: {
@@ -596,7 +596,7 @@ export const workflowApi = {
     expectedResumeAt?: string,
   ): Promise<TransitionResult> => {
     const response = await apiClient.post<{ success: true; data: TransitionResult }>(
-      `/proposals/${proposalId}/pause`,
+      `/workflow/${proposalId}/pause`,
       { reason, expectedResumeAt },
       {
         headers: {
@@ -624,7 +624,7 @@ export const workflowApi = {
     idempotencyKey: string,
   ): Promise<TransitionResult> => {
     const response = await apiClient.post<{ success: true; data: TransitionResult }>(
-      `/proposals/${proposalId}/resume`,
+      `/workflow/${proposalId}/resume`,
       {},
       {
         headers: {

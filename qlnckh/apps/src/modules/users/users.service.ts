@@ -110,6 +110,42 @@ export class UsersService {
   }
 
   /**
+   * Validate faculty ownership for QUAN_LY_KHOA role
+   * QUAN_LY_KHOA can only manage users within their own faculty
+   * @param actorRole - Role of the user performing the action
+   * @param actorFacultyId - Faculty ID of the user performing the action
+   * @param targetFacultyId - Faculty ID of the target user (being created/updated/deleted)
+   * @throws BadRequestException if actor is QUAN_LY_KHOA and target is outside their faculty
+   */
+  validateFacultyOwnership(
+    actorRole: string,
+    actorFacultyId: string | null,
+    targetFacultyId: string | null,
+  ): void {
+    if (actorRole === UserRole.QUAN_LY_KHOA) {
+      if (!actorFacultyId) {
+        throw new BadRequestException({
+          success: false,
+          error: {
+            error_code: 'FACULTY_CONTEXT_REQUIRED',
+            message: 'QUAN_LY_KHOA requires faculty context',
+          },
+        });
+      }
+      // QUAN_LY_KHOA can only manage users in their own faculty
+      if (targetFacultyId && targetFacultyId !== actorFacultyId) {
+        throw new BadRequestException({
+          success: false,
+          error: {
+            error_code: 'CANNOT_MANAGE_OTHER_FACULTY',
+            message: 'QUAN_LY_KHOA can only manage users within their own faculty',
+          },
+        });
+      }
+    }
+  }
+
+  /**
    * Create audit event log for user actions
    * @param action - Action type (e.g., USER_CREATE, USER_UPDATE, USER_DELETE)
    * @param actorUserId - ID of user performing the action
@@ -152,6 +188,8 @@ export class UsersService {
    *
    * @param createUserDto - User creation data
    * @param actorUserId - ID of admin creating the user
+   * @param actorRole - Role of the user performing the action
+   * @param actorFacultyId - Faculty ID of the user performing the action (for QUAN_LY_KHOA)
    * @param ip - Request IP address
    * @param userAgent - Request user agent
    * @returns User object with temporary password (ONE TIME ONLY)
@@ -160,6 +198,8 @@ export class UsersService {
   async createUser(
     createUserDto: CreateUserDto,
     actorUserId: string,
+    actorRole: string,
+    actorFacultyId: string | null = null,
     ip?: string,
     userAgent?: string,
   ): Promise<TempPasswordResponse> {
@@ -192,6 +232,9 @@ export class UsersService {
           });
         }
       }
+
+      // Validate faculty ownership for QUAN_LY_KHOA
+      this.validateFacultyOwnership(actorRole, actorFacultyId, createUserDto.facultyId);
 
       // Generate temporary password
       const temporaryPassword = this.generateTempPassword();
@@ -360,6 +403,8 @@ export class UsersService {
    * @param id - User ID to update
    * @param updateUserDto - Fields to update
    * @param actorUserId - ID of admin performing update
+   * @param actorRole - Role of the user performing the action
+   * @param actorFacultyId - Faculty ID of the user performing the action (for QUAN_LY_KHOA)
    * @param ip - Request IP address
    * @param userAgent - Request user agent
    * @returns Updated user
@@ -369,6 +414,8 @@ export class UsersService {
     id: string,
     updateUserDto: UpdateUserDto,
     actorUserId: string,
+    actorRole: string,
+    actorFacultyId: string | null = null,
     ip?: string,
     userAgent?: string,
   ): Promise<Omit<User, 'passwordHash' | 'deletedAt'>> {
@@ -401,6 +448,12 @@ export class UsersService {
           });
         }
       }
+
+      // Validate faculty ownership for QUAN_LY_KHOA
+      const targetFacultyId = updateUserDto.facultyId !== undefined
+        ? updateUserDto.facultyId
+        : existingUser.facultyId;
+      this.validateFacultyOwnership(actorRole, actorFacultyId, targetFacultyId);
 
       // Track changes for audit log
       const changes: Record<string, any> = {};
@@ -463,6 +516,8 @@ export class UsersService {
    *
    * @param id - User ID to delete
    * @param actorUserId - ID of admin performing deletion
+   * @param actorRole - Role of the user performing the action
+   * @param actorFacultyId - Faculty ID of the user performing the action (for QUAN_LY_KHOA)
    * @param ip - Request IP address
    * @param userAgent - Request user agent
    * @returns Deleted user info
@@ -471,6 +526,8 @@ export class UsersService {
   async softDeleteUser(
     id: string,
     actorUserId: string,
+    actorRole: string,
+    actorFacultyId: string | null = null,
     ip?: string,
     userAgent?: string,
   ): Promise<Omit<User, 'passwordHash' | 'deletedAt'>> {
@@ -500,6 +557,9 @@ export class UsersService {
           },
         });
       }
+
+      // Validate faculty ownership for QUAN_LY_KHOA
+      this.validateFacultyOwnership(actorRole, actorFacultyId, existingUser.facultyId);
 
       // Soft delete by setting deletedAt
       const deletedUser = await this.prisma.user.update({

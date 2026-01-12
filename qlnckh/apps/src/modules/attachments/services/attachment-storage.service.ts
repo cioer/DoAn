@@ -16,8 +16,9 @@ export class AttachmentStorageService {
 
   /**
    * Default upload directory
+   * Use local tmp directory for development (writable path)
    */
-  readonly DEFAULT_UPLOAD_DIR = '/app/uploads';
+  readonly DEFAULT_UPLOAD_DIR = process.env.UPLOAD_DIR || '/tmp/qlnckh-uploads';
 
   /**
    * Save file buffer to disk with timeout

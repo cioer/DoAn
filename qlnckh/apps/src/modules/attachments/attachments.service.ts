@@ -19,7 +19,7 @@ import {
  * File upload options
  */
 export interface FileUploadOptions {
-  uploadDir?: string; // Default: '/app/uploads'
+  uploadDir?: string; // Default: '/tmp/qlnckh-uploads'
   maxFileSize?: number; // Default: 5MB
   maxTotalSize?: number; // Default: 50MB
   uploadTimeout?: number; // Default: 30000ms (30 seconds)
@@ -419,23 +419,27 @@ export class AttachmentsService {
       });
     }
 
-    // Check state: only DRAFT can be modified
-    if (proposal.state !== ProjectState.DRAFT) {
-      const message = proposal.state === ProjectState.CHANGES_REQUESTED
-        ? 'Không thể sửa sau khi nộp. Vui lòng nộp lại sau khi đã sửa đổi.'
-        : 'Không thể sửa sau khi nộp. Vui lòng liên hệ admin nếu cần sửa.';
+    // Check state: DRAFT and CHANGES_REQUESTED can be modified by owner
+    // CHANGES_REQUESTED allows owner to upload revised documents
+    if (proposal.state !== ProjectState.DRAFT && proposal.state !== ProjectState.CHANGES_REQUESTED) {
+      const message =
+        'Không thể sửa sau khi nộp. Vui lòng liên hệ admin nếu cần sửa.';
 
       throw new ForbiddenException({
         success: false,
         error: {
-          code: 'PROPOSAL_NOT_DRAFT',
+          code: 'PROPOSAL_NOT_EDITABLE',
           message,
         },
       });
     }
 
-    // Check ownership
-    if (proposal.ownerId !== userId) {
+    // Check ownership or holder status
+    // Allow both owner and holder to upload/modify attachments in DRAFT state
+    const isOwner = proposal.ownerId === userId;
+    const isHolder = proposal.holderUser === userId;
+
+    if (!isOwner && !isHolder) {
       throw new ForbiddenException({
         success: false,
         error: {

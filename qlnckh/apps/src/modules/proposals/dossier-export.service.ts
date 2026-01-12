@@ -29,8 +29,8 @@ export enum DossierPackType {
  * Dossier export configuration
  */
 interface DossierExportConfig {
-  exportDir?: string;      // Default: '/app/exports'
-  uploadDir?: string;      // Default: '/app/uploads' - for reading attachments
+  exportDir?: string;      // Default: '/tmp/qlnckh-exports'
+  uploadDir?: string;      // Default: '/tmp/qlnckh-uploads' - for reading attachments
   includeAttachments?: boolean;
   includeFormData?: boolean;
 }
@@ -61,8 +61,8 @@ interface RequestContext {
 /**
  * Default configuration values
  */
-const DEFAULT_EXPORT_DIR = '/app/exports';
-const DEFAULT_UPLOAD_DIR = '/app/uploads';
+const DEFAULT_EXPORT_DIR = '/tmp/qlnckh-exports';
+const DEFAULT_UPLOAD_DIR = '/tmp/qlnckh-uploads';
 const ZIP_EXPIRY_HOURS = 24; // ZIP files expire after 24 hours
 
 /**

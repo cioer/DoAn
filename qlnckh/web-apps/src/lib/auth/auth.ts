@@ -7,11 +7,45 @@ const API_URL = import.meta.env.VITE_API_URL || '/api';
  */
 interface AxiosRequestConfigWithRetry extends InternalAxiosRequestConfig {
   _retry?: boolean;
+  skipIdempotency?: boolean;
+}
+
+/**
+ * Generate UUID v4
+ * Used for idempotency keys to prevent duplicate submissions
+ */
+function generateUUIDv4(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 export const apiClient = axios.create({
   baseURL: API_URL,
   withCredentials: true, // Important for HttpOnly cookies
+});
+
+/**
+ * Add Idempotency-Key header for state-changing requests
+ * Prevents duplicate submissions (Story 3.8)
+ */
+apiClient.interceptors.request.use((config) => {
+  const method = config.method?.toUpperCase();
+  const skipIdempotency = (config as AxiosRequestConfigWithRetry).skipIdempotency;
+
+  // Add idempotency key for POST/PUT/DELETE/PATCH requests (unless explicitly skipped)
+  if (
+    method &&
+    ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method) &&
+    !skipIdempotency &&
+    !config.headers['X-Idempotency-Key']
+  ) {
+    config.headers['X-Idempotency-Key'] = generateUUIDv4();
+  }
+
+  return config;
 });
 
 // Import shared types

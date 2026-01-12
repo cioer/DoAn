@@ -32,6 +32,8 @@ const UserManagementPage = lazy(() => import('./admin/users/page'));
 const ImportPage = lazy(() => import('./admin/import/page'));
 const DashboardPage = lazy(() => import('./dashboard/page'));
 const ResearcherDashboardPage = lazy(() => import('./dashboard/researcher/page'));
+const FacultyDashboardPage = lazy(() => import('./dashboard/faculty/page'));
+const FacultyUsersPage = lazy(() => import('./dashboard/faculty/users/page'));
 const CalendarPage = lazy(() => import('./calendar/page'));
 const BulkOperationsPage = lazy(() => import('./bulk-operations/page'));
 const ProposalsPage = lazy(() => import('./proposals/page'));
@@ -147,6 +149,35 @@ function RoleGuard({
   return <>{children}</>;
 }
 
+/**
+ * Default Landing Page Component
+ *
+ * Redirects users to appropriate dashboard based on their role:
+ * - GIANG_VIEN → /dashboard/researcher (Lecturer dashboard)
+ * - QUAN_LY_KHOA → /dashboard/faculty (Faculty dashboard)
+ * - Others (PHONG_KHCN, ADMIN) → /dashboard (Admin dashboard)
+ */
+function DefaultLandingPage() {
+  const user = useAuthStore((state) => state.user);
+
+  if (!user) {
+    return <Navigate to="/auth/login" replace />;
+  }
+
+  // GIANG_VIEN gets their own dashboard
+  if (user.role === UserRole.GIANG_VIEN) {
+    return <Navigate to="/dashboard/researcher" replace />;
+  }
+
+  // QUAN_LY_KHOA gets faculty dashboard
+  if (user.role === UserRole.QUAN_LY_KHOA) {
+    return <Navigate to="/dashboard/faculty" replace />;
+  }
+
+  // Admin/Department staff go to main dashboard
+  return <Navigate to="/dashboard" replace />;
+}
+
 export function App() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
@@ -155,12 +186,12 @@ export function App() {
       <HydrationGuard>
         {isAuthenticated && <Header />}
         <Routes>
-        {/* Default route - redirect to dashboard if authenticated, otherwise login */}
+        {/* Default route - redirect based on user role */}
         <Route
           path="/"
           element={
             <AuthGuard>
-              <Navigate to="/dashboard" replace />
+              <DefaultLandingPage />
             </AuthGuard>
           }
         />
@@ -199,6 +230,38 @@ export function App() {
                   <ResearcherDashboardPage />
                 </LazyRoute>
               </PermissionGuard>
+            </AuthGuard>
+          }
+        />
+
+        {/* Faculty Dashboard - QUAN_LY_KHOA Feature */}
+        <Route
+          path="/dashboard/faculty"
+          element={
+            <AuthGuard>
+              <RoleGuard allowedRoles={[UserRole.QUAN_LY_KHOA]}>
+                <PermissionGuard permission={Permission.FACULTY_DASHBOARD_VIEW}>
+                  <LazyRoute>
+                    <FacultyDashboardPage />
+                  </LazyRoute>
+                </PermissionGuard>
+              </RoleGuard>
+            </AuthGuard>
+          }
+        />
+
+        {/* Faculty User Management - QUAN_LY_KHOA Feature */}
+        <Route
+          path="/dashboard/faculty/users"
+          element={
+            <AuthGuard>
+              <RoleGuard allowedRoles={[UserRole.QUAN_LY_KHOA]}>
+                <PermissionGuard permission={Permission.FACULTY_USER_MANAGE}>
+                  <LazyRoute>
+                    <FacultyUsersPage />
+                  </LazyRoute>
+                </PermissionGuard>
+              </RoleGuard>
             </AuthGuard>
           }
         />

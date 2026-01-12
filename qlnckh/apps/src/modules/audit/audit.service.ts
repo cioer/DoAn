@@ -81,7 +81,18 @@ export class AuditService {
         `Audit event logged: ${dto.action} by ${dto.actorUserId}` +
         (dto.entityId ? ` on ${dto.entityType}:${dto.entityId}` : ''),
       );
-    } catch (error) {
+    } catch (error: any) {
+      // Check for foreign key constraint error
+      // Prisma error code for foreign key constraint is P2003
+      if (error.code === 'P2003' || error.message?.includes('foreign key')) {
+        this.logger.warn(
+          `Audit event skipped due to foreign key constraint: ${dto.action} by actorUserId=${dto.actorUserId}. ` +
+          `This can happen when using a system/anonymous user ID that doesn't exist in the database. ` +
+          `To fix, run: npm run seed:anonymous-user`
+        );
+        return; // Don't throw - allow the main flow to continue
+      }
+
       // Log error but don't throw - audit logging should not break the main flow
       this.logger.error(
         `Failed to log audit event: ${error.message}`,

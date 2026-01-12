@@ -31,6 +31,13 @@ export enum Permission {
 
   // Form Template Management (ADMIN)
   FORM_TEMPLATE_IMPORT = 'FORM_TEMPLATE_IMPORT',
+
+  // Faculty Management (QUAN_LY_KHOA Features)
+  FACULTY_APPROVE = 'FACULTY_APPROVE', // Approve proposal at faculty level
+  FACULTY_RETURN = 'FACULTY_RETURN', // Return proposal for revision
+  PROPOSAL_VIEW_FACULTY = 'PROPOSAL_VIEW_FACULTY', // View proposals from own faculty
+  FACULTY_DASHBOARD_VIEW = 'FACULTY_DASHBOARD_VIEW', // Access faculty dashboard
+  FACULTY_USER_MANAGE = 'FACULTY_USER_MANAGE', // Manage users within own faculty
 }
 
 /**

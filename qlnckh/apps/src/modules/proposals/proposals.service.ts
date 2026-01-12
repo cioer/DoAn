@@ -175,13 +175,14 @@ export class ProposalsService {
     ownerId?: string;
     state?: ProjectState;
     search?: string;
+    user?: any;
   }): Promise<PaginatedProposalsDto> {
     this.logger.log(`Finding proposals with filters: ${JSON.stringify(filters)}`);
 
     const result = await this.crud.findAll(filters);
 
     return {
-      data: result.data.map((p) => this.mapToDto(p)),
+      data: result.data.map((p) => this.mapToDtoWithTemplate(p)),
       meta: result.meta,
     };
   }
@@ -277,7 +278,7 @@ export class ProposalsService {
     });
 
     return {
-      data: result.data.map((p) => this.mapToDto(p)),
+      data: result.data.map((p) => this.mapToDtoWithTemplate(p)),
       meta: result.meta,
     };
   }
@@ -301,7 +302,7 @@ export class ProposalsService {
     });
 
     return {
-      data: result.data.map((p) => this.mapToDto(p)),
+      data: result.data.map((p) => this.mapToDtoWithTemplate(p)),
       meta: result.meta,
     };
   }
@@ -586,12 +587,29 @@ export class ProposalsService {
   }
 
   /**
-   * Map proposal entity to DTO with template
+   * Map proposal entity to DTO with template, owner, and faculty
+   * This is used for API responses that need readable names
    */
   private mapToDtoWithTemplate(proposal: any): ProposalWithTemplateDto {
     return {
       ...this.mapToDto(proposal),
-      template: proposal.template,
+      template: proposal.template ? {
+        id: proposal.template.id,
+        code: proposal.template.code,
+        name: proposal.template.name,
+        version: proposal.template.version,
+      } : null,
+      owner: proposal.owner ? {
+        id: proposal.owner.id,
+        email: proposal.owner.email,
+        displayName: proposal.owner.displayName,
+        role: proposal.owner.role,
+      } : null,
+      faculty: proposal.faculty ? {
+        id: proposal.faculty.id,
+        code: proposal.faculty.code,
+        name: proposal.faculty.name,
+      } : null,
     };
   }
 }

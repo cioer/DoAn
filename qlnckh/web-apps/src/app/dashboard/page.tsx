@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart3, Users, AlertTriangle, CheckCircle } from 'lucide-react';
 import { apiClient } from '../../lib/auth/auth';
+import { getStateLabel } from '../../lib/constants/states';
 
 /**
  * Dashboard Types
@@ -209,7 +210,7 @@ export default function DashboardPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
-                              {proposal.state}
+                              {getStateLabel(proposal.state)}
                             </span>
                           </td>
                         </tr>

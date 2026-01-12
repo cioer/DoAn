@@ -1,5 +1,5 @@
 /**
- * Proposal Actions Component (Story 4.1 + Story 4.2)
+ * Proposal Actions Component (Story 4.1 + Story 4.2 + GIANG_VIEN Submit)
  *
  * Displays action buttons for proposal workflow based on:
  * - Current proposal state
@@ -7,6 +7,7 @@
  *
  * Story 4.1: "Duyệt hồ sơ" button for QUAN_LY_KHOA/THU_KY_KHOA at FACULTY_REVIEW
  * Story 4.2: "Yêu cầu sửa" button for QUAN_LY_KHOA/THU_KY_KHOA at FACULTY_REVIEW
+ * GIANG_VIEN Feature: "Gửi duyệt" button for proposal owner at DRAFT state
  * - Uses UI components (Button, Select, Textarea)
  */
 
@@ -15,6 +16,7 @@ import {
   CheckCircle,
   AlertCircle,
   XCircle,
+  Send,
 } from 'lucide-react';
 import {
   workflowApi,
@@ -40,6 +42,7 @@ export interface ProposalActionsProps {
   proposalId: string;
   proposalState: string;
   currentUser: UserInfo;
+  ownerId?: string; // Proposal owner ID - needed for submit button
   onActionSuccess?: () => void;
   onActionError?: (error: { code: string; message: string }) => void;
 }
@@ -69,6 +72,16 @@ function canApprove(proposalState: string, userRole: string): boolean {
 function canReturn(proposalState: string, userRole: string): boolean {
   return (
     proposalState === 'FACULTY_REVIEW' && APPROVAL_ROLES.includes(userRole as ApprovalRole)
+  );
+}
+
+/**
+ * GIANG_VIEN Feature: Can Submit check
+ * Returns true if user is the proposal owner AND proposal is in DRAFT state
+ */
+function canSubmit(proposalState: string, userId: string, ownerId?: string): boolean {
+  return (
+    proposalState === 'DRAFT' && ownerId !== undefined && userId === ownerId
   );
 }
 
@@ -264,19 +277,23 @@ function ReturnDialog({ isOpen, onClose, onSubmit, isSubmitting }: ReturnDialogP
  * Displays action buttons for workflow transitions
  * Story 4.1: Faculty Approve Action
  * Story 4.2: Faculty Return Action
+ * GIANG_VIEN Feature: Submit Proposal Action
  * - Uses UI components (Button)
  */
 export function ProposalActions({
   proposalId,
   proposalState,
   currentUser,
+  ownerId,
   onActionSuccess,
   onActionError,
 }: ProposalActionsProps) {
   const [isApproving, setIsApproving] = useState(false);
   const [isReturning, setIsReturning] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [error, setError] = useState<{ code: string; message: string } | null>(
     null,
   );
@@ -286,10 +303,12 @@ export function ProposalActions({
     proposalId,
     proposalState,
     currentUser: currentUser ? { id: currentUser.id, role: currentUser.role } : null,
+    ownerId,
   });
 
   const showApproveButton = canApprove(proposalState, currentUser?.role || '');
   const showReturnButton = canReturn(proposalState, currentUser?.role || '');
+  const showSubmitButton = canSubmit(proposalState, currentUser?.id || '', ownerId);
 
   /**
    * Story 4.1: AC3 & AC5 - Execute approve action
@@ -374,8 +393,46 @@ export function ProposalActions({
     }
   };
 
+  /**
+   * GIANG_VIEN Feature: Submit Proposal Action
+   * Transitions DRAFT → FACULTY_REVIEW
+   */
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const idempotencyKey = generateIdempotencyKey();
+
+      await workflowApi.submitProposal(
+        proposalId,
+        idempotencyKey,
+      );
+
+      setShowSubmitConfirm(false);
+
+      if (onActionSuccess) {
+        onActionSuccess();
+      }
+    } catch (err: unknown) {
+      const apiError = err as {
+        response?: { data?: { success: false; error: { code: string; message: string } } };
+      };
+
+      const errorData =
+        apiError.response?.data?.error || { code: 'UNKNOWN_ERROR', message: 'Lỗi không xác định' };
+      setError(errorData);
+
+      if (onActionError) {
+        onActionError(errorData);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // AC2: Buttons hidden for wrong role/state
-  if (!showApproveButton && !showReturnButton) {
+  if (!showApproveButton && !showReturnButton && !showSubmitButton) {
     return null;
   }
 
@@ -405,6 +462,19 @@ export function ProposalActions({
           >
             <CheckCircle className="w-4 h-4" />
             Duyệt hồ sơ
+          </button>
+        )}
+
+        {/* GIANG_VIEN Feature: "Gửi duyệt" button for proposal owner at DRAFT state */}
+        {showSubmitButton && (
+          <button
+            onClick={() => setShowSubmitConfirm(true)}
+            disabled={isSubmitting}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+            aria-label="Gửi hồ sơ đề tài duyệt"
+          >
+            <Send className="w-4 h-4" />
+            Gửi duyệt
           </button>
         )}
       </div>
@@ -456,6 +526,59 @@ export function ProposalActions({
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
               >
                 {isApproving ? 'Đang xử lý...' : 'Xác nhận duyệt'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submit Confirmation Dialog (GIANG_VIEN Feature) */}
+      {showSubmitConfirm && (
+        <div
+          className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="submit-confirm-title"
+        >
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h3
+              id="submit-confirm-title"
+              className="text-lg font-semibold text-gray-900 mb-2"
+            >
+              Xác nhận gửi hồ sơ duyệt
+            </h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Bạn có chắc chắn muốn gửi hồ sơ này để Quản lý khoa duyệt? Sau khi gửi,
+              đề tài sẽ được chuyển sang trạng thái chờ duyệt.
+            </p>
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-red-800">Lỗi</p>
+                  <p className="text-sm text-red-700">{error.message}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowSubmitConfirm(false);
+                  setError(null);
+                }}
+                disabled={isSubmitting}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed font-medium"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+              >
+                {isSubmitting ? 'Đang gửi...' : 'Gửi duyệt'}
               </button>
             </div>
           </div>

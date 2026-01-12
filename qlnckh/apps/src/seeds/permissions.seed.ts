@@ -20,6 +20,12 @@ export const PERMISSIONS: Permission[] = [
   Permission.VIEW_EVALUATION_RESULTS,
   Permission.EXPORT_PROPOSAL_PDF,
   Permission.FORM_TEMPLATE_IMPORT,
+  // Faculty Management (QUAN_LY_KHOA)
+  Permission.FACULTY_APPROVE,
+  Permission.FACULTY_RETURN,
+  Permission.PROPOSAL_VIEW_FACULTY,
+  Permission.FACULTY_DASHBOARD_VIEW,
+  Permission.FACULTY_USER_MANAGE,
 ];
 
 /**
@@ -37,6 +43,12 @@ export const PERMISSION_DISPLAY_NAMES: Record<Permission, string> = {
   [Permission.VIEW_EVALUATION_RESULTS]: 'Xem kết quả đánh giá',
   [Permission.EXPORT_PROPOSAL_PDF]: 'Xuất đề tài ra PDF',
   [Permission.FORM_TEMPLATE_IMPORT]: 'Import biểu mẫu từ Word',
+  // Faculty Management (QUAN_LY_KHOA)
+  [Permission.FACULTY_APPROVE]: 'Duyệt đề tài cấp khoa',
+  [Permission.FACULTY_RETURN]: 'Trả về đề tài cần sửa',
+  [Permission.PROPOSAL_VIEW_FACULTY]: 'Xem đề tài trong khoa',
+  [Permission.FACULTY_DASHBOARD_VIEW]: 'Xem dashboard khoa',
+  [Permission.FACULTY_USER_MANAGE]: 'Quản lý người dùng trong khoa',
 };
 
 /**

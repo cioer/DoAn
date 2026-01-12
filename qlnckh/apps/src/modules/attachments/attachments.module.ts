@@ -37,7 +37,7 @@ import {
     ProposalsModule,
     // Serve static files from /uploads directory (Story 2.4 - Fix for download button)
     ServeStaticModule.forRoot({
-      rootPath: process.env.UPLOAD_DIR || '/app/uploads',
+      rootPath: process.env.UPLOAD_DIR || '/tmp/qlnckh-uploads',
       serveRoot: '/uploads',
     }),
   ],

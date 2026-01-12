@@ -137,9 +137,9 @@ export const attachmentsApi = {
       });
 
       // Open and send request
-      const token = localStorage.getItem('access_token');
+      // Use withCredentials for HttpOnly cookies (not localStorage token)
       xhr.open('POST', `/api/proposals/${proposalId}/attachments`);
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.withCredentials = true; // Important: Send HttpOnly cookies
 
       xhr.send(formData);
     });
@@ -235,9 +235,9 @@ export const attachmentsApi = {
       });
 
       // Open and send request
-      const token = localStorage.getItem('access_token');
+      // Use withCredentials for HttpOnly cookies (not localStorage token)
       xhr.open('PUT', `/api/proposals/${proposalId}/attachments/${attachmentId}`);
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.withCredentials = true; // Important: Send HttpOnly cookies
 
       xhr.send(formData);
     });
