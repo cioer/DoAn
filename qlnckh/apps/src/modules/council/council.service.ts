@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../auth/prisma.service';
 import { CouncilType, CouncilMemberRole, Prisma } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
@@ -329,6 +329,191 @@ export class CouncilService {
     this.logger.log(`Council created: ${name} (${type})`);
 
     return result;
+  }
+
+  /**
+   * Update council (for council management feature)
+   *
+   * @param id - Council ID
+   * @param name - Council name (optional)
+   * @param type - Council type (optional)
+   * @param secretaryId - Secretary user ID (optional)
+   * @param memberIds - Array of member IDs (optional)
+   * @param actorId - User updating the council (for audit)
+   * @returns Updated council with members
+   */
+  async updateCouncil(
+    id: string,
+    name?: string,
+    type?: CouncilType,
+    secretaryId?: string,
+    memberIds?: string[],
+    actorId?: string,
+  ) {
+    // Verify council exists
+    const existingCouncil = await this.prisma.council.findUnique({
+      where: { id },
+      include: {
+        members: true,
+      },
+    });
+
+    if (!existingCouncil) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'COUNCIL_NOT_FOUND',
+          message: 'Không tìm thấy hội đồng',
+        },
+      });
+    }
+
+    // Update council with members in transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Update council basic info
+      const council = await tx.council.update({
+        where: { id },
+        data: {
+          ...(name && { name }),
+          ...(type && { type }),
+          ...(secretaryId !== undefined && { secretaryId }),
+        },
+      });
+
+      // Update members if provided
+      if (memberIds !== undefined) {
+        // Delete existing members
+        await tx.councilMember.deleteMany({
+          where: { councilId: id },
+        });
+
+        // Create new members if provided
+        if (memberIds.length > 0) {
+          const memberData = memberIds.map((userId) => ({
+            councilId: council.id,
+            userId,
+            role: CouncilMemberRole.MEMBER,
+          }));
+
+          await tx.councilMember.createMany({
+            data: memberData,
+          });
+        }
+      }
+
+      // Fetch updated council with members
+      const updatedCouncil = await tx.council.findUnique({
+        where: { id: council.id },
+        include: {
+          secretary: {
+            select: {
+              id: true,
+              displayName: true,
+              email: true,
+            },
+          },
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  displayName: true,
+                  email: true,
+                  role: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      return updatedCouncil;
+    });
+
+    // Log audit event if actorId provided
+    if (actorId) {
+      await this.auditService.logEvent({
+        action: 'COUNCIL_UPDATE' as AuditAction,
+        actorUserId: actorId,
+        entityType: 'Council',
+        entityId: result.id,
+        metadata: {
+          councilName: name,
+          councilType: type,
+          secretaryId,
+          memberIds,
+        },
+      });
+    }
+
+    this.logger.log(`Council updated: ${result.name} (${result.type})`);
+
+    return result;
+  }
+
+  /**
+   * Delete council (for council management feature)
+   *
+   * @param id - Council ID
+   * @param actorId - User deleting the council (for audit)
+   * @throws NotFoundException if council not found
+   * @throws BadRequestException if council is assigned to proposals
+   */
+  async deleteCouncil(id: string, actorId: string) {
+    // Verify council exists
+    const existingCouncil = await this.prisma.council.findUnique({
+      where: { id },
+      include: {
+        proposals: {
+          select: {
+            id: true,
+            code: true,
+          },
+        },
+      },
+    });
+
+    if (!existingCouncil) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'COUNCIL_NOT_FOUND',
+          message: 'Không tìm thấy hội đồng',
+        },
+      });
+    }
+
+    // Check if council is assigned to any proposals
+    if (existingCouncil.proposals.length > 0) {
+      const proposalCodes = existingCouncil.proposals.map((p) => p.code).join(', ');
+      throw new Error(
+        `Không thể xóa hội đồng đã được gán cho đề tài: ${proposalCodes}`,
+      );
+    }
+
+    // Delete council (members will be cascade deleted)
+    await this.prisma.council.delete({
+      where: { id },
+    });
+
+    // Log audit event
+    await this.auditService.logEvent({
+      action: 'COUNCIL_DELETE' as AuditAction,
+      actorUserId: actorId,
+      entityType: 'Council',
+      entityId: id,
+      metadata: {
+        councilName: existingCouncil.name,
+        councilType: existingCouncil.type,
+      },
+    });
+
+    this.logger.log(`Council deleted: ${existingCouncil.name} (${existingCouncil.type})`);
+
+    return {
+      success: true,
+      message: 'Hội đồng đã được xóa thành công',
+    };
   }
 
   /**

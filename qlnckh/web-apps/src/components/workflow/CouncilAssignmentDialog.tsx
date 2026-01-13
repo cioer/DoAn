@@ -22,6 +22,7 @@ import {
 import { generateIdempotencyKey } from '../../lib/api/workflow';
 import { Button } from '../ui';
 import { Select, SelectOption } from '../ui';
+import { councilsApi } from '../../lib/api/councils';
 
 /**
  * Council data type
@@ -104,52 +105,9 @@ export function CouncilAssignmentDialog({
     setLoading(true);
     setError(null);
     try {
-      // TODO: Replace with actual API call when council endpoint is ready
-      // const response = await apiClient.get('/api/councils?type=OUTLINE');
-      // setCouncils(response.data.councils);
-
-      // Mock data for MVP
-      setCouncils([
-        {
-          id: 'council-1',
-          name: 'Hội đồng khoa CNTT #1',
-          type: 'OUTLINE',
-          secretaryId: 'user-1',
-          secretaryName: 'Nguyễn Văn A',
-          members: [
-            {
-              id: 'member-1',
-              councilId: 'council-1',
-              userId: 'user-2',
-              displayName: 'Trần Văn B',
-              role: 'MEMBER',
-            },
-            {
-              id: 'member-2',
-              councilId: 'council-1',
-              userId: 'user-3',
-              displayName: 'Lê Thị C',
-              role: 'MEMBER',
-            },
-          ],
-        },
-        {
-          id: 'council-2',
-          name: 'Hội đồng khoa KT #1',
-          type: 'OUTLINE',
-          secretaryId: 'user-4',
-          secretaryName: 'Phạm Văn D',
-          members: [
-            {
-              id: 'member-3',
-              councilId: 'council-2',
-              userId: 'user-5',
-              displayName: 'Hoàng Văn E',
-              role: 'MEMBER',
-            },
-          ],
-        },
-      ]);
+      // Fetch councils from API (only OUTLINE type for council assignment)
+      const response = await councilsApi.getCouncils('OUTLINE');
+      setCouncils(response.councils);
     } catch (err: unknown) {
       const apiError = err as { response?: { data?: { error?: { message: string } } } };
       setError(apiError.response?.data?.error?.message || 'Không thể tải danh sách hội đồng');

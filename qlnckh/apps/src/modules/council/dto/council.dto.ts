@@ -93,6 +93,33 @@ export class CreateCouncilDto {
 }
 
 /**
+ * Update Council DTO
+ * For updating existing councils
+ */
+export class UpdateCouncilDto {
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @ApiPropertyOptional({ enum: CouncilType })
+  @IsEnum(CouncilType)
+  @IsOptional()
+  type?: CouncilType;
+
+  @ApiPropertyOptional()
+  @IsUUID()
+  @IsOptional()
+  secretaryId?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  memberIds?: string[];
+}
+
+/**
  * Assign Council DTO (Story 5.2)
  * Request body for assigning a council to a proposal
  */

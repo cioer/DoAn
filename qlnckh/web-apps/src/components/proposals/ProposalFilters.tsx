@@ -7,6 +7,7 @@ export interface ProposalFilters {
   state: ProjectState | '';
   facultyId: string;
   search: string;
+  overdue?: boolean;
 }
 
 /**

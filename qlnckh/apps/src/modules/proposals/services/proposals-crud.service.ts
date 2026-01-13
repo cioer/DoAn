@@ -150,8 +150,9 @@ export class ProposalsCrudService {
     take?: number;
     facultyId?: string;
     ownerId?: string;
-    state?: ProjectState;
+    state?: ProjectState | ProjectState[];
     search?: string;
+    overdue?: boolean;
     user?: any;
   }) {
     const {
@@ -161,6 +162,7 @@ export class ProposalsCrudService {
       ownerId,
       state,
       search,
+      overdue,
       user,
     } = filters;
 
@@ -201,7 +203,7 @@ export class ProposalsCrudService {
     }
 
     if (state) {
-      where.state = state;
+      where.state = Array.isArray(state) ? { in: state } : state;
     }
 
     if (search) {
@@ -209,6 +211,11 @@ export class ProposalsCrudService {
         { title: { contains: search, mode: 'insensitive' } },
         { code: { contains: search, mode: 'insensitive' } },
       ];
+    }
+
+    // Overdue filter: proposals with SLA deadline in the past
+    if (overdue === true) {
+      where.slaDeadline = { lt: new Date() };
     }
 
     const [proposals, total] = await Promise.all([

@@ -67,12 +67,29 @@ export default function ProposalsPage() {
   const [filters, setFilters] = useState<FilterType>(() => {
     const stateParam = searchParams.get('state');
     const facultyIdParam = searchParams.get('facultyId');
+    const overdueParam = searchParams.get('overdue');
     return {
       state: stateParam || '',
       facultyId: facultyIdParam || '',
       search: '',
+      overdue: overdueParam === 'true',
     };
   });
+
+  // Update filters when URL params change (e.g., when navigating from dashboard)
+  useEffect(() => {
+    const stateParam = searchParams.get('state');
+    const facultyIdParam = searchParams.get('facultyId');
+    const overdueParam = searchParams.get('overdue');
+    if (stateParam || facultyIdParam || overdueParam) {
+      setFilters({
+        state: stateParam || '',
+        facultyId: facultyIdParam || '',
+        search: '',
+        overdue: overdueParam === 'true',
+      });
+    }
+  }, [searchParams]);
 
   // Load proposals
   useEffect(() => {
@@ -92,6 +109,7 @@ export default function ProposalsPage() {
       if (filters.state) params.state = filters.state;
       if (filters.facultyId) params.facultyId = filters.facultyId;
       if (filters.search) params.ownerId = filters.search; // Backend uses ownerId for search
+      if (filters.overdue) params.overdue = true;
 
       const response = await proposalsApi.getProposals(params);
 

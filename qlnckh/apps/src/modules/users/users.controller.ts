@@ -97,8 +97,11 @@ export class UsersController {
    * Faculty Isolation for QUAN_LY_KHOA:
    * - Auto-filters by user's facultyId
    * - Cannot access users outside their faculty
+   *
+   * Requires: USER_MANAGE, FACULTY_USER_MANAGE, or USER_VIEW (read-only for bulk operations)
    */
   @Get()
+  @RequireAnyPermissions(Permission.USER_MANAGE, Permission.FACULTY_USER_MANAGE, Permission.USER_VIEW)
   @HttpCode(HttpStatus.OK)
   async getUsers(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,

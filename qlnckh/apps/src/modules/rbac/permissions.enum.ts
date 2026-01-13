@@ -1,7 +1,7 @@
 /**
  * Permission Enum
  *
- * Defines all available permissions in the system for RBAC.
+ * Defines all available permissions in system for RBAC.
  * Permissions are used with @RequirePermissions() decorator on endpoints.
  *
  * Epic 1 Scope: User management, Demo features, Calendar, Audit
@@ -10,6 +10,7 @@
 export enum Permission {
   // User Management
   USER_MANAGE = 'USER_MANAGE',
+  USER_VIEW = 'USER_VIEW', // Read-only access to user list (for bulk operations, etc.)
 
   // Demo Features
   DEMO_SWITCH_PERSONA = 'DEMO_SWITCH_PERSONA',

@@ -61,6 +61,7 @@ export interface ProposalListParams {
   ownerId?: string;
   state?: string;
   facultyId?: string;
+  overdue?: boolean;
   page?: number;
   limit?: number;
 }
@@ -198,7 +199,7 @@ export const proposalsApi = {
    * Get paginated list of proposals with optional filters
    */
   getProposals: async (params: ProposalListParams = {}): Promise<ProposalListResponse> => {
-    const { page = 1, limit = 20, ownerId, state, facultyId } = params;
+    const { page = 1, limit = 20, ownerId, state, facultyId, overdue } = params;
 
     const queryParams = new URLSearchParams();
     queryParams.append('page', String(page));
@@ -206,6 +207,7 @@ export const proposalsApi = {
     if (ownerId) queryParams.append('ownerId', ownerId);
     if (state) queryParams.append('state', state);
     if (facultyId) queryParams.append('facultyId', facultyId);
+    if (overdue) queryParams.append('overdue', 'true');
 
     const response = await apiClient.get<{ success: true; data: Proposal[]; meta: any }>(
       `/proposals?${queryParams.toString()}`,

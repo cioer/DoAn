@@ -28,6 +28,7 @@ import { useAuthStore } from '../../../stores/authStore';
 import { Button } from '../../../components/ui/Button';
 import { Card, CardHeader, CardBody } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
+import { apiClient } from '../../../lib/auth/auth';
 
 type ProposalStatus =
   | 'DRAFT'
@@ -246,20 +247,8 @@ export default function FacultyDashboardPage() {
   const loadDashboardData = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch('/api/dashboard/faculty', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to load faculty dashboard');
-      }
-
-      const result = await response.json();
-      const data: FacultyDashboardData = result.data;
+      const response = await apiClient.get('/dashboard/faculty');
+      const data: FacultyDashboardData = response.data.data;
 
       // Extract faculty name from the first proposal's faculty object
       if (data.recentProposals && data.recentProposals.length > 0) {

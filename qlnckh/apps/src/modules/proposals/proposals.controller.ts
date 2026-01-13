@@ -184,8 +184,9 @@ export class ProposalsController {
   async findAll(
     @CurrentUser() user: RequestUser,
     @Query('ownerId') ownerId?: string,
-    @Query('state') state?: ProjectState,
+    @Query('state') state?: string,
     @Query('facultyId') facultyId?: string,
+    @Query('overdue') overdue?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ): Promise<PaginatedProposalsDto> {
@@ -193,10 +194,18 @@ export class ProposalsController {
     const pageNum = page ? parseInt(page, 10) : 1;
     const skip = (pageNum - 1) * pageSize;
 
+    // Parse state: support both single value and comma-separated values
+    let stateFilter: ProjectState | ProjectState[] | undefined = undefined;
+    if (state) {
+      const states = state.split(',').map(s => s.trim() as ProjectState);
+      stateFilter = states.length === 1 ? states[0] : states;
+    }
+
     return this.proposalsService.findAll({
       ownerId,
-      state,
+      state: stateFilter,
       facultyId,
+      overdue: overdue === 'true',
       skip,
       take: pageSize,
       user,

@@ -8,6 +8,7 @@ import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Alert } from '../../components/ui/Alert';
 import { ImportWordDialog } from './components/ImportWordDialog';
+import { FormTemplatePreviewDialog } from './components/FormTemplatePreviewDialog';
 
 export default function FormTemplatesPage() {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ export default function FormTemplatesPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<FormTemplate | null>(null);
 
   const effectiveUser = getEffectiveUser();
   const canImport = hasPermission(Permission.FORM_TEMPLATE_IMPORT);
@@ -155,10 +157,16 @@ export default function FormTemplatesPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {templates.map((template) => (
-              <Card key={template.id} className="p-4 hover:shadow-md transition-shadow">
+              <Card 
+                key={template.id} 
+                className="p-4 hover:shadow-lg transition-all cursor-pointer border hover:border-blue-300"
+                onClick={() => setSelectedTemplate(template)}
+              >
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <h3 className="font-semibold text-gray-900">{template.name}</h3>
+                    <h3 className="font-semibold text-gray-900 group-hover:text-blue-600">
+                      {template.name}
+                    </h3>
                     <p className="text-sm text-gray-500 mt-0.5">{template.code}</p>
                   </div>
                   <Badge variant={getProjectTypeColor(template.projectType || '')}>
@@ -172,13 +180,26 @@ export default function FormTemplatesPage() {
                   </p>
                 )}
 
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-sm mt-auto">
                   <span className="text-gray-500">
                     {template.sections.length} phần
                   </span>
-                  <span className="text-gray-400">
-                    {template.version}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400">
+                      {template.version}
+                    </span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedTemplate(template);
+                      }}
+                    >
+                      Xem trước
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Sections preview */}
@@ -217,6 +238,13 @@ export default function FormTemplatesPage() {
           isOpen={isImportDialogOpen}
           onClose={() => setIsImportDialogOpen(false)}
           onImportSuccess={handleImportSuccess}
+        />
+
+        {/* Preview Dialog */}
+        <FormTemplatePreviewDialog
+          template={selectedTemplate}
+          isOpen={!!selectedTemplate}
+          onClose={() => setSelectedTemplate(null)}
         />
       </div>
     </div>

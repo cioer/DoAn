@@ -25,12 +25,14 @@ export function Header() {
 
   // Check navigation permissions
   const canViewDashboard = effectiveUser?.role === 'PHONG_KHCN' || effectiveUser?.role === 'ADMIN';
-  const canViewResearcherDashboard = hasPermission(Permission.DASHBOARD_VIEW);
+  // Researcher dashboard: only for non-PKHCN/ADMIN users who have the permission
+  const canViewResearcherDashboard = !canViewDashboard && hasPermission(Permission.DASHBOARD_VIEW);
   const canViewFacultyDashboard = hasPermission(Permission.FACULTY_DASHBOARD_VIEW);
   const canViewCalendar = hasPermission(Permission.CALENDAR_MANAGE);
   const canViewBulkOps = effectiveUser?.role === 'PHONG_KHCN' || effectiveUser?.role === 'ADMIN';
   const canViewAuditLog = hasPermission(Permission.AUDIT_VIEW);
   const canViewFormTemplates = hasPermission(Permission.FORM_TEMPLATE_IMPORT);
+  const canViewCouncils = effectiveUser?.role === 'PHONG_KHCN' || effectiveUser?.role === 'ADMIN';
   const canViewImport = effectiveUser?.role === 'ADMIN'; // Story 10.1: Import Excel - ADMIN only
   const canManageUsers = hasPermission(Permission.USER_MANAGE);
 
@@ -85,7 +87,7 @@ export function Header() {
                   onClick={() => navigate('/dashboard')}
                   className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
                 >
-                  Thống kê
+                  Dashboard
                 </button>
               )}
 
@@ -122,6 +124,15 @@ export function Header() {
                   className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
                 >
                   Biểu mẫu
+                </button>
+              )}
+
+              {canViewCouncils && (
+                <button
+                  onClick={() => navigate('/councils')}
+                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                >
+                  Hội đồng
                 </button>
               )}
 

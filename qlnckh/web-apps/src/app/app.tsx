@@ -42,6 +42,7 @@ const ProposalEditPage = lazy(() => import('./proposals/[id]/edit/page'));
 const CreateProposalPage = lazy(() => import('./proposals/new/page'));
 const AuditLogPage = lazy(() => import('./audit/page'));
 const FormTemplatesPage = lazy(() => import('./form-templates/page'));
+const CouncilsPage = lazy(() => import('./councils/page'));
 
 /**
  * Loading fallback component for lazy-loaded routes
@@ -372,6 +373,20 @@ export function App() {
                   <FormTemplatesPage />
                 </LazyRoute>
               </PermissionGuard>
+            </AuthGuard>
+          }
+        />
+
+        {/* Councils Management - PHONG_KHCN/ADMIN */}
+        <Route
+          path="/councils"
+          element={
+            <AuthGuard>
+              <RoleGuard allowedRoles={[UserRole.PHONG_KHCN, UserRole.ADMIN]}>
+                <LazyRoute>
+                  <CouncilsPage />
+                </LazyRoute>
+              </RoleGuard>
             </AuthGuard>
           }
         />

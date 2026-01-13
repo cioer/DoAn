@@ -123,28 +123,32 @@ export default function DashboardPage() {
             {/* KPI Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               <KpiCard
-                title="Tổng số đề tài"
+                title="Đang chờ xử lý"
                 value={data.kpi.totalWaiting}
                 icon={<BarChart3 className="h-6 w-6" />}
                 color="blue"
+                onClick={() => navigate('/proposals?state=FACULTY_REVIEW,SCHOOL_SELECTION_REVIEW,OUTLINE_COUNCIL_REVIEW,FACULTY_ACCEPTANCE_REVIEW,SCHOOL_ACCEPTANCE_REVIEW,HANDOVER,CHANGES_REQUESTED')}
               />
               <KpiCard
-                title="Đang chờ duyệt"
-                value={data.kpi.totalWaiting}
+                title="Sắp đến hạn"
+                value={data.kpi.t2WarningCount}
                 icon={<Users className="h-6 w-6" />}
                 color="yellow"
+                onClick={() => navigate('/proposals')}
               />
               <KpiCard
                 title="Quá hạn SLA"
                 value={data.kpi.overdueCount}
                 icon={<AlertTriangle className="h-6 w-6" />}
                 color="red"
+                onClick={() => navigate('/proposals?overdue=true')}
               />
               <KpiCard
                 title="Hoàn thành tháng này"
                 value={data.kpi.completedThisMonth}
                 icon={<CheckCircle className="h-6 w-6" />}
                 color="green"
+                onClick={() => navigate('/proposals?state=COMPLETED')}
               />
             </div>
 
@@ -195,7 +199,11 @@ export default function DashboardPage() {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {data.overdueList.map((proposal) => (
-                        <tr key={proposal.id} className="hover:bg-gray-50">
+                        <tr
+                          key={proposal.id}
+                          onClick={() => navigate(`/proposals/${proposal.id}`)}
+                          className="hover:bg-gray-50 cursor-pointer"
+                        >
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {proposal.code}
                           </td>
@@ -243,15 +251,42 @@ interface KpiCardProps {
   value: number;
   icon: React.ReactNode;
   color: 'blue' | 'yellow' | 'red' | 'green';
+  onClick?: () => void;
 }
 
-function KpiCard({ title, value, icon, color }: KpiCardProps) {
+function KpiCard({ title, value, icon, color, onClick }: KpiCardProps) {
   const colors = {
     blue: 'bg-blue-50 text-blue-600',
     yellow: 'bg-yellow-50 text-yellow-600',
     red: 'bg-red-50 text-red-600',
     green: 'bg-green-50 text-green-600',
   };
+
+  const borderColors = {
+    blue: 'hover:border-blue-400',
+    yellow: 'hover:border-yellow-400',
+    red: 'hover:border-red-400',
+    green: 'hover:border-green-400',
+  };
+
+  if (onClick) {
+    return (
+      <button
+        onClick={onClick}
+        className={`bg-white rounded-lg shadow p-6 border-2 border-transparent transition-all hover:shadow-lg ${borderColors[color]} cursor-pointer w-full text-left`}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-500">{title}</p>
+            <p className="text-3xl font-bold text-gray-900 mt-2">{value}</p>
+          </div>
+          <div className={`p-3 rounded-full ${colors[color]}`}>
+            {icon}
+          </div>
+        </div>
+      </button>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow p-6">

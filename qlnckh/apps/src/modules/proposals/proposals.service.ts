@@ -173,8 +173,9 @@ export class ProposalsService {
     take?: number;
     facultyId?: string;
     ownerId?: string;
-    state?: ProjectState;
+    state?: ProjectState | ProjectState[];
     search?: string;
+    overdue?: boolean;
     user?: any;
   }): Promise<PaginatedProposalsDto> {
     this.logger.log(`Finding proposals with filters: ${JSON.stringify(filters)}`);

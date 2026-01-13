@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Put,
+  Delete,
   Param,
   Query,
   Body,
@@ -24,6 +26,8 @@ import { CouncilService } from './council.service';
 import {
   AssignCouncilDto,
   AssignCouncilResponse,
+  CreateCouncilDto,
+  UpdateCouncilDto,
   ErrorResponseDto,
 } from './dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -49,7 +53,6 @@ interface RequestUser {
 @ApiTags('council')
 @Controller('council')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@UseInterceptors(IdempotencyInterceptor)
 @ApiBearerAuth()
 export class CouncilController {
   constructor(
@@ -216,6 +219,127 @@ export class CouncilController {
   }
 
   /**
+   * POST /api/councils
+   * Create a new council
+   *
+   * Only ADMIN and PHONG_KHCN can create councils
+   */
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  @RequireRoles(UserRole.ADMIN, UserRole.PHONG_KHCN)
+  @ApiOperation({
+    summary: 'Tạo hội đồng mới',
+    description: 'Tạo hội đồng mới với thông tin và danh sách thành viên. Chỉ ADMIN và PHONG_KHCN mới có thể thực hiện.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Hội đồng được tạo thành công',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - không có quyền tạo hội đồng',
+  })
+  async createCouncil(
+    @Body() dto: CreateCouncilDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.councilService.createCouncil(
+      dto.name,
+      dto.type,
+      dto.secretaryId,
+      dto.memberIds,
+      user.id,
+    );
+  }
+
+  /**
+   * PUT /api/councils/:id
+   * Update an existing council
+   *
+   * Only ADMIN and PHONG_KHCN can update councils
+   */
+  @Put(':id')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.ADMIN, UserRole.PHONG_KHCN)
+  @ApiOperation({
+    summary: 'Cập nhật hội đồng',
+    description: 'Cập nhật thông tin hội đồng và danh sách thành viên. Chỉ ADMIN và PHONG_KHCN mới có thể thực hiện.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Council ID (UUID)',
+    example: 'council-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Hội đồng được cập nhật thành công',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Council not found',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - không có quyền cập nhật hội đồng',
+  })
+  async updateCouncil(
+    @Param('id') id: string,
+    @Body() dto: UpdateCouncilDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.councilService.updateCouncil(
+      id,
+      dto.name,
+      dto.type,
+      dto.secretaryId,
+      dto.memberIds,
+      user.id,
+    );
+  }
+
+  /**
+   * DELETE /api/councils/:id
+   * Delete a council
+   *
+   * Only ADMIN and PHONG_KHCN can delete councils
+   * Cannot delete councils that are assigned to proposals
+   */
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.ADMIN, UserRole.PHONG_KHCN)
+  @ApiOperation({
+    summary: 'Xóa hội đồng',
+    description: 'Xóa hội đồng (chỉ có thể xóa nếu chưa được gán cho đề tài nào). Chỉ ADMIN và PHONG_KHCN mới có thể thực hiện.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Council ID (UUID)',
+    example: 'council-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Hội đồng được xóa thành công',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Council not found',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - council is assigned to proposals',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - không có quyền xóa hội đồng',
+  })
+  async deleteCouncil(
+    @Param('id') id: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.councilService.deleteCouncil(id, user.id);
+  }
+
+  /**
    * POST /api/workflow/:proposalId/assign-council
    * Story 5.2, Task 2: Assign Council Endpoint
    *
@@ -226,6 +350,7 @@ export class CouncilController {
   @Post(':proposalId/assign-council')
   @HttpCode(HttpStatus.OK)
   @RequireRoles(UserRole.PHONG_KHCN)
+  @UseInterceptors(IdempotencyInterceptor)
   @ApiOperation({
     summary: 'Phân bổ hội đồng xét duyệt',
     description:
