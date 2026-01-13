@@ -15,6 +15,11 @@ import {
   SubmitEvaluationRequestDto,
   SubmitEvaluationResponseDto,
 } from './dto/submit-evaluation.dto';
+import {
+  GetAllEvaluationsResponseDto,
+  FinalizeCouncilEvaluationRequestDto,
+  FinalizeCouncilEvaluationResponseDto,
+} from './dto/council-evaluation.dto';
 import { Permission } from '../rbac/permissions.enum';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { PermissionsGuard } from '../rbac/guards/permissions.guard';
@@ -273,6 +278,111 @@ export class EvaluationController {
           email: evaluation.evaluator.email,
           role: evaluation.evaluator.role,
         } : undefined,
+      },
+    };
+  }
+
+  /**
+   * GET /api/evaluations/:proposalId/all
+   * Multi-member Evaluation: Get all evaluations for a proposal
+   * Only the secretary can view all evaluations
+   *
+   * @param proposalId - Proposal ID
+   * @param req - Request with user info
+   * @returns All evaluations with proposal and council info
+   */
+  @Get(':proposalId/all')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Lấy tất cả đánh giá của đề tài',
+    description: 'Chỉ thư ký hội đồng mới có thể xem tất cả đánh giá của các thành viên.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'All evaluations retrieved successfully',
+    type: GetAllEvaluationsResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user is not the secretary',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal or council not found',
+    type: ErrorResponseDto,
+  })
+  async getAllEvaluations(
+    @Param('proposalId') proposalId: string,
+    @Req() req: RequestWithUser,
+  ): Promise<GetAllEvaluationsResponseDto> {
+    const result = await this.evaluationService.getAllEvaluationsForProposal(
+      proposalId,
+      req.user.id,
+    );
+
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  /**
+   * POST /api/evaluations/:proposalId/finalize
+   * Multi-member Evaluation: Finalize council evaluation and transition proposal
+   * Only the secretary can finalize after reviewing all member evaluations
+   *
+   * @param proposalId - Proposal ID
+   * @param finalizeDto - Finalize request with conclusion and idempotency key
+   * @param req - Request with user info
+   * @returns Updated proposal with new state
+   */
+  @Post(':proposalId/finalize')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Hoàn tất đánh giá hội đồng',
+    description: 'Thư ký hội đồng xem tất cả đánh giá và đưa ra kết luận cuối cùng. Đề tài sẽ chuyển sang APPROVED hoặc CHANGES_REQUESTED.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Council evaluation finalized successfully',
+    type: FinalizeCouncilEvaluationResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid state or secretary has not submitted',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user is not the secretary',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal or council not found',
+    type: ErrorResponseDto,
+  })
+  async finalizeCouncilEvaluation(
+    @Param('proposalId') proposalId: string,
+    @Body() finalizeDto: FinalizeCouncilEvaluationRequestDto,
+    @Req() req: RequestWithUser,
+  ): Promise<FinalizeCouncilEvaluationResponseDto> {
+    const result = await this.evaluationService.finalizeCouncilEvaluation(
+      proposalId,
+      req.user.id,
+      finalizeDto.finalConclusion,
+      finalizeDto.finalComments,
+      finalizeDto.idempotencyKey,
+    );
+
+    return {
+      success: true,
+      data: {
+        proposalId: result.proposal.id,
+        proposalState: result.proposal.state,
+        targetState: result.targetState,
+        finalizedAt: new Date(),
       },
     };
   }

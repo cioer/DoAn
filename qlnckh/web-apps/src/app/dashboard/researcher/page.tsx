@@ -114,7 +114,7 @@ const getDeadlineColor = (days: number): string => {
 };
 
 /**
- * Stat Card Component with hover effect
+ * Stat Card Component with hover effect and click navigation
  */
 function StatCard({
   icon: Icon,
@@ -123,6 +123,7 @@ function StatCard({
   color,
   trend,
   delay = 0,
+  onClick,
 }: {
   icon: typeof FileText;
   label: string;
@@ -130,6 +131,7 @@ function StatCard({
   color: 'blue' | 'green' | 'amber' | 'red' | 'purple';
   trend?: { value: number; isPositive: boolean };
   delay?: number;
+  onClick?: () => void;
 }) {
   const colorClasses = {
     blue: 'bg-blue-500 text-white',
@@ -140,16 +142,17 @@ function StatCard({
   };
 
   const bgClasses = {
-    blue: 'hover:border-blue-200',
-    green: 'hover:border-emerald-200',
-    amber: 'hover:border-amber-200',
-    red: 'hover:border-red-200',
-    purple: 'hover:border-purple-200',
+    blue: 'hover:border-blue-200 cursor-pointer',
+    green: 'hover:border-emerald-200 cursor-pointer',
+    amber: 'hover:border-amber-200 cursor-pointer',
+    red: 'hover:border-red-200 cursor-pointer',
+    purple: 'hover:border-purple-200 cursor-pointer',
   };
 
   return (
     <div
-      className={`group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-300 ${bgClasses[color]} hover:shadow-lg`}
+      onClick={onClick}
+      className={`group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-300 ${bgClasses[color]} hover:shadow-lg hover:-translate-y-1`}
       style={{ animation: `fadeSlideIn 0.5s ease-out ${delay}ms both` }}
     >
       {/* Decorative gradient */}
@@ -478,6 +481,7 @@ export default function ResearcherDashboardPage() {
             value={stats.total}
             color="blue"
             delay={100}
+            onClick={() => navigate('/proposals')}
           />
           <StatCard
             icon={Clock}
@@ -485,6 +489,7 @@ export default function ResearcherDashboardPage() {
             value={stats.underReview}
             color="amber"
             delay={200}
+            onClick={() => navigate('/proposals?state=FACULTY_REVIEW,SCHOOL_SELECTION_REVIEW,OUTLINE_COUNCIL_REVIEW,SCHOOL_ACCEPTANCE_REVIEW')}
           />
           <StatCard
             icon={CheckCircle2}
@@ -492,6 +497,7 @@ export default function ResearcherDashboardPage() {
             value={stats.approved}
             color="green"
             delay={300}
+            onClick={() => navigate('/proposals?state=APPROVED,IN_PROGRESS,COMPLETED,HANDOVER')}
           />
           <StatCard
             icon={Edit}
@@ -499,6 +505,7 @@ export default function ResearcherDashboardPage() {
             value={stats.draft}
             color="purple"
             delay={400}
+            onClick={() => navigate('/proposals?state=DRAFT')}
           />
           <StatCard
             icon={AlertCircle}
@@ -506,6 +513,7 @@ export default function ResearcherDashboardPage() {
             value={stats.changesRequested}
             color="amber"
             delay={500}
+            onClick={() => navigate('/proposals?state=CHANGES_REQUESTED')}
           />
           <StatCard
             icon={TrendingUp}
@@ -513,6 +521,7 @@ export default function ResearcherDashboardPage() {
             value={stats.rejected}
             color="red"
             delay={600}
+            onClick={() => navigate('/proposals?state=REJECTED')}
           />
         </div>
 

@@ -24,7 +24,7 @@ export class ProposalsValidationService {
    * Access rules:
    * - Owner: Full access (view + edit)
    * - Same faculty users: Read-only access (for viewing/reviewing)
-   * - ADMIN/PHONG_KHCN: Read-only access to all proposals
+   * - ADMIN/PHONG_KHCN/BAN_GIAM_HOC/BGH: Read-only access to all proposals
    */
   async validateAccess(
     proposalId: string,
@@ -58,8 +58,8 @@ export class ProposalsValidationService {
       return;
     }
 
-    // ADMIN and PHONG_KHCN can access all proposals
-    if (user?.role === 'ADMIN' || user?.role === 'PHONG_KHCN') {
+    // ADMIN, PHONG_KHCN, BAN_GIAM_HOC, BGH can access all proposals
+    if (user?.role === 'ADMIN' || user?.role === 'PHONG_KHCN' || user?.role === 'BAN_GIAM_HOC' || user?.role === 'BGH') {
       return;
     }
 

@@ -20,7 +20,7 @@ export class ProposalsQueryService {
     filters: {
       skip?: number;
       take?: number;
-      state?: ProjectState;
+      state?: ProjectState | ProjectState[];
       includeDeleted?: boolean;
     } = {},
   ) {
@@ -29,7 +29,7 @@ export class ProposalsQueryService {
     const where: any = { facultyId };
 
     if (state) {
-      where.state = state;
+      where.state = Array.isArray(state) ? { in: state } : state;
     }
 
     if (!includeDeleted) {
@@ -84,7 +84,7 @@ export class ProposalsQueryService {
    * Get proposals by state
    */
   async getByState(
-    state: ProjectState,
+    state: ProjectState | ProjectState[],
     filters: {
       skip?: number;
       take?: number;
@@ -93,7 +93,9 @@ export class ProposalsQueryService {
   ) {
     const { skip = 0, take = 20, facultyId } = filters;
 
-    const where: any = { state, deletedAt: null };
+    const where: any = { deletedAt: null };
+    // Handle both single state and array of states
+    where.state = Array.isArray(state) ? { in: state } : state;
 
     if (facultyId) {
       where.facultyId = facultyId;
@@ -133,7 +135,7 @@ export class ProposalsQueryService {
     filters: {
       skip?: number;
       take?: number;
-      state?: ProjectState;
+      state?: ProjectState | ProjectState[];
     } = {},
   ) {
     const { skip = 0, take = 20, state } = filters;
@@ -141,7 +143,7 @@ export class ProposalsQueryService {
     const where: any = { ownerId, deletedAt: null };
 
     if (state) {
-      where.state = state;
+      where.state = Array.isArray(state) ? { in: state } : state;
     }
 
     const [proposals, total] = await Promise.all([
@@ -177,7 +179,7 @@ export class ProposalsQueryService {
     skip?: number;
     take?: number;
     facultyId?: string;
-    state?: ProjectState;
+    state?: ProjectState | ProjectState[];
   } = {}) {
     const { skip = 0, take = 20, facultyId, state } = filters;
 
@@ -194,7 +196,8 @@ export class ProposalsQueryService {
     }
 
     if (state) {
-      where.state = state;
+      // Handle both single state and array of states
+      where.state = Array.isArray(state) ? { in: state } : state;
     }
 
     const [proposals, total] = await Promise.all([
@@ -296,7 +299,7 @@ export class ProposalsQueryService {
   async getReviewQueue(filters: {
     holderUnit?: string;
     holderUser?: string;
-    state?: ProjectState;
+    state?: ProjectState | ProjectState[];
     skip?: number;
     take?: number;
   } = {}) {
@@ -313,7 +316,7 @@ export class ProposalsQueryService {
     }
 
     if (state) {
-      where.state = state;
+      where.state = Array.isArray(state) ? { in: state } : state;
     }
 
     const [proposals, total] = await Promise.all([

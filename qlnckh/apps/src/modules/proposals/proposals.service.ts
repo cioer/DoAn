@@ -266,7 +266,7 @@ export class ProposalsService {
     take?: number;
     facultyId?: string;
     ownerId?: string;
-    state?: ProjectState;
+    state?: ProjectState | ProjectState[];
     search?: string;
     startDate?: Date;
     endDate?: Date;

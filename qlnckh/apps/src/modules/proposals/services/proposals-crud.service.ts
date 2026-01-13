@@ -102,6 +102,7 @@ export class ProposalsCrudService {
 
   /**
    * Find proposal by ID
+   * Includes holder user information when available
    */
   async findById(id: string) {
     const proposal = await this.prisma.proposal.findUnique({
@@ -118,7 +119,25 @@ export class ProposalsCrudService {
       throw new NotFoundException(`Proposal with ID ${id} not found`);
     }
 
-    return proposal;
+    // Fetch holder user information if holderUser is set
+    let holderUserInfo = null;
+    if (proposal.holderUser) {
+      holderUserInfo = await this.prisma.user.findUnique({
+        where: { id: proposal.holderUser },
+        select: {
+          id: true,
+          displayName: true,
+          email: true,
+          role: true,
+        },
+      });
+    }
+
+    // Return proposal with holder user info
+    return {
+      ...proposal,
+      holderUserInfo,
+    };
   }
 
   /**

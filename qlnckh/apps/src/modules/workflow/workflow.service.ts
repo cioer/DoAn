@@ -273,6 +273,297 @@ export class WorkflowService {
   }
 
   /**
+   * Start Project (APPROVED → IN_PROGRESS)
+   * GIANG_VIEN Feature: Start implementation of approved proposal
+   *
+   * When owner starts:
+   * - State transitions APPROVED → IN_PROGRESS
+   * - holder_unit = owner_faculty_id (faculty of the owner)
+   * - holder_user = owner_id (the researcher)
+   * - workflow_logs entry with action=START_PROJECT
+   *
+   * Uses extracted services:
+   * - IdempotencyService for atomic idempotency
+   * - WorkflowValidatorService for validation
+   * - HolderAssignmentService for holder calculation
+   * - TransactionService for transaction orchestration
+   * - AuditHelperService for audit logging with retry
+   *
+   * @param proposalId - Proposal ID
+   * @param context - Transition context
+   * @returns Transition result
+   */
+  async startProject(
+    proposalId: string,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    const toState = ProjectState.IN_PROGRESS;
+    const action = WorkflowAction.START_PROJECT;
+
+    // Use IdempotencyService for atomic idempotency check
+    const idempotencyResult = await this.idempotency.setIfAbsent(
+      context.idempotencyKey || `start-project-${proposalId}`,
+      async () => {
+        // Get proposal
+        const proposal = await this.prisma.proposal.findUnique({
+          where: { id: proposalId },
+          include: { owner: true, faculty: true },
+        });
+
+        if (!proposal) {
+          throw new NotFoundException('Đề tài không tồn tại');
+        }
+
+        // Use WorkflowValidatorService for validation
+        await this.validator.validateTransition(
+          proposalId,
+          toState,
+          action,
+          {
+            proposal,
+            user: {
+              id: context.userId,
+              role: context.userRole,
+              facultyId: context.userFacultyId,
+            },
+          },
+        );
+
+        // Calculate holder using HolderAssignmentService
+        const holder = this.holder.getHolderForState(
+          toState,
+          proposal,
+          context.userId,
+          context.userFacultyId,
+        );
+
+        // Get user display name for audit log
+        const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+        // Calculate SLA dates (no deadline for IN_PROGRESS - ongoing work)
+        const slaStartDate = new Date();
+        const slaDeadline = null; // No deadline during implementation
+
+        // Use TransactionService for transaction orchestration
+        const result = await this.transaction.updateProposalWithLog({
+          proposalId,
+          userId: context.userId,
+          userDisplayName: actorDisplayName,
+          action,
+          fromState: proposal.state,
+          toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+          slaStartDate,
+          slaDeadline,
+        });
+
+        // Build transition result
+        const transitionResult: TransitionResult = {
+          proposal: result.proposal,
+          workflowLog: result.workflowLog,
+          previousState: proposal.state,
+          currentState: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        };
+
+        // Use AuditHelperService for audit logging with retry (fire-and-forget)
+        // This runs outside the transaction and won't block the response
+        this.auditHelper
+          .logWorkflowTransition(
+            {
+              proposalId,
+              proposalCode: proposal.code,
+              fromState: proposal.state,
+              toState,
+              action: 'START_PROJECT',
+              holderUnit: holder.holderUnit,
+              holderUser: holder.holderUser,
+              slaStartDate,
+              slaDeadline,
+            },
+            {
+              userId: context.userId,
+              userDisplayName: actorDisplayName,
+              ip: context.ip,
+              userAgent: context.userAgent,
+              requestId: context.requestId,
+              facultyId: context.userFacultyId,
+              role: context.userRole,
+            },
+          )
+          .catch((err) => {
+            this.logger.error(
+              `Audit log failed for proposal ${proposal.code}: ${err.message}`,
+            );
+            // Could send to dead letter queue here
+          });
+
+        this.logger.log(
+          `Proposal ${proposal.code} started: ${proposal.state} → ${toState}`,
+        );
+
+        return transitionResult;
+      },
+    );
+
+    // Return the unwrapped result
+    return idempotencyResult.data;
+  }
+
+  /**
+   * Submit Acceptance (IN_PROGRESS → FACULTY_ACCEPTANCE_REVIEW)
+   * GIANG_VIEN Feature: Submit project for faculty acceptance review
+   *
+   * When owner submits for acceptance:
+   * - State transitions IN_PROGRESS → FACULTY_ACCEPTANCE_REVIEW
+   * - holder_unit = owner_faculty_id (faculty of the owner)
+   * - holder_user = null (faculty QA will review)
+   * - workflow_logs entry with action=SUBMIT_ACCEPTANCE
+   *
+   * Uses extracted services:
+   * - IdempotencyService for atomic idempotency
+   * - WorkflowValidatorService for validation
+   * - HolderAssignmentService for holder calculation
+   * - TransactionService for transaction orchestration
+   * - AuditHelperService for audit logging with retry
+   *
+   * @param proposalId - Proposal ID
+   * @param context - Transition context
+   * @returns Transition result
+   */
+  async submitAcceptance(
+    proposalId: string,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    const toState = ProjectState.FACULTY_ACCEPTANCE_REVIEW;
+    const action = WorkflowAction.SUBMIT_ACCEPTANCE;
+
+    // Use IdempotencyService for atomic idempotency check
+    const idempotencyResult = await this.idempotency.setIfAbsent(
+      context.idempotencyKey || `submit-acceptance-${proposalId}`,
+      async () => {
+        // Get proposal
+        const proposal = await this.prisma.proposal.findUnique({
+          where: { id: proposalId },
+          include: { owner: true, faculty: true },
+        });
+
+        if (!proposal) {
+          throw new NotFoundException('Đề tài không tồn tại');
+        }
+
+        // Use WorkflowValidatorService for validation
+        await this.validator.validateTransition(
+          proposalId,
+          toState,
+          action,
+          {
+            proposal,
+            user: {
+              id: context.userId,
+              role: context.userRole,
+              facultyId: context.userFacultyId,
+            },
+          },
+        );
+
+        // Calculate holder using HolderAssignmentService
+        const holder = this.holder.getHolderForState(
+          toState,
+          proposal,
+          context.userId,
+          context.userFacultyId,
+        );
+
+        // Get user display name for audit log
+        const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+        // Calculate SLA dates (3 business days for faculty acceptance review)
+        const slaStartDate = new Date();
+        const slaDeadline = await this.slaService.calculateDeadlineWithCutoff(
+          slaStartDate,
+          3, // 3 business days for faculty acceptance
+          17, // 17:00 cutoff hour (5 PM)
+        );
+
+        // Set actualStartDate if not already set (the project was started)
+        const updateData: any = {};
+        if (!proposal.actualStartDate) {
+          updateData.actualStartDate = new Date();
+        }
+
+        // Use TransactionService for transaction orchestration
+        const result = await this.transaction.updateProposalWithLog({
+          proposalId,
+          userId: context.userId,
+          userDisplayName: actorDisplayName,
+          action,
+          fromState: proposal.state,
+          toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+          slaStartDate,
+          slaDeadline,
+          updateData,
+        });
+
+        // Build transition result
+        const transitionResult: TransitionResult = {
+          proposal: result.proposal,
+          workflowLog: result.workflowLog,
+          previousState: proposal.state,
+          currentState: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        };
+
+        // Use AuditHelperService for audit logging with retry (fire-and-forget)
+        // This runs outside the transaction and won't block the response
+        this.auditHelper
+          .logWorkflowTransition(
+            {
+              proposalId,
+              proposalCode: proposal.code,
+              fromState: proposal.state,
+              toState,
+              action: 'SUBMIT_ACCEPTANCE',
+              holderUnit: holder.holderUnit,
+              holderUser: holder.holderUser,
+              slaStartDate,
+              slaDeadline,
+            },
+            {
+              userId: context.userId,
+              userDisplayName: actorDisplayName,
+              ip: context.ip,
+              userAgent: context.userAgent,
+              requestId: context.requestId,
+              facultyId: context.userFacultyId,
+              role: context.userRole,
+            },
+          )
+          .catch((err) => {
+            this.logger.error(
+              `Audit log failed for proposal ${proposal.code}: ${err.message}`,
+            );
+            // Could send to dead letter queue here
+          });
+
+        this.logger.log(
+          `Proposal ${proposal.code} submitted for acceptance: ${proposal.state} → ${toState}`,
+        );
+
+        return transitionResult;
+      },
+    );
+
+    // Return the unwrapped result
+    return idempotencyResult.data;
+  }
+
+  /**
    * Approve Faculty Review (FACULTY_REVIEW → SCHOOL_SELECTION_REVIEW)
    * Task 5: Implement faculty approve
    *

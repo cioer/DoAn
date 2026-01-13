@@ -20,6 +20,8 @@ import {
   DashboardResponseDto,
   BulkRemindOverdueResultDto,
 } from './dto/dashboard.dto';
+import { CouncilDashboardResponseDto } from './dto/council-dashboard.dto';
+import { BghDashboardResponseDto } from './dto/bgh-dashboard.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequireRoles } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -438,6 +440,166 @@ export class DashboardController {
     }
 
     const data = await this.dashboardService.getFacultyDashboardData(user.facultyId);
+
+    return {
+      success: true,
+      data,
+    };
+  }
+
+  /**
+   * GET /api/dashboard/council
+   * Council Member Dashboard for HOI_DONG and THU_KY_HOI_DONG
+   * Returns proposals assigned to council for evaluation
+   */
+  @Get('council')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.HOI_DONG, UserRole.THU_KY_HOI_DONG)
+  @RequirePermissions(Permission.DASHBOARD_VIEW)
+  @ApiOperation({
+    summary: 'Lấy dữ liệu dashboard thành viên hội đồng',
+    description:
+      'Trả về thống kê đề tài cần đánh giá, đề tài đã đánh giá và thông tin hội đồng. ' +
+      'Dành cho thành viên hội đồng và thư ký hội đồng.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Council dashboard data retrieved successfully',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          kpi: {
+            pendingEvaluation: 3,
+            evaluated: 5,
+            totalAssigned: 8,
+            pendingFinalize: 2,
+          },
+          pendingProposals: [
+            {
+              id: 'uuid-1',
+              code: 'DT-2024-001',
+              title: 'Nghiên cứu AI',
+              state: 'OUTLINE_COUNCIL_REVIEW',
+              ownerId: 'owner-uuid',
+              ownerName: 'Nguyễn Văn A',
+              createdAt: '2024-01-01T00:00:00.000Z',
+              slaDeadline: '2024-01-10T00:00:00.000Z',
+              hasSubmitted: false,
+            },
+          ],
+          submittedEvaluations: [
+            {
+              id: 'eval-uuid-1',
+              proposalId: 'uuid-2',
+              proposalCode: 'DT-2024-002',
+              proposalTitle: 'Nghiên cứu Blockchain',
+              state: 'FINALIZED',
+              conclusion: 'DAT',
+              averageScore: 4.2,
+              updatedAt: '2024-01-05T00:00:00.000Z',
+            },
+          ],
+          council: {
+            id: 'council-uuid',
+            name: 'Hội đồng Khoa học Công nghệ',
+            memberCount: 5,
+            isSecretary: false,
+          },
+          lastUpdated: '2024-01-07T10:00:00.000Z',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user lacks required role or permission',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'INSUFFICIENT_PERMISSIONS',
+          message: 'Bạn không có quyền thực hiện thao tác này',
+        },
+      },
+    },
+  })
+  async getCouncilDashboard(@CurrentUser() user: RequestUser): Promise<CouncilDashboardResponseDto> {
+    const data = await this.dashboardService.getCouncilDashboardData(user.id, user.role);
+
+    return {
+      success: true,
+      data,
+    };
+  }
+
+  /**
+   * GET /api/dashboard/bgh
+   * BAN_GIAM_HOC (Hiệu trưởng) Dashboard
+   * Returns proposals in SCHOOL_ACCEPTANCE_REVIEW for final school acceptance
+   */
+  @Get('bgh')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.BAN_GIAM_HOC, UserRole.BGH)
+  @RequirePermissions(Permission.DASHBOARD_VIEW)
+  @ApiOperation({
+    summary: 'Lấy dữ liệu dashboard Hiệu trưởng',
+    description:
+      'Trả về KPI và danh sách đề tài chờ nghiệm thu cấp trường. ' +
+      'Dành cho Ban Giám học/Hiệu trưởng.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'BAN_GIAM_HOC dashboard data retrieved successfully',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          kpi: {
+            pendingAcceptance: 5,
+            approved: 20,
+            returned: 3,
+            totalPending: 5,
+          },
+          pendingProposals: [
+            {
+              id: 'uuid-1',
+              code: 'DT-2024-001',
+              title: 'Nghiên cứu AI',
+              state: 'SCHOOL_ACCEPTANCE_REVIEW',
+              ownerName: 'Nguyễn Văn A',
+              ownerEmail: 'nguyenvan@example.com',
+              facultyName: 'Khoa CNTT',
+              slaDeadline: '2024-01-15T00:00:00.000Z',
+              daysRemaining: 3,
+              isOverdue: false,
+              submittedDate: '2024-01-10T00:00:00.000Z',
+              facultyDecision: 'DAT',
+              createdAt: '2024-01-01T00:00:00.000Z',
+            },
+          ],
+          recentlyApproved: [],
+          returnedProposals: [],
+          lastUpdated: '2024-01-12T10:00:00.000Z',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user lacks required role or permission',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'INSUFFICIENT_PERMISSIONS',
+          message: 'Bạn không có quyền thực hiện thao tác này',
+        },
+      },
+    },
+  })
+  async getBghDashboard(@CurrentUser() user: RequestUser): Promise<BghDashboardResponseDto> {
+    const data = await this.dashboardService.getBghDashboardData();
 
     return {
       success: true,

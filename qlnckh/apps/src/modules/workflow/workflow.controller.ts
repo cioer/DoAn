@@ -66,6 +66,8 @@ import {
   ReturnCouncilReviewDto,
   AcceptSchoolReviewDto,
   ReturnSchoolReviewDto,
+  StartProjectDto,
+  SubmitAcceptanceDto,
 } from './dto/transition.dto';
 
 /**
@@ -567,6 +569,284 @@ export class WorkflowController {
         previousState: result.previousState,
         currentState: result.currentState,
         action: 'SUBMIT',
+        holderUnit: result.holderUnit,
+        holderUser: result.holderUser,
+        workflowLogId: result.workflowLog.id,
+      },
+    };
+  }
+
+  /**
+   * POST /api/workflow/:proposalId/start-project
+   * GIANG_VIEN Feature: Start Project Implementation
+   *
+   * Starts implementation of an approved proposal, transitioning it from
+   * APPROVED to IN_PROGRESS. Only GIANG_VIEN (proposal owner) or PHONG_KHCN
+   * can perform this action.
+   *
+   * When owner starts:
+   * - State transitions APPROVED → IN_PROGRESS
+   * - holder_unit = owner_faculty_id (faculty of the owner)
+   * - holder_user = owner_id (the researcher)
+   * - workflow_logs entry with action=START_PROJECT
+   */
+  @Post(':proposalId/start-project')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.GIANG_VIEN, UserRole.PHONG_KHCN)
+  @ApiOperation({
+    summary: 'Bắt đầu thực hiện đề tài',
+    description:
+      'Chuyển đề tài từ trạng thái APPROVED sang IN_PROGRESS để bắt đầu thực hiện. Chỉ GIANG_VIEN (chủ đề tài) hoặc PHONG_KHCN mới có thể bắt đầu.',
+  })
+  @ApiParam({
+    name: 'proposalId',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Đề tài được bắt đầu thực hiện thành công',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          proposalId: 'proposal-uuid',
+          previousState: 'APPROVED',
+          currentState: 'IN_PROGRESS',
+          action: 'START_PROJECT',
+          holderUnit: 'faculty-id',
+          holderUser: 'user-id',
+          workflowLogId: 'log-uuid',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - proposal not in APPROVED state',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_APPROVED',
+          message: 'Chỉ có thể bắt đầu thực hiện đề tài ở trạng thái APPROVED',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user not owner or lacks required role',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Bạn không có quyền bắt đầu thực hiện đề tài này',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Không tìm thấy đề tài',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflict - duplicate idempotency key',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'ALREADY_PROCESSED',
+          message: 'Yêu cầu đã được xử lý',
+        },
+      },
+    },
+  })
+  async startProject(
+    @Param('proposalId') proposalId: string,
+    @Body() dto: StartProjectDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+  ): Promise<
+    | TransitionResponseDto
+    | {
+        success: false;
+        error: { code: string; message: string; details?: Record<string, unknown> };
+      }
+  > {
+    const context = {
+      userId: user.id,
+      userRole: user.role,
+      userFacultyId: user.facultyId,
+      idempotencyKey: dto.idempotencyKey,
+      ip,
+      userAgent,
+      requestId: `start-project-${proposalId}-${Date.now()}`,
+    };
+
+    const result = await this.workflowService.startProject(
+      proposalId,
+      context,
+    );
+
+    return {
+      success: true,
+      data: {
+        proposalId: result.proposal.id,
+        previousState: result.previousState,
+        currentState: result.currentState,
+        action: 'START_PROJECT',
+        holderUnit: result.holderUnit,
+        holderUser: result.holderUser,
+        workflowLogId: result.workflowLog.id,
+      },
+    };
+  }
+
+  /**
+   * POST /api/workflow/:proposalId/submit-acceptance
+   * GIANG_VIEN Feature: Submit Project for Acceptance Review
+   *
+   * Submits an in-progress proposal for faculty acceptance review,
+   * transitioning it from IN_PROGRESS to FACULTY_ACCEPTANCE_REVIEW.
+   * Only GIANG_VIEN (proposal owner) can perform this action.
+   *
+   * When owner submits:
+   * - State transitions IN_PROGRESS → FACULTY_ACCEPTANCE_REVIEW
+   * - holder_unit = owner_faculty_id (faculty of the owner)
+   * - holder_user = null (faculty QA will review)
+   * - workflow_logs entry with action=SUBMIT_ACCEPTANCE
+   */
+  @Post(':proposalId/submit-acceptance')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.GIANG_VIEN)
+  @ApiOperation({
+    summary: 'Nộp nghiệm thu đề tài',
+    description:
+      'Chuyển đề tài từ trạng thái IN_PROGRESS sang FACULTY_ACCEPTANCE_REVIEW để nghiệm thu. Chỉ GIANG_VIEN (chủ đề tài) mới có thể nộp.',
+  })
+  @ApiParam({
+    name: 'proposalId',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Đề tài được nộp nghiệm thu thành công',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          proposalId: 'proposal-uuid',
+          previousState: 'IN_PROGRESS',
+          currentState: 'FACULTY_ACCEPTANCE_REVIEW',
+          action: 'SUBMIT_ACCEPTANCE',
+          holderUnit: 'faculty-id',
+          holderUser: null,
+          workflowLogId: 'log-uuid',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - proposal not in IN_PROGRESS state',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_IN_PROGRESS',
+          message: 'Chỉ có thể nộp nghiệm thu đề tài ở trạng thái IN_PROGRESS',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user not owner or lacks required role',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Bạn không có quyền nộp nghiệm thu đề tài này',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Không tìm thấy đề tài',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflict - duplicate idempotency key',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'ALREADY_PROCESSED',
+          message: 'Yêu cầu đã được xử lý',
+        },
+      },
+    },
+  })
+  async submitAcceptance(
+    @Param('proposalId') proposalId: string,
+    @Body() dto: SubmitAcceptanceDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+  ): Promise<
+    | TransitionResponseDto
+    | {
+        success: false;
+        error: { code: string; message: string; details?: Record<string, unknown> };
+      }
+  > {
+    const context = {
+      userId: user.id,
+      userRole: user.role,
+      userFacultyId: user.facultyId,
+      idempotencyKey: dto.idempotencyKey,
+      ip,
+      userAgent,
+      requestId: `submit-acceptance-${proposalId}-${Date.now()}`,
+    };
+
+    const result = await this.workflowService.submitAcceptance(
+      proposalId,
+      context,
+    );
+
+    return {
+      success: true,
+      data: {
+        proposalId: result.proposal.id,
+        previousState: result.previousState,
+        currentState: result.currentState,
+        action: 'SUBMIT_ACCEPTANCE',
         holderUnit: result.holderUnit,
         holderUser: result.holderUser,
         workflowLogId: result.workflowLog.id,

@@ -37,6 +37,7 @@ export interface EvaluationFormProps {
   currentUserId: string; // From auth context
   currentUserRole: string; // From auth context
   isSecretary: boolean; // Derived from role = THU_KY_HOI_DONG
+  isCouncilMember: boolean; // Multi-member: Check if user is HOI_DONG or THU_KY_HOI_DONG
   onSubmitComplete?: () => void; // Callback for Story 5.4
 }
 
@@ -126,6 +127,7 @@ export function EvaluationForm({
   currentUserId,
   currentUserRole,
   isSecretary,
+  isCouncilMember,
   onSubmitComplete,
 }: EvaluationFormProps) {
   // Form state
@@ -152,12 +154,12 @@ export function EvaluationForm({
   const pendingDataRef = useRef<EvaluationFormData | null>(null);
 
   /**
-   * Check if current user can evaluate (Story 5.3: AC1)
-   * - User must be THU_KY_HOI_DONG
+   * Check if current user can evaluate (Story 5.3: AC1, Multi-member)
+   * - User must be a council member (HOI_DONG or THU_KY_HOI_DONG)
    * - Proposal state must be OUTLINE_COUNCIL_REVIEW
-   * - holder_user must equal current user
+   * - User must be assigned to the proposal's council
    */
-  const canEvaluate = isSecretary && currentState === 'OUTLINE_COUNCIL_REVIEW' && holderUser === currentUserId;
+  const canEvaluate = isCouncilMember && currentState === 'OUTLINE_COUNCIL_REVIEW';
 
   /**
    * Load evaluation on mount (Story 5.3: AC1)
@@ -409,9 +411,9 @@ export function EvaluationForm({
               Không thể đánh giá
             </h3>
             <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-300">
-              {isSecretary
-                ? 'Đề tài chưa được phân bổ cho bạn đánh giá.'
-                : 'Chỉ Thư ký Hội đồng được phân công mới có thể đánh giá đề tài này.'}
+              {isCouncilMember
+                ? 'Đề tài không ở trạng thái chờ đánh giá của hội đồng.'
+                : 'Chỉ thành viên hội đồng mới có thể đánh giá đề tài này.'}
             </p>
           </div>
         </div>
@@ -616,4 +618,12 @@ export function EvaluationForm({
  */
 export const isCouncilSecretary = (role: string): boolean => {
   return role === 'THU_KY_HOI_DONG';
+};
+
+/**
+ * Check if user is a council member (includes both secretary and general members)
+ * Multi-member Evaluation: Allow HOI_DONG role to evaluate
+ */
+export const isCouncilMember = (role: string): boolean => {
+  return role === 'THU_KY_HOI_DONG' || role === 'HOI_DONG';
 };

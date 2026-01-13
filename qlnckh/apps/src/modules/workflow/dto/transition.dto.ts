@@ -361,3 +361,47 @@ export class ReturnSchoolReviewDto {
   @IsUUID()
   idempotencyKey?: string;
 }
+
+/**
+ * Start Project DTO (GIANG_VIEN)
+ * Specific DTO for starting project implementation
+ * (APPROVED → IN_PROGRESS)
+ */
+export class StartProjectDto {
+  @ApiProperty({
+    description: 'ID của đề tài cần bắt đầu thực hiện',
+    example: 'uuid-v4',
+  })
+  @IsUUID()
+  proposalId: string;
+
+  @ApiPropertyOptional({
+    description: 'Idempotency key để tránh double-submit',
+    example: 'uuid-v4',
+  })
+  @IsOptional()
+  @IsUUID()
+  idempotencyKey?: string;
+}
+
+/**
+ * Submit Acceptance DTO (GIANG_VIEN)
+ * Specific DTO for submitting project for acceptance review
+ * (IN_PROGRESS → FACULTY_ACCEPTANCE_REVIEW)
+ */
+export class SubmitAcceptanceDto {
+  @ApiProperty({
+    description: 'ID của đề tài cần nộp nghiệm thu',
+    example: 'uuid-v4',
+  })
+  @IsUUID()
+  proposalId: string;
+
+  @ApiPropertyOptional({
+    description: 'Idempotency key để tránh double-submit',
+    example: 'uuid-v4',
+  })
+  @IsOptional()
+  @IsUUID()
+  idempotencyKey?: string;
+}

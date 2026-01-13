@@ -16,7 +16,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, AlertCircle, FileText, RotateCcw } from 'lucide-react';
-import { EvaluationForm, isCouncilSecretary, EvaluationResultsViewer } from '../../../components/evaluation/index';
+import { EvaluationForm, isCouncilSecretary, isCouncilMember, EvaluationResultsViewer } from '../../../components/evaluation/index';
+import { CouncilFinalizationSection } from '../../../components/evaluation/CouncilFinalizationSection';
 import { ProposalExportButton } from '../../../components/proposals/index';
 import {
   ProposalActions,
@@ -112,24 +113,18 @@ export default function ProposalDetailPage() {
   }, [id]);
 
   /**
-   * Load attachments when proposal is loaded
-   */
-  useEffect(() => {
-    if (proposal) {
-      void loadAttachments();
-      // Load evaluation if proposal has been evaluated (GIANG_VIEN Feature)
-      if (['APPROVED', 'REJECTED', 'CHANGES_REQUESTED'].includes(proposal.state)) {
-        void loadEvaluation();
-      }
-    }
-  }, [proposal]);
-
-  /**
    * Load evaluation results (GIANG_VIEN Feature)
    * Only available for finalized evaluations
+   * Only calls API if proposal is in a state that supports evaluations
    */
   const loadEvaluation = useCallback(async () => {
-    if (!id) return;
+    if (!id || !proposal) return;
+
+    // Only load evaluation for proposals in council review states
+    const councilReviewStates = ['OUTLINE_COUNCIL_REVIEW', 'COUNCIL_REVIEW', 'APPROVED', 'CHANGES_REQUESTED'];
+    if (!councilReviewStates.includes(proposal.state)) {
+      return;
+    }
 
     setIsLoadingEvaluation(true);
     try {
@@ -144,7 +139,21 @@ export default function ProposalDetailPage() {
     } finally {
       setIsLoadingEvaluation(false);
     }
-  }, [id]);
+  }, [id, proposal]);
+
+  /**
+   * Load attachments and evaluation when proposal is loaded
+   */
+  useEffect(() => {
+    if (proposal) {
+      void loadAttachments();
+      // Load evaluation if proposal is in a state that may have evaluations (GIANG_VIEN Feature)
+      const councilReviewStates = ['OUTLINE_COUNCIL_REVIEW', 'COUNCIL_REVIEW', 'APPROVED', 'CHANGES_REQUESTED'];
+      if (councilReviewStates.includes(proposal.state)) {
+        void loadEvaluation();
+      }
+    }
+  }, [proposal, loadAttachments, loadEvaluation]);
 
   /**
    * Handle upload success (Story 11.5)
@@ -208,18 +217,16 @@ export default function ProposalDetailPage() {
   }, []);
 
   /**
-   * Check if evaluation form should be shown (Story 5.3: AC1, AC5)
+   * Check if evaluation form should be shown (Story 5.3: AC1, AC5, Multi-member)
    * Conditions:
    * - Proposal state is OUTLINE_COUNCIL_REVIEW
-   * - Current currentUser is THU_KY_HOI_DONG
-   * - proposal.holder_currentUser equals current currentUser
+   * - Current currentUser is a council member (HOI_DONG or THU_KY_HOI_DONG)
    */
   const shouldShowEvaluationForm = Boolean(
     proposal &&
       currentUser &&
       proposal.state === 'OUTLINE_COUNCIL_REVIEW' &&
-      isCouncilSecretary(currentUser.role) &&
-      proposal.holderUser === currentUser.id,
+      isCouncilMember(currentUser.role),
   );
 
   /**
@@ -469,15 +476,15 @@ export default function ProposalDetailPage() {
               <div>
                 <dt className="text-gray-600 dark:text-gray-400">Người xử lý:</dt>
                 <dd className="font-medium text-gray-900 dark:text-gray-100">
-                  {proposal.holderUser}
+                  {proposal.holderUserInfo?.displayName || proposal.holderUser}
                 </dd>
               </div>
             )}
           </dl>
         </section>
 
-        {/* Evaluation Form (Story 5.3: AC5) */}
-        {/* Conditionally show when state = OUTLINE_COUNCIL_REVIEW and holder_currentUser = current currentUser */}
+        {/* Evaluation Form (Story 5.3: AC5, Multi-member) */}
+        {/* Conditionally show when state = OUTLINE_COUNCIL_REVIEW and user is council member */}
         {shouldShowEvaluationForm && (
           <section className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-900">
             <EvaluationForm
@@ -487,6 +494,25 @@ export default function ProposalDetailPage() {
               currentUserId={currentUser.id}
               currentUserRole={currentUser.role}
               isSecretary={isCouncilSecretary(currentUser.role)}
+              isCouncilMember={isCouncilMember(currentUser.role)}
+            />
+          </section>
+        )}
+
+        {/* Council Finalization Section (Multi-member Evaluation) */}
+        {/* Show for secretary to finalize after all members have submitted */}
+        {proposal && currentUser && proposal.state === 'OUTLINE_COUNCIL_REVIEW' && isCouncilSecretary(currentUser.role) && (
+          <section className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-900">
+            <CouncilFinalizationSection
+              proposalId={proposal.id}
+              proposalCode={proposal.code}
+              isSecretary={isCouncilSecretary(currentUser.role)}
+              onFinalized={() => {
+                // Reload proposal after finalization
+                if (id) {
+                  proposalsApi.getProposalById(id).then(setProposal).catch(() => {});
+                }
+              }}
             />
           </section>
         )}
@@ -516,9 +542,9 @@ export default function ProposalDetailPage() {
                   Phiếu đánh giá
                 </h3>
                 <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-300">
-                  {currentUser && isCouncilSecretary(currentUser.role)
+                  {currentUser && isCouncilMember(currentUser.role)
                     ? 'Đề tài này chưa được phân bổ cho bạn đánh giá.'
-                    : 'Chỉ Thư ký Hội đồng được phân công mới có thể đánh giá đề tài này.'}
+                    : 'Chỉ thành viên hội đồng mới có thể đánh giá đề tài này.'}
                 </p>
               </div>
             </div>

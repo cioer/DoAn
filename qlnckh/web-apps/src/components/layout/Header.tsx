@@ -24,9 +24,15 @@ export function Header() {
   const displayName = effectiveUser?.displayName || 'Người dùng';
 
   // Check navigation permissions
-  const canViewDashboard = effectiveUser?.role === 'PHONG_KHCN' || effectiveUser?.role === 'ADMIN';
-  // Researcher dashboard: only for non-PKHCN/ADMIN users who have the permission
-  const canViewResearcherDashboard = !canViewDashboard && hasPermission(Permission.DASHBOARD_VIEW);
+  const canViewDashboard = effectiveUser?.role === 'PHONG_KHCN' ||
+                          effectiveUser?.role === 'ADMIN' ||
+                          effectiveUser?.role === 'HOI_DONG' ||
+                          effectiveUser?.role === 'THU_KY_HOI_DONG';
+  // BAN_GIAM_HOC dashboard
+  const canViewBghDashboard = (effectiveUser?.role === 'BAN_GIAM_HOC' || effectiveUser?.role === 'BGH') &&
+                               hasPermission(Permission.DASHBOARD_VIEW);
+  // Researcher dashboard: only for GIANG_VIEN who have the permission
+  const canViewResearcherDashboard = effectiveUser?.role === 'GIANG_VIEN' && hasPermission(Permission.DASHBOARD_VIEW);
   const canViewFacultyDashboard = hasPermission(Permission.FACULTY_DASHBOARD_VIEW);
   const canViewCalendar = hasPermission(Permission.CALENDAR_MANAGE);
   const canViewBulkOps = effectiveUser?.role === 'PHONG_KHCN' || effectiveUser?.role === 'ADMIN';
@@ -79,6 +85,15 @@ export function Header() {
                   className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
                 >
                   Dashboard Khoa
+                </button>
+              )}
+
+              {canViewBghDashboard && (
+                <button
+                  onClick={() => navigate('/dashboard/bgh')}
+                  className="text-sm font-medium text-gray-700 hover:text-emerald-600 transition-colors flex items-center gap-1"
+                >
+                  <span>Dashboard Hiệu trưởng</span>
                 </button>
               )}
 

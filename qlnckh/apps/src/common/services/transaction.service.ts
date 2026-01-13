@@ -30,6 +30,7 @@ export interface TransactionContext {
   returnTargetHolderUnit?: string;
   comment?: string;
   metadata?: Record<string, any>;
+  updateData?: Record<string, any>; // Additional proposal fields to update
   ip?: string;
   userAgent?: string;
   requestId?: string;
@@ -153,7 +154,7 @@ export class TransactionService {
     context: TransactionContext,
   ): Promise<TransactionResult> {
     return this.executeWorkflowTransition(context, async (tx) => {
-      // Update proposal
+      // Update proposal with optional additional fields
       const proposal = await tx.proposal.update({
         where: { id: context.proposalId },
         data: {
@@ -162,6 +163,7 @@ export class TransactionService {
           holderUser: context.holderUser,
           slaStartDate: context.slaStartDate,
           slaDeadline: context.slaDeadline,
+          ...(context.updateData || {}), // Spread additional fields if provided
         },
       });
 

@@ -33,6 +33,7 @@ const ImportPage = lazy(() => import('./admin/import/page'));
 const DashboardPage = lazy(() => import('./dashboard/page'));
 const ResearcherDashboardPage = lazy(() => import('./dashboard/researcher/page'));
 const FacultyDashboardPage = lazy(() => import('./dashboard/faculty/page'));
+const BghDashboardPage = lazy(() => import('./dashboard/bgh/page'));
 const FacultyUsersPage = lazy(() => import('./dashboard/faculty/users/page'));
 const CalendarPage = lazy(() => import('./calendar/page'));
 const BulkOperationsPage = lazy(() => import('./bulk-operations/page'));
@@ -156,6 +157,7 @@ function RoleGuard({
  * Redirects users to appropriate dashboard based on their role:
  * - GIANG_VIEN → /dashboard/researcher (Lecturer dashboard)
  * - QUAN_LY_KHOA → /dashboard/faculty (Faculty dashboard)
+ * - HOI_DONG, THU_KY_HOI_DONG → /dashboard (Council member dashboard)
  * - Others (PHONG_KHCN, ADMIN) → /dashboard (Admin dashboard)
  */
 function DefaultLandingPage() {
@@ -175,7 +177,8 @@ function DefaultLandingPage() {
     return <Navigate to="/dashboard/faculty" replace />;
   }
 
-  // Admin/Department staff go to main dashboard
+  // Council members, Admin/Department staff go to main dashboard
+  // The dashboard page will detect role and load appropriate data
   return <Navigate to="/dashboard" replace />;
 }
 
@@ -207,16 +210,16 @@ export function App() {
           }
         />
 
-        {/* Dashboard - Story 11.2 (Admin/PHONG_KHCN) */}
+        {/* Dashboard - Story 11.2 (Admin/PHONG_KHCN/Council Members) */}
         <Route
           path="/dashboard"
           element={
             <AuthGuard>
-              <RoleGuard allowedRoles={[UserRole.PHONG_KHCN, UserRole.ADMIN]}>
+              <PermissionGuard permission={Permission.DASHBOARD_VIEW}>
                 <LazyRoute>
                   <DashboardPage />
                 </LazyRoute>
-              </RoleGuard>
+              </PermissionGuard>
             </AuthGuard>
           }
         />
@@ -244,6 +247,22 @@ export function App() {
                 <PermissionGuard permission={Permission.FACULTY_DASHBOARD_VIEW}>
                   <LazyRoute>
                     <FacultyDashboardPage />
+                  </LazyRoute>
+                </PermissionGuard>
+              </RoleGuard>
+            </AuthGuard>
+          }
+        />
+
+        {/* BAN_GIAM_HOC (Hiệu trưởng) Dashboard */}
+        <Route
+          path="/dashboard/bgh"
+          element={
+            <AuthGuard>
+              <RoleGuard allowedRoles={[UserRole.BAN_GIAM_HOC, UserRole.BGH]}>
+                <PermissionGuard permission={Permission.DASHBOARD_VIEW}>
+                  <LazyRoute>
+                    <BghDashboardPage />
                   </LazyRoute>
                 </PermissionGuard>
               </RoleGuard>

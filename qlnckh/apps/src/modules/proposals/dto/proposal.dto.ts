@@ -89,6 +89,14 @@ export class ProposalWithTemplateDto extends ProposalDto {
     code: string;
     name: string;
   } | null;
+
+  @ApiProperty({ description: 'Holder user details (person assigned to process)', required: false })
+  holderUserInfo?: {
+    id: string;
+    displayName: string;
+    email: string;
+    role: string;
+  } | null;
 }
 
 /**

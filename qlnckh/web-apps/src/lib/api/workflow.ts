@@ -405,6 +405,68 @@ export const workflowApi = {
   },
 
   /**
+   * Start Project (APPROVED → IN_PROGRESS)
+   * GIANG_VIEN Feature: Start implementation of approved proposal
+   *
+   * @param proposalId - Proposal ID to start
+   * @param idempotencyKey - UUID v4 idempotency key
+   * @returns Transition result with proposal state and workflow log
+   * @throws 400 if proposal not in APPROVED state
+   * @throws 403 if user lacks GIANG_VIEN role (must be owner)
+   * @throws 404 if proposal not found
+   * @throws 409 if idempotency key was already used
+   */
+  startProject: async (
+    proposalId: string,
+    idempotencyKey: string,
+  ): Promise<TransitionResult> => {
+    const response = await apiClient.post<{ success: true; data: TransitionResult }>(
+      `/workflow/${proposalId}/start-project`,
+      {
+        proposalId,
+        idempotencyKey,
+      },
+      {
+        headers: {
+          'X-Idempotency-Key': idempotencyKey,
+        },
+      },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Submit Acceptance (IN_PROGRESS → FACULTY_ACCEPTANCE_REVIEW)
+   * GIANG_VIEN Feature: Submit project for faculty acceptance review
+   *
+   * @param proposalId - Proposal ID to submit
+   * @param idempotencyKey - UUID v4 idempotency key
+   * @returns Transition result with proposal state and workflow log
+   * @throws 400 if proposal not in IN_PROGRESS state
+   * @throws 403 if user lacks GIANG_VIEN role (must be owner)
+   * @throws 404 if proposal not found
+   * @throws 409 if idempotency key was already used
+   */
+  submitAcceptance: async (
+    proposalId: string,
+    idempotencyKey: string,
+  ): Promise<TransitionResult> => {
+    const response = await apiClient.post<{ success: true; data: TransitionResult }>(
+      `/workflow/${proposalId}/submit-acceptance`,
+      {
+        proposalId,
+        idempotencyKey,
+      },
+      {
+        headers: {
+          'X-Idempotency-Key': idempotencyKey,
+        },
+      },
+    );
+    return response.data.data;
+  },
+
+  /**
    * Assign Council (SCHOOL_SELECTION_REVIEW → OUTLINE_COUNCIL_REVIEW)
    * Story 5.2: Assigns a council to a proposal for review
    *

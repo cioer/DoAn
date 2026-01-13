@@ -1,7 +1,7 @@
 import { apiClient } from '../auth/auth';
 
 /**
- * Evaluation API (Story 5.3, Story 5.4)
+ * Evaluation API (Story 5.3, Story 5.4, Multi-member Evaluation)
  * Provides API methods for council evaluation operations
  */
 
@@ -11,6 +11,15 @@ import { apiClient } from '../auth/auth';
 export enum EvaluationState {
   DRAFT = 'DRAFT',
   FINALIZED = 'FINALIZED', // Story 5.4: Replaced SUBMITTED with FINALIZED
+}
+
+/**
+ * Council Member Role Enum
+ */
+export enum CouncilMemberRole {
+  CHAIR = 'CHAIR',
+  SECRETARY = 'SECRETARY',
+  MEMBER = 'MEMBER',
 }
 
 /**
@@ -44,6 +53,62 @@ export interface Evaluation {
   formData: EvaluationFormData;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Council Member Evaluation Info (Multi-member Evaluation)
+ */
+export interface CouncilMemberEvaluation {
+  id: string;
+  proposalId: string;
+  evaluatorId: string;
+  evaluatorName: string;
+  evaluatorRole: string;
+  state: EvaluationState;
+  formData: EvaluationFormData;
+  createdAt: string;
+  updatedAt: string;
+  councilRole?: CouncilMemberRole;
+  isSecretary?: boolean;
+}
+
+/**
+ * All Evaluations Response Data (Multi-member Evaluation)
+ */
+export interface AllEvaluationsData {
+  proposalId: string;
+  proposalCode: string;
+  proposalTitle: string;
+  councilId: string;
+  councilName: string;
+  secretaryId: string;
+  secretaryName: string;
+  evaluations: CouncilMemberEvaluation[];
+  totalMembers: number;
+  submittedCount: number;
+  allSubmitted: boolean;
+}
+
+/**
+ * Finalize Council Evaluation Request (Multi-member Evaluation)
+ */
+export interface FinalizeCouncilEvaluationRequest {
+  finalConclusion: 'DAT' | 'KHONG_DAT';
+  finalComments?: string;
+  idempotencyKey: string;
+}
+
+/**
+ * Finalize Council Evaluation Response (Multi-member Evaluation)
+ */
+export interface FinalizeCouncilEvaluationResponse {
+  success: true;
+  data: {
+    proposalId: string;
+    proposalState: string;
+    targetState: string;
+    finalizedAt: string;
+  };
 }
 
 /**
@@ -171,14 +236,14 @@ export const evaluationApi = {
 
   /**
    * Submit evaluation (Story 5.4)
-   * Transitions evaluation from DRAFT to FINALIZED
-   * Transitions proposal from OUTLINE_COUNCIL_REVIEW to APPROVED
+   * Multi-member: Transitions individual evaluation from DRAFT to FINALIZED
+   * Does NOT transition proposal - secretary will do that with finalize
    *
    * @param proposalId - Proposal ID
    * @param idempotencyKey - UUID v4 for idempotency
-   * @returns Submitted evaluation and updated proposal
+   * @returns Submitted evaluation
    * @throws 400 if proposal not in OUTLINE_COUNCIL_REVIEW state or form incomplete
-   * @throws 403 if user is not the assigned secretary
+   * @throws 403 if user is not a council member
    * @throws 404 if evaluation not found
    */
   submitEvaluation: async (
@@ -191,6 +256,49 @@ export const evaluationApi = {
       {
         headers: {
           'X-Idempotency-Key': idempotencyKey,
+        },
+      },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Get all evaluations for a proposal (Multi-member Evaluation)
+   * Only the secretary can view all evaluations
+   *
+   * @param proposalId - Proposal ID
+   * @returns All evaluations with proposal and council info
+   * @throws 403 if user is not the secretary
+   * @throws 404 if proposal or council not found
+   */
+  getAllEvaluations: async (proposalId: string): Promise<AllEvaluationsData> => {
+    const response = await apiClient.get<{ success: true; data: AllEvaluationsData }>(
+      `/evaluations/${proposalId}/all`,
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Finalize council evaluation and transition proposal (Multi-member Evaluation)
+   * Only the secretary can finalize after reviewing all member evaluations
+   *
+   * @param proposalId - Proposal ID
+   * @param request - Finalize request with conclusion and idempotency key
+   * @returns Updated proposal with new state
+   * @throws 400 if invalid state or secretary has not submitted
+   * @throws 403 if user is not the secretary
+   * @throws 404 if proposal or council not found
+   */
+  finalizeCouncilEvaluation: async (
+    proposalId: string,
+    request: FinalizeCouncilEvaluationRequest,
+  ): Promise<FinalizeCouncilEvaluationResponse['data']> => {
+    const response = await apiClient.post<FinalizeCouncilEvaluationResponse>(
+      `/evaluations/${proposalId}/finalize`,
+      request,
+      {
+        headers: {
+          'X-Idempotency-Key': request.idempotencyKey,
         },
       },
     );

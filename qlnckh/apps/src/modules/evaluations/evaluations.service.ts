@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../auth/prisma.service';
-import { EvaluationState, ProjectState, WorkflowAction, WorkflowAction as PrismaWorkflowAction, Prisma } from '@prisma/client';
+import { EvaluationState, ProjectState, WorkflowAction, WorkflowAction as PrismaWorkflowAction, CouncilMemberRole, Prisma } from '@prisma/client';
 
 /**
  * User object attached to request by JWT guard
@@ -13,8 +13,53 @@ interface RequestUser {
 }
 
 /**
- * Evaluation Service (Story 5.3)
- * Manages evaluation CRUD operations for council secretaries
+ * Council Member Evaluation Info
+ */
+interface CouncilMemberEvaluation {
+  id: string;
+  proposalId: string;
+  evaluatorId: string;
+  evaluatorName: string;
+  evaluatorRole: string;
+  state: EvaluationState;
+  formData: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt: Date;
+  councilRole?: CouncilMemberRole;
+  isSecretary?: boolean;
+}
+
+/**
+ * All Evaluations Response for a Proposal
+ */
+interface AllEvaluationsResponse {
+  proposalId: string;
+  proposalCode: string;
+  proposalTitle: string;
+  councilId: string;
+  councilName: string;
+  secretaryId: string;
+  secretaryName: string;
+  evaluations: CouncilMemberEvaluation[];
+  totalMembers: number;
+  submittedCount: number;
+  allSubmitted: boolean;
+}
+
+/**
+ * Finalize Request Data
+ */
+interface FinalizeRequest {
+  proposalId: string;
+  secretaryId: string;
+  finalConclusion: 'DAT' | 'KHONG_DAT';
+  finalComments?: string;
+  idempotencyKey: string;
+}
+
+/**
+ * Evaluation Service (Story 5.3, Multi-member Evaluation)
+ * Manages evaluation CRUD operations for council members
  */
 @Injectable()
 export class EvaluationService {
@@ -43,14 +88,71 @@ export class EvaluationService {
   }
 
   /**
-   * Get or create draft evaluation for a proposal (Story 5.3)
+   * Check if user is a council member for the proposal
+   * Multi-member Evaluation Feature
+   *
+   * @param proposalId - Proposal ID
+   * @param userId - User ID to check
+   * @returns Council member info or null
+   */
+  private async getCouncilMembership(proposalId: string, userId: string) {
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: {
+        id: true,
+        councilId: true,
+        holderUser: true,
+      },
+    });
+
+    if (!proposal || !proposal.councilId) {
+      return null;
+    }
+
+    // Check if user is the secretary
+    if (proposal.holderUser === userId) {
+      return {
+        isSecretary: true,
+        councilId: proposal.councilId,
+      };
+    }
+
+    // Check if user is a council member
+    const member = await this.prisma.councilMember.findFirst({
+      where: {
+        councilId: proposal.councilId,
+        userId: userId,
+      },
+      include: {
+        council: {
+          select: {
+            secretaryId: true,
+          },
+        },
+      },
+    });
+
+    if (member) {
+      return {
+        isSecretary: member.council.secretaryId === userId,
+        councilId: proposal.councilId,
+        role: member.role,
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Get or create draft evaluation for a proposal (Story 5.3, Multi-member)
    * Called by GET /evaluations/:proposalId endpoint
+   * Now allows any council member to evaluate (not just secretary)
    *
    * @param proposalId - Proposal ID
    * @param evaluatorId - Current user ID
    * @returns Evaluation (draft or existing)
    * @throws NotFoundException if proposal not found
-   * @throws ForbiddenException if user is not the assigned secretary
+   * @throws ForbiddenException if user is not a council member
    */
   async getOrCreateEvaluation(proposalId: string, evaluatorId: string) {
     // Verify proposal exists and is in correct state
@@ -60,6 +162,8 @@ export class EvaluationService {
         id: true,
         state: true,
         holderUser: true,
+        councilId: true,
+        code: true,
       },
     });
 
@@ -84,13 +188,15 @@ export class EvaluationService {
       });
     }
 
-    // Validate holder_user must be current user (secretary assigned to evaluate)
-    if (proposal.holderUser !== evaluatorId) {
+    // Check if user is a council member or secretary (Multi-member Evaluation)
+    const membership = await this.getCouncilMembership(proposalId, evaluatorId);
+
+    if (!membership) {
       throw new ForbiddenException({
         success: false,
         error: {
-          code: 'NOT_ASSIGNED_EVALUATOR',
-          message: 'Bạn không phải là người được phân bổ đánh giá đề tài này',
+          code: 'NOT_COUNCIL_MEMBER',
+          message: 'Bạn không phải là thành viên hội đồng được phân công đánh giá đề tài này',
         },
       });
     }
@@ -248,16 +354,28 @@ export class EvaluationService {
   }
 
   /**
-   * Submit evaluation (Story 5.4, Story 5.5)
-   * Transitions evaluation from DRAFT to FINALIZED
-   * Also transitions proposal from OUTLINE_COUNCIL_REVIEW to APPROVED
+   * Submit evaluation (Multi-member Evaluation)
+   * Transitions individual evaluation from DRAFT to FINALIZED
+   * Does NOT transition proposal - that happens when secretary finalizes all evaluations
    *
    * @param proposalId - Proposal ID
    * @param evaluatorId - Evaluator user ID
    * @param idempotencyKey - UUID for idempotency
-   * @returns Updated evaluation and proposal
+   * @returns Updated evaluation
    */
   async submitEvaluation(proposalId: string, evaluatorId: string, idempotencyKey: string) {
+    // Check if user is a council member
+    const membership = await this.getCouncilMembership(proposalId, evaluatorId);
+    if (!membership) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'NOT_COUNCIL_MEMBER',
+          message: 'Bạn không phải là thành viên hội đồng được phân công đánh giá đề tài này',
+        },
+      });
+    }
+
     // Get evaluation with proposal for validation
     const evaluation = await this.prisma.evaluation.findUnique({
       where: {
@@ -272,8 +390,6 @@ export class EvaluationService {
             id: true,
             state: true,
             holderUser: true,
-            ownerId: true,
-            facultyId: true,
           },
         },
       },
@@ -309,17 +425,6 @@ export class EvaluationService {
       });
     }
 
-    // Validate holder_user must be current user (secretary assigned to evaluate)
-    if (evaluation.proposal.holderUser !== evaluatorId) {
-      throw new ForbiddenException({
-        success: false,
-        error: {
-          code: 'NOT_ASSIGNED_EVALUATOR',
-          message: 'Bạn không phải là người được phân bổ đánh giá đề tài này',
-        },
-      });
-    }
-
     // Validate form data is complete before submitting
     const formData = evaluation.formData as Record<string, unknown>;
     if (!formData.conclusion) {
@@ -332,51 +437,310 @@ export class EvaluationService {
       });
     }
 
-    // Execute transaction: finalize evaluation + transition proposal (Story 5.4 Task 4.5)
-    const result = await this.prisma.$transaction(async (tx) => {
-      // 1. Finalize evaluation: DRAFT → FINALIZED
-      const finalizedEvaluation = await tx.evaluation.update({
-        where: {
-          proposalId_evaluatorId: {
-            proposalId,
-            evaluatorId,
-          },
+    // Finalize individual evaluation (DRAFT → FINALIZED)
+    // Multi-member: Don't transition proposal yet - secretary will do that
+    const finalizedEvaluation = await this.prisma.evaluation.update({
+      where: {
+        proposalId_evaluatorId: {
+          proposalId,
+          evaluatorId,
         },
-        data: {
-          state: EvaluationState.FINALIZED,
+      },
+      data: {
+        state: EvaluationState.FINALIZED,
+      },
+    });
+
+    this.logger.log(`Submitted evaluation for proposal ${proposalId} by ${evaluatorId}`);
+
+    return {
+      evaluation: finalizedEvaluation,
+      proposal: evaluation.proposal,
+    };
+  }
+
+  /**
+   * Get all evaluations for a proposal (Multi-member Evaluation)
+   * Only the secretary can view all evaluations
+   *
+   * @param proposalId - Proposal ID
+   * @param secretaryId - Current user ID (must be secretary)
+   * @returns All evaluations with proposal and council info
+   */
+  async getAllEvaluationsForProposal(proposalId: string, secretaryId: string): Promise<AllEvaluationsResponse> {
+    // Get proposal with council info
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        state: true,
+        councilId: true,
+        holderUser: true,
+      },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Không tìm thấy đề tài',
         },
       });
+    }
 
-      // 2. Transition proposal: OUTLINE_COUNCIL_REVIEW → APPROVED (Story 5.4 Task 4.5)
+    if (!proposal.councilId) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'NO_COUNCIL_ASSIGNED',
+          message: 'Đề tài chưa được gán hội đồng',
+        },
+      });
+    }
+
+    // Verify user is the secretary for this proposal
+    if (proposal.holderUser !== secretaryId) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'NOT_SECRETARY',
+          message: 'Chỉ thư ký hội đồng mới xem được tất cả đánh giá',
+        },
+      });
+    }
+
+    // Get council info
+    const council = await this.prisma.council.findUnique({
+      where: { id: proposal.councilId },
+      include: {
+        secretary: {
+          select: {
+            id: true,
+            displayName: true,
+          },
+        },
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                displayName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!council) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'COUNCIL_NOT_FOUND',
+          message: 'Không tìm thấy hội đồng',
+        },
+      });
+    }
+
+    // Get all evaluations for this proposal
+    const evaluations = await this.prisma.evaluation.findMany({
+      where: { proposalId },
+      include: {
+        evaluator: {
+          select: {
+            id: true,
+            displayName: true,
+            role: true,
+          },
+        },
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    });
+
+    // Map to response format
+    const evaluationResponses: CouncilMemberEvaluation[] = evaluations.map((item) => {
+      const member = council.members.find((m) => m.userId === item.evaluatorId);
+      const isSecretary = council.secretary?.id === item.evaluatorId;
+
+      return {
+        id: item.id,
+        proposalId: item.proposalId,
+        evaluatorId: item.evaluatorId,
+        evaluatorName: item.evaluator.displayName,
+        evaluatorRole: item.evaluator.role,
+        state: item.state,
+        formData: item.formData as Record<string, unknown>,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+        councilRole: member?.role,
+        isSecretary,
+      };
+    });
+
+    // Count submitted evaluations
+    const submittedCount = evaluations.filter((e) => e.state === EvaluationState.FINALIZED).length;
+    const totalMembers = 1 + council.members.length; // Secretary + all members
+
+    return {
+      proposalId: proposal.id,
+      proposalCode: proposal.code,
+      proposalTitle: proposal.title,
+      councilId: council.id,
+      councilName: council.name,
+      secretaryId: council.secretary?.id || '',
+      secretaryName: council.secretary?.displayName || '',
+      evaluations: evaluationResponses,
+      totalMembers,
+      submittedCount,
+      allSubmitted: submittedCount >= totalMembers,
+    };
+  }
+
+  /**
+   * Finalize council evaluation and transition proposal (Multi-member Evaluation)
+   * Only the secretary can finalize after all members have submitted
+   *
+   * @param proposalId - Proposal ID
+   * @param secretaryId - Secretary user ID
+   * @param finalConclusion - Final conclusion (DAT/KHONG_DAT)
+   * @param finalComments - Optional final comments
+   * @param idempotencyKey - UUID for idempotency
+   * @returns Updated proposal
+   */
+  async finalizeCouncilEvaluation(
+    proposalId: string,
+    secretaryId: string,
+    finalConclusion: 'DAT' | 'KHONG_DAT',
+    finalComments: string | undefined,
+    idempotencyKey: string,
+  ) {
+    // Get proposal with council
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: {
+        id: true,
+        state: true,
+        holderUser: true,
+        ownerId: true,
+        facultyId: true,
+        councilId: true,
+      },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Không tìm thấy đề tài',
+        },
+      });
+    }
+
+    // Verify state
+    if (proposal.state !== ProjectState.OUTLINE_COUNCIL_REVIEW) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'INVALID_STATE',
+          message: `Chỉ có thể finalize ở trạng thái OUTLINE_COUNCIL_REVIEW. Hiện tại: ${proposal.state}`,
+        },
+      });
+    }
+
+    // Verify user is the secretary
+    if (proposal.holderUser !== secretaryId) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'NOT_SECRETARY',
+          message: 'Chỉ thư ký hội đồng mới có thể finalize đánh giá',
+        },
+      });
+    }
+
+    // Check if all council members have submitted
+    const council = await this.prisma.council.findUnique({
+      where: { id: proposal.councilId! },
+      include: {
+        secretary: true,
+        members: true,
+      },
+    });
+
+    if (!council) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'COUNCIL_NOT_FOUND',
+          message: 'Không tìm thấy hội đồng',
+        },
+      });
+    }
+
+    // Get all evaluations
+    const evaluations = await this.prisma.evaluation.findMany({
+      where: { proposalId },
+    });
+
+    const totalMembers = 1 + council.members.length; // Secretary + members
+    const submittedCount = evaluations.filter((e) => e.state === EvaluationState.FINALIZED).length;
+
+    // Optional: Require all members to submit before finalizing
+    // For now, we'll allow finalizing as long as secretary has submitted
+    const secretaryEvaluation = evaluations.find((e) => e.evaluatorId === secretaryId);
+    if (!secretaryEvaluation || secretaryEvaluation.state !== EvaluationState.FINALIZED) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'SECRETARY_NOT_SUBMITTED',
+          message: 'Thư ký phải nộp đánh giá trước khi finalize',
+        },
+      });
+    }
+
+    // Execute transaction: transition proposal based on final conclusion
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Determine target state based on final conclusion
+      const targetState = finalConclusion === 'DAT'
+        ? ProjectState.APPROVED
+        : ProjectState.CHANGES_REQUESTED;
+
+      // Transition proposal
       const updatedProposal = await tx.proposal.update({
         where: { id: proposalId },
         data: {
-          state: ProjectState.APPROVED,
-          holderUnit: evaluation.proposal.facultyId, // Return to owner's faculty
-          holderUser: evaluation.proposal.ownerId, // Return to PI
+          state: targetState,
+          holderUnit: proposal.facultyId, // Return to owner's faculty
+          holderUser: proposal.ownerId, // Return to PI
         },
       });
 
-      // 3. Log workflow entry: EVALUATION_SUBMITTED (Story 5.4 AC3)
+      // Log workflow entry
       await tx.workflowLog.create({
         data: {
           proposalId,
-          action: PrismaWorkflowAction.EVALUATION_SUBMITTED, // Story 5.4: Use specific action for evaluation submission
+          action: PrismaWorkflowAction.EVALUATION_SUBMITTED, // Use existing action
           fromState: ProjectState.OUTLINE_COUNCIL_REVIEW,
-          toState: ProjectState.APPROVED,
-          actorId: evaluatorId,
-          actorName: 'Thư ký Hội đồng', // Will be updated with actual user name
-          comment: 'Đánh giá hội đồng đã hoàn tất',
+          toState: targetState,
+          actorId: secretaryId,
+          actorName: 'Thư ký Hội đồng',
+          comment: `Hội đồng đã hoàn tất đánh giá. Kết luận: ${finalConclusion === 'DAT' ? 'Đạt' : 'Không đạt'}. ${finalComments || ''}`,
         },
       });
 
       return {
-        evaluation: finalizedEvaluation,
         proposal: updatedProposal,
+        targetState,
       };
     });
 
-    this.logger.log(`Submitted evaluation for proposal ${proposalId} by ${evaluatorId}, transitioned to APPROVED`);
+    this.logger.log(`Finalized council evaluation for proposal ${proposalId}, transitioned to ${result.targetState}`);
 
     return result;
   }

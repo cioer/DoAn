@@ -38,6 +38,12 @@ export interface Proposal {
     code: string;
     name: string;
   };
+  holderUserInfo?: {
+    id: string;
+    displayName: string;
+    email: string;
+    role: string;
+  } | null;
 }
 
 export interface CreateProposalRequest {

@@ -8,6 +8,8 @@
  * Story 4.1: "Duyệt hồ sơ" button for QUAN_LY_KHOA/THU_KY_KHOA at FACULTY_REVIEW
  * Story 4.2: "Yêu cầu sửa" button for QUAN_LY_KHOA/THU_KY_KHOA at FACULTY_REVIEW
  * GIANG_VIEN Feature: "Gửi duyệt" button for proposal owner at DRAFT state
+ * GIANG_VIEN Feature: "Bắt đầu thực hiện" button for proposal owner at APPROVED state
+ * GIANG_VIEN Feature: "Nộp nghiệm thu" button for proposal owner at IN_PROGRESS state
  * - Uses UI components (Button, Select, Textarea)
  */
 
@@ -17,6 +19,8 @@ import {
   AlertCircle,
   XCircle,
   Send,
+  Play,
+  FileCheck,
 } from 'lucide-react';
 import {
   workflowApi,
@@ -82,6 +86,26 @@ function canReturn(proposalState: string, userRole: string): boolean {
 function canSubmit(proposalState: string, userId: string, ownerId?: string): boolean {
   return (
     proposalState === 'DRAFT' && ownerId !== undefined && userId === ownerId
+  );
+}
+
+/**
+ * GIANG_VIEN Feature: Can Start Project check
+ * Returns true if user is the proposal owner AND proposal is in APPROVED state
+ */
+function canStartProject(proposalState: string, userId: string, ownerId?: string): boolean {
+  return (
+    proposalState === 'APPROVED' && ownerId !== undefined && userId === ownerId
+  );
+}
+
+/**
+ * GIANG_VIEN Feature: Can Submit Acceptance check
+ * Returns true if user is the proposal owner AND proposal is in IN_PROGRESS state
+ */
+function canSubmitAcceptance(proposalState: string, userId: string, ownerId?: string): boolean {
+  return (
+    proposalState === 'IN_PROGRESS' && ownerId !== undefined && userId === ownerId
   );
 }
 
@@ -291,9 +315,13 @@ export function ProposalActions({
   const [isApproving, setIsApproving] = useState(false);
   const [isReturning, setIsReturning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const [isSubmittingAcceptance, setIsSubmittingAcceptance] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [showStartConfirm, setShowStartConfirm] = useState(false);
+  const [showSubmitAcceptanceConfirm, setShowSubmitAcceptanceConfirm] = useState(false);
   const [error, setError] = useState<{ code: string; message: string } | null>(
     null,
   );
@@ -309,6 +337,8 @@ export function ProposalActions({
   const showApproveButton = canApprove(proposalState, currentUser?.role || '');
   const showReturnButton = canReturn(proposalState, currentUser?.role || '');
   const showSubmitButton = canSubmit(proposalState, currentUser?.id || '', ownerId);
+  const showStartButton = canStartProject(proposalState, currentUser?.id || '', ownerId);
+  const showSubmitAcceptanceButton = canSubmitAcceptance(proposalState, currentUser?.id || '', ownerId);
 
   /**
    * Story 4.1: AC3 & AC5 - Execute approve action
@@ -431,8 +461,84 @@ export function ProposalActions({
     }
   };
 
+  /**
+   * GIANG_VIEN Feature: Start Project Action
+   * Transitions APPROVED → IN_PROGRESS
+   */
+  const handleStart = async () => {
+    setIsStarting(true);
+    setError(null);
+
+    try {
+      const idempotencyKey = generateIdempotencyKey();
+
+      await workflowApi.startProject(
+        proposalId,
+        idempotencyKey,
+      );
+
+      setShowStartConfirm(false);
+
+      if (onActionSuccess) {
+        onActionSuccess();
+      }
+    } catch (err: unknown) {
+      const apiError = err as {
+        response?: { data?: { success: false; error: { code: string; message: string } } };
+      };
+
+      const errorData =
+        apiError.response?.data?.error || { code: 'UNKNOWN_ERROR', message: 'Lỗi không xác định' };
+      setError(errorData);
+
+      if (onActionError) {
+        onActionError(errorData);
+      }
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
+  /**
+   * GIANG_VIEN Feature: Submit Acceptance Action
+   * Transitions IN_PROGRESS → FACULTY_ACCEPTANCE_REVIEW
+   */
+  const handleSubmitAcceptance = async () => {
+    setIsSubmittingAcceptance(true);
+    setError(null);
+
+    try {
+      const idempotencyKey = generateIdempotencyKey();
+
+      await workflowApi.submitAcceptance(
+        proposalId,
+        idempotencyKey,
+      );
+
+      setShowSubmitAcceptanceConfirm(false);
+
+      if (onActionSuccess) {
+        onActionSuccess();
+      }
+    } catch (err: unknown) {
+      const apiError = err as {
+        response?: { data?: { success: false; error: { code: string; message: string } } };
+      };
+
+      const errorData =
+        apiError.response?.data?.error || { code: 'UNKNOWN_ERROR', message: 'Lỗi không xác định' };
+      setError(errorData);
+
+      if (onActionError) {
+        onActionError(errorData);
+      }
+    } finally {
+      setIsSubmittingAcceptance(false);
+    }
+  };
+
   // AC2: Buttons hidden for wrong role/state
-  if (!showApproveButton && !showReturnButton && !showSubmitButton) {
+  if (!showApproveButton && !showReturnButton && !showSubmitButton && !showStartButton && !showSubmitAcceptanceButton) {
     return null;
   }
 
@@ -462,6 +568,32 @@ export function ProposalActions({
           >
             <CheckCircle className="w-4 h-4" />
             Duyệt hồ sơ
+          </button>
+        )}
+
+        {/* GIANG_VIEN Feature: "Bắt đầu thực hiện" button for proposal owner at APPROVED state */}
+        {showStartButton && (
+          <button
+            onClick={() => setShowStartConfirm(true)}
+            disabled={isStarting}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+            aria-label="Bắt đầu thực hiện đề tài"
+          >
+            <Play className="w-4 h-4" />
+            Bắt đầu thực hiện
+          </button>
+        )}
+
+        {/* GIANG_VIEN Feature: "Nộp nghiệm thu" button for proposal owner at IN_PROGRESS state */}
+        {showSubmitAcceptanceButton && (
+          <button
+            onClick={() => setShowSubmitAcceptanceConfirm(true)}
+            disabled={isSubmittingAcceptance}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+            aria-label="Nộp nghiệm thu đề tài"
+          >
+            <FileCheck className="w-4 h-4" />
+            Nộp nghiệm thu
           </button>
         )}
 
@@ -532,6 +664,59 @@ export function ProposalActions({
         </div>
       )}
 
+      {/* Start Project Confirmation Dialog (GIANG_VIEN Feature) */}
+      {showStartConfirm && (
+        <div
+          className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="start-confirm-title"
+        >
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h3
+              id="start-confirm-title"
+              className="text-lg font-semibold text-gray-900 mb-2"
+            >
+              Xác nhận bắt đầu thực hiện
+            </h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Bạn có chắc chắn muốn bắt đầu thực hiện đề tài này? Sau khi bắt đầu,
+              đề tài sẽ được chuyển sang trạng thái Đang thực hiện (IN_PROGRESS).
+            </p>
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-red-800">Lỗi</p>
+                  <p className="text-sm text-red-700">{error.message}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowStartConfirm(false);
+                  setError(null);
+                }}
+                disabled={isStarting}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed font-medium"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleStart}
+                disabled={isStarting}
+                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+              >
+                {isStarting ? 'Đang xử lý...' : 'Bắt đầu thực hiện'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Submit Confirmation Dialog (GIANG_VIEN Feature) */}
       {showSubmitConfirm && (
         <div
@@ -579,6 +764,59 @@ export function ProposalActions({
                 className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
               >
                 {isSubmitting ? 'Đang gửi...' : 'Gửi duyệt'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submit Acceptance Confirmation Dialog (GIANG_VIEN Feature) */}
+      {showSubmitAcceptanceConfirm && (
+        <div
+          className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="submit-acceptance-confirm-title"
+        >
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h3
+              id="submit-acceptance-confirm-title"
+              className="text-lg font-semibold text-gray-900 mb-2"
+            >
+              Xác nhận nộp nghiệm thu
+            </h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Bạn có chắc chắn muốn nộp nghiệm thu đề tài này? Sau khi nộp,
+              đề tài sẽ được chuyển sang trạng thái chờ nghiệm thu cấp Khoa.
+            </p>
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-red-800">Lỗi</p>
+                  <p className="text-sm text-red-700">{error.message}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowSubmitAcceptanceConfirm(false);
+                  setError(null);
+                }}
+                disabled={isSubmittingAcceptance}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed font-medium"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleSubmitAcceptance}
+                disabled={isSubmittingAcceptance}
+                className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+              >
+                {isSubmittingAcceptance ? 'Đang xử lý...' : 'Nộp nghiệm thu'}
               </button>
             </div>
           </div>
