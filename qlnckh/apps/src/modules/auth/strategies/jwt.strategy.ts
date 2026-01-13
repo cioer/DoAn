@@ -9,8 +9,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(private configService: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
+        // 1. First try Authorization header (for API testing with curl/Postman)
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        // 2. Fallback to HttpOnly cookie (for browser)
         (request) => {
-          // Extract from HttpOnly cookie
           return request?.cookies?.access_token || null;
         },
       ]),

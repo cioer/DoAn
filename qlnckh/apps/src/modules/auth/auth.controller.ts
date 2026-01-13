@@ -64,9 +64,14 @@ export class AuthController {
     const loginResponse = await this.authService.generateLoginResponse(user);
 
     // Return user object WITH permissions
+    // Dev/test environment: include accessToken for API testing (curl, Postman)
+    const isDev = this.configService.get<string>('NODE_ENV') !== 'production';
     res.status(HttpStatus.OK).json({
       success: true,
-      data: loginResponse,
+      data: {
+        ...loginResponse,
+        ...(isDev && { accessToken: tokens.accessToken }),
+      },
     });
   }
 
