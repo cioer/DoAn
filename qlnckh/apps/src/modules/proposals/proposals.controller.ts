@@ -934,6 +934,8 @@ export class ProposalsController {
       id,
       serviceDto,
       user.id,
+      user.role,
+      user.facultyId,
     );
   }
 
@@ -1088,6 +1090,8 @@ export class ProposalsController {
     return this.proposalsService.completeHandover(
       id,
       user.id,
+      user.role,
+      user.facultyId,
     );
   }
 

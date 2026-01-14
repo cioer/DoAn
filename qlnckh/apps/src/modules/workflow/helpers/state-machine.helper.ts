@@ -158,6 +158,13 @@ export const VALID_TRANSITIONS: StateTransition[] = [
     action: WorkflowAction.FINALIZE,
     allowedRoles: ['PHONG_KHCN', 'GIANG_VIEN'],
   },
+  // Story 6.5: Complete handover (alternative action)
+  {
+    fromState: ProjectState.HANDOVER,
+    toState: ProjectState.COMPLETED,
+    action: WorkflowAction.HANDOVER_COMPLETE,
+    allowedRoles: ['GIANG_VIEN', 'PHONG_KHCN'],
+  },
 
   // Exception States - Epic 9: Cancel/Withdraw/Reject/Pause/Resume
 

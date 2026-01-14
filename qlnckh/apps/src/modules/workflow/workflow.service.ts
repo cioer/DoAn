@@ -2339,6 +2339,132 @@ export class WorkflowService {
   }
 
   /**
+   * Approve Faculty Acceptance (FACULTY_ACCEPTANCE_REVIEW → SCHOOL_ACCEPTANCE_REVIEW)
+   * QUAN_LY_KHOA/THU_KY_KHOA: Faculty acceptance decision after project completion
+   *
+   * When faculty accepts:
+   * - State transitions FACULTY_ACCEPTANCE_REVIEW → SCHOOL_ACCEPTANCE_REVIEW
+   * - holder_unit = "PHONG_KHCN"
+   * - workflow_logs entry with action=FACULTY_ACCEPT
+   *
+   * @param proposalId - Proposal ID
+   * @param context - Transition context
+   * @returns Transition result
+   */
+  async approveFacultyAcceptance(
+    proposalId: string,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    const toState = ProjectState.SCHOOL_ACCEPTANCE_REVIEW;
+    const action = WorkflowAction.FACULTY_ACCEPT;
+
+    // Use IdempotencyService for atomic idempotency check
+    const idempotencyResult = await this.idempotency.setIfAbsent(
+      context.idempotencyKey || `approve-faculty-acceptance-${proposalId}`,
+      async () => {
+        // Get proposal
+        const proposal = await this.prisma.proposal.findUnique({
+          where: { id: proposalId },
+          include: { owner: true, faculty: true },
+        });
+
+        if (!proposal) {
+          throw new NotFoundException('Đề tài không tồn tại');
+        }
+
+        // Use WorkflowValidatorService for validation
+        await this.validator.validateTransition(
+          proposalId,
+          toState,
+          action,
+          {
+            proposal,
+            user: {
+              id: context.userId,
+              role: context.userRole,
+              facultyId: context.userFacultyId,
+            },
+          },
+        );
+
+        // Fixed holder for school acceptance review
+        const holder = { holderUnit: 'PHONG_KHCN', holderUser: null };
+
+        // Get user display name for audit log
+        const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+        // Calculate SLA dates (3 business days for school acceptance)
+        const slaStartDate = new Date();
+        const slaDeadline = await this.slaService.calculateDeadlineWithCutoff(
+          slaStartDate,
+          3, // 3 business days
+          17, // 17:00 cutoff hour
+        );
+
+        // Use TransactionService for transaction orchestration
+        const result = await this.transaction.updateProposalWithLog({
+          proposalId,
+          userId: context.userId,
+          userDisplayName: actorDisplayName,
+          action,
+          fromState: proposal.state,
+          toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+          slaStartDate,
+          slaDeadline,
+        });
+
+        // Build transition result
+        const transitionResult: TransitionResult = {
+          proposal: result.proposal,
+          workflowLog: result.workflowLog,
+          previousState: proposal.state,
+          currentState: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        };
+
+        // Use AuditHelperService for audit logging with retry (fire-and-forget)
+        this.auditHelper
+          .logWorkflowTransition(
+            {
+              proposalId,
+              proposalCode: proposal.code,
+              fromState: proposal.state,
+              toState,
+              action: 'FACULTY_ACCEPT',
+              holderUnit: holder.holderUnit,
+              holderUser: holder.holderUser,
+              slaStartDate,
+              slaDeadline,
+            },
+            {
+              userId: context.userId,
+              role: context.userRole,
+              facultyId: context.userFacultyId,
+              userDisplayName: context.userDisplayName,
+            },
+          )
+          .catch((err) => {
+            this.logger.error(
+              `Audit log failed for proposal ${proposal.code}: ${err.message}`,
+            );
+          });
+
+        this.logger.log(
+          `Faculty acceptance approved for proposal ${proposal.code}: ${proposal.state} → ${toState}`,
+        );
+
+        return transitionResult;
+      },
+    );
+
+    // Return the unwrapped result
+    return idempotencyResult.data;
+  }
+
+  /**
    * Accept School Acceptance (SCHOOL_ACCEPTANCE_REVIEW → HANDOVER)
    * BAN_GIAM_HOC: Final acceptance after School Acceptance Review
    *

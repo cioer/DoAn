@@ -178,7 +178,7 @@ export class ProposalsAcceptanceController {
             decision: dto.decision as 'DAT' | 'KHONG_DAT',
             comments: dto.comments,
         };
-        return this.proposalsService.schoolAcceptance(id, serviceDto, user.id);
+        return this.proposalsService.schoolAcceptance(id, serviceDto, user.id, user.role, user.facultyId);
     }
 
     /**
@@ -238,6 +238,6 @@ export class ProposalsAcceptanceController {
         @Body() dto: CompleteHandoverDto,
         @CurrentUser() user: RequestUser,
     ): Promise<ProposalWithTemplateDto> {
-        return this.proposalsService.completeHandover(id, user.id);
+        return this.proposalsService.completeHandover(id, user.id, user.role, user.facultyId);
     }
 }

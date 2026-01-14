@@ -51,7 +51,12 @@ export class ProposalsWorkflowService {
   }
 
   /**
-   * Faculty acceptance (FACULTY_REVIEW → SCHOOL_SELECTION_REVIEW)
+   * Faculty acceptance decision (FACULTY_ACCEPTANCE_REVIEW → SCHOOL_ACCEPTANCE_REVIEW or CHANGES_REQUESTED)
+   * Phase C: After project completion, faculty reviews and decides DAT/KHONG_DAT
+   *
+   * - If decision = DAT: transitions to SCHOOL_ACCEPTANCE_REVIEW
+   * - If decision = KHONG_DAT: transitions to CHANGES_REQUESTED with return to FACULTY_ACCEPTANCE_REVIEW
+   *
    * Note: Acceptance data is stored in formData under 'facultyAcceptance' key
    */
   async facultyAcceptance(
@@ -59,7 +64,9 @@ export class ProposalsWorkflowService {
     acceptanceData: any,
     context: TransitionContext,
   ) {
-    this.logger.log(`Faculty acceptance for proposal ${proposalId}`);
+    this.logger.log(`Faculty acceptance decision for proposal ${proposalId}`);
+
+    const decision = acceptanceData?.decision; // 'DAT' or 'KHONG_DAT'
 
     // First, get current formData and merge acceptance data
     const current = await this.prisma.proposal.findUnique({
@@ -80,14 +87,28 @@ export class ProposalsWorkflowService {
       },
     });
 
-    // Then, transition state
-    const result = await this.workflow.approveFacultyReview(proposalId, context);
-
-    return result;
+    // Then, transition state based on decision
+    if (decision === 'DAT') {
+      // Approve and move to school acceptance review
+      const result = await this.workflow.approveFacultyAcceptance(proposalId, context);
+      return result;
+    } else if (decision === 'KHONG_DAT') {
+      // Return for changes
+      const reason = acceptanceData?.comments || 'Yêu cầu sửa đổi theo đánh giá nghiệm thu Khoa';
+      const result = await this.workflow.returnFacultyAcceptance(proposalId, reason, context);
+      return result;
+    } else {
+      throw new Error(`Invalid decision: ${decision}. Must be 'DAT' or 'KHONG_DAT'`);
+    }
   }
 
   /**
-   * School acceptance (SCHOOL_SELECTION_REVIEW → SCHOOL_ACCEPTANCE_REVIEW)
+   * School acceptance decision (SCHOOL_ACCEPTANCE_REVIEW → HANDOVER or CHANGES_REQUESTED)
+   * Phase C: After faculty acceptance, school reviews and decides DAT/KHONG_DAT
+   *
+   * - If decision = DAT: transitions to HANDOVER
+   * - If decision = KHONG_DAT: transitions to CHANGES_REQUESTED with return to SCHOOL_ACCEPTANCE_REVIEW
+   *
    * Note: Acceptance data is stored in formData under 'schoolAcceptance' key
    */
   async schoolAcceptance(
@@ -95,7 +116,9 @@ export class ProposalsWorkflowService {
     acceptanceData: any,
     context: TransitionContext,
   ) {
-    this.logger.log(`School acceptance for proposal ${proposalId}`);
+    this.logger.log(`School acceptance decision for proposal ${proposalId}`);
+
+    const decision = acceptanceData?.decision; // 'DAT' or 'KHONG_DAT'
 
     // Get current formData and merge acceptance data
     const current = await this.prisma.proposal.findUnique({
@@ -116,10 +139,19 @@ export class ProposalsWorkflowService {
       },
     });
 
-    // Then, transition state
-    const result = await this.workflow.approveCouncilReview(proposalId, context);
-
-    return result;
+    // Then, transition state based on decision
+    if (decision === 'DAT') {
+      // Approve and move to handover
+      const result = await this.workflow.acceptSchoolReview(proposalId, context);
+      return result;
+    } else if (decision === 'KHONG_DAT') {
+      // Return for changes
+      const reason = acceptanceData?.comments || 'Yêu cầu sửa đổi theo đánh giá nghiệm thu Trường';
+      const result = await this.workflow.returnSchoolReview(proposalId, reason, context);
+      return result;
+    } else {
+      throw new Error(`Invalid decision: ${decision}. Must be 'DAT' or 'KHONG_DAT'`);
+    }
   }
 
   /**
@@ -229,6 +261,12 @@ export class ProposalsWorkflowService {
 
   /**
    * Handle workflow transition event
+   *
+   * Routes workflow actions to the appropriate methods based on action type.
+   * Note: This method routes Phase A transitions directly to workflow service.
+   * Phase C acceptance decisions should use facultyAcceptance()/schoolAcceptance()
+   * methods directly which handle decision-based routing (DAT/KHONG_DAT).
+   * RETURN actions require a reason parameter and should be called directly.
    */
   async handleTransition(
     proposalId: string,
@@ -245,16 +283,26 @@ export class ProposalsWorkflowService {
         return this.startProject(proposalId, context);
 
       case WorkflowAction.APPROVE:
-        // Determine which approval based on current state
+        // Phase A: Route based on current state
         const currentState = await this.getWorkflowState(proposalId);
         if (currentState === ProjectState.FACULTY_REVIEW) {
-          return this.facultyAcceptance(proposalId, null, context);
-        } else if (currentState === ProjectState.SCHOOL_SELECTION_REVIEW) {
-          return this.schoolAcceptance(proposalId, null, context);
+          return this.workflow.approveFacultyReview(proposalId, context);
         } else if (currentState === ProjectState.OUTLINE_COUNCIL_REVIEW) {
-          return this.completeHandover(proposalId, context);
+          return this.workflow.approveCouncilReview(proposalId, context);
         }
         break;
+
+      case WorkflowAction.FACULTY_ACCEPT:
+        // Phase C: Faculty acceptance review approval
+        return this.workflow.approveFacultyAcceptance(proposalId, context);
+
+      case WorkflowAction.ACCEPT:
+        // Phase C: School acceptance review approval
+        return this.workflow.acceptSchoolReview(proposalId, context);
+
+      case WorkflowAction.HANDOVER_COMPLETE:
+        // Phase C: Complete handover
+        return this.completeHandover(proposalId, context);
 
       default:
         throw new Error(`Unsupported workflow action: ${action}`);

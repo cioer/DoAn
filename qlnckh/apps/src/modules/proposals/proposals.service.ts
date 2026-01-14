@@ -430,6 +430,8 @@ export class ProposalsService {
     proposalId: string,
     acceptanceData: any,
     userId: string,
+    userRole: string,
+    userFacultyId: string | null,
   ): Promise<ProposalWithTemplateDto> {
     this.logger.log(`Submitting school acceptance for proposal ${proposalId}`);
 
@@ -437,8 +439,8 @@ export class ProposalsService {
 
     const context = {
       userId,
-      userRole: '',
-      userFacultyId: '',
+      userRole,
+      userFacultyId: userFacultyId || '',
       ip: '',
       userAgent: '',
       requestId: '',
@@ -459,6 +461,8 @@ export class ProposalsService {
   async completeHandover(
     proposalId: string,
     userId: string,
+    userRole: string,
+    userFacultyId: string | null,
   ): Promise<ProposalWithTemplateDto> {
     this.logger.log(`Completing handover for proposal ${proposalId}`);
 
@@ -466,8 +470,8 @@ export class ProposalsService {
 
     const context = {
       userId,
-      userRole: '',
-      userFacultyId: '',
+      userRole,
+      userFacultyId: userFacultyId || '',
       ip: '',
       userAgent: '',
       requestId: '',
