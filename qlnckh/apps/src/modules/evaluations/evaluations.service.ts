@@ -824,4 +824,227 @@ export class EvaluationService {
 
     return evaluation;
   }
+
+  /**
+   * Get Council Evaluation Summary for BGH approval
+   * BAN_GIAM_HOC Feature: View aggregated council evaluation results before final approval
+   *
+   * @param proposalId - Proposal ID
+   * @param userId - Current user ID (for role validation)
+   * @param userRole - Current user role (must be BAN_GIAM_HOC or BGH)
+   * @returns Council evaluation summary with aggregated scores and individual evaluations
+   * @throws NotFoundException if proposal or council not found
+   * @throws ForbiddenException if user lacks BAN_GIAM_HOC/BGH role
+   */
+  async getCouncilEvaluationSummaryForBGH(
+    proposalId: string,
+    userId: string,
+    userRole: string,
+  ) {
+    // Verify user has required role
+    if (userRole !== 'BAN_GIAM_HOC' && userRole !== 'BGH') {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: 'INSUFFICIENT_PERMISSIONS',
+          message: 'Chỉ Ban Giám Học mới có thể xem tổng kết đánh giá',
+        },
+      });
+    }
+
+    // Get proposal with council info
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        state: true,
+        councilId: true,
+        holderUnit: true,
+      },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Không tìm thấy đề tài',
+        },
+      });
+    }
+
+    if (!proposal.councilId && !proposal.holderUnit) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'NO_COUNCIL_ASSIGNED',
+          message: 'Đề tài chưa được gán hội đồng',
+        },
+      });
+    }
+
+    const councilId = proposal.councilId || proposal.holderUnit;
+
+    // Get council info with members
+    const council = await this.prisma.council.findUnique({
+      where: { id: councilId },
+      include: {
+        secretary: {
+          select: {
+            id: true,
+            displayName: true,
+          },
+        },
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                displayName: true,
+                email: true,
+                role: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!council) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'COUNCIL_NOT_FOUND',
+          message: 'Không tìm thấy hội đồng',
+        },
+      });
+    }
+
+    // Get all evaluations for this proposal
+    const evaluations = await this.prisma.evaluation.findMany({
+      where: { proposalId },
+      include: {
+        evaluator: {
+          select: {
+            id: true,
+            displayName: true,
+            role: true,
+          },
+        },
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    });
+
+    // Count total members (secretary + all members)
+    const totalMembers = 1 + council.members.length;
+    const submittedCount = evaluations.filter((e) => e.state === EvaluationState.FINALIZED).length;
+
+    // Calculate aggregate scores
+    const finalizedEvaluations = evaluations.filter((e) => e.state === EvaluationState.FINALIZED);
+    const sections = ['scientificContent', 'researchMethod', 'feasibility', 'budget'] as const;
+
+    const aggregateScores = {
+      scientificContent: this.calculateAggregates(finalizedEvaluations, 'scientificContent'),
+      researchMethod: this.calculateAggregates(finalizedEvaluations, 'researchMethod'),
+      feasibility: this.calculateAggregates(finalizedEvaluations, 'feasibility'),
+      budget: this.calculateAggregates(finalizedEvaluations, 'budget'),
+      overallAvg: 0,
+    };
+
+    // Calculate overall average
+    const allAvgs = [
+      aggregateScores.scientificContent.avg,
+      aggregateScores.researchMethod.avg,
+      aggregateScores.feasibility.avg,
+      aggregateScores.budget.avg,
+    ].filter((avg) => avg > 0);
+    aggregateScores.overallAvg = allAvgs.length > 0
+      ? allAvgs.reduce((sum, avg) => sum + avg, 0) / allAvgs.length
+      : 0;
+
+    // Get secretary's final conclusion
+    const secretaryEvaluation = evaluations.find((e) => e.evaluatorId === council.secretary?.id);
+    const formData = secretaryEvaluation?.formData as Record<string, unknown> | undefined;
+    const finalConclusion = formData?.conclusion as 'DAT' | 'KHONG_DAT' | undefined;
+    const finalComments = formData?.otherComments as string | undefined;
+
+    // Build evaluation summaries
+    const evaluationSummaries = finalizedEvaluations.map((item) => {
+      const evalFormData = item.formData as Record<string, unknown>;
+      const scientificContent = evalFormData?.scientificContent as Record<string, unknown> | undefined;
+      const researchMethod = evalFormData?.researchMethod as Record<string, unknown> | undefined;
+      const feasibility = evalFormData?.feasibility as Record<string, unknown> | undefined;
+      const budget = evalFormData?.budget as Record<string, unknown> | undefined;
+
+      const sciScore = (scientificContent?.score as number) || 0;
+      const methScore = (researchMethod?.score as number) || 0;
+      const feasScore = (feasibility?.score as number) || 0;
+      const budgScore = (budget?.score as number) || 0;
+      const totalScore = sciScore + methScore + feasScore + budgScore;
+
+      return {
+        id: item.id,
+        evaluatorId: item.evaluatorId,
+        evaluatorName: item.evaluator.displayName,
+        evaluatorRole: item.evaluator.role,
+        councilRole: undefined,
+        isSecretary: council.secretary?.id === item.evaluatorId,
+        state: item.state,
+        scientificContentScore: sciScore,
+        researchMethodScore: methScore,
+        feasibilityScore: feasScore,
+        budgetScore: budgScore,
+        totalScore,
+        conclusion: evalFormData?.conclusion as string | undefined,
+        otherComments: evalFormData?.otherComments as string | undefined,
+      };
+    });
+
+    this.logger.log(`Council evaluation summary retrieved for proposal ${proposalId} by ${userId}`);
+
+    return {
+      proposalId: proposal.id,
+      proposalCode: proposal.code,
+      proposalTitle: proposal.title,
+      councilName: council.name,
+      secretaryName: council.secretary?.displayName || '',
+      submittedCount,
+      totalMembers,
+      allSubmitted: submittedCount >= totalMembers,
+      aggregateScores,
+      finalConclusion,
+      finalComments,
+      evaluations: evaluationSummaries,
+    };
+  }
+
+  /**
+   * Calculate aggregate statistics (avg, min, max) for a section
+   */
+  private calculateAggregates(
+    evaluations: unknown[],
+    section: string,
+  ): { avg: number; min: number; max: number } {
+    const scores = evaluations
+      .map((e: unknown) => {
+        const formData = (e as { formData: Record<string, unknown> }).formData;
+        const sectionData = formData?.[section] as Record<string, unknown> | undefined;
+        return (sectionData?.score as number) || 0;
+      })
+      .filter((s) => s > 0);
+
+    if (scores.length === 0) {
+      return { avg: 0, min: 0, max: 0 };
+    }
+
+    const avg = scores.reduce((sum, s) => sum + s, 0) / scores.length;
+    const min = Math.min(...scores);
+    const max = Math.max(...scores);
+
+    return { avg: Math.round(avg * 10) / 10, min, max };
+  }
 }

@@ -198,10 +198,14 @@ export function CreateUserModal({ isOpen, onClose, onSuccess }: CreateUserModalP
               >
                 <option value={UserRole.GIANG_VIEN}>Giảng viên / PI</option>
                 <option value={UserRole.QUAN_LY_KHOA}>Quản lý Khoa</option>
-                <option value={UserRole.HOI_DONG}>Thành viên Hội đồng</option>
+                <option value={UserRole.THU_KY_KHOA}>Thư ký Khoa</option>
                 <option value={UserRole.PHONG_KHCN}>Phòng KHCN</option>
+                <option value={UserRole.THU_KY_HOI_DONG}>Thư ký Hội đồng</option>
+                <option value={UserRole.THANH_TRUNG}>Thành viên Hội đồng</option>
+                <option value={UserRole.BAN_GIAM_HOC}>Ban Giám học</option>
+                <option value={UserRole.BGH}>Ban Giám hiệu (BGH - Legacy)</option>
+                <option value={UserRole.HOI_DONG}>Hội đồng (Legacy)</option>
                 <option value={UserRole.ADMIN}>Quản trị viên</option>
-                <option value={UserRole.BGH}>Ban Giám hiệu</option>
               </select>
             </div>
 

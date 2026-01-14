@@ -141,3 +141,137 @@ export class FinalizeCouncilEvaluationResponseDto {
   @ApiProperty({ type: FinalizeCouncilEvaluationDataDto })
   data: FinalizeCouncilEvaluationDataDto;
 }
+
+/**
+ * Aggregate Score Statistics
+ */
+export class AggregateScoreDto {
+  @ApiProperty({ description: 'Trung bình cộng' })
+  avg: number;
+
+  @ApiProperty({ description: 'Điểm thấp nhất' })
+  min: number;
+
+  @ApiProperty({ description: 'Điểm cao nhất' })
+  max: number;
+}
+
+/**
+ * Aggregate Scores for all criteria
+ */
+export class AggregateScoresDto {
+  @ApiProperty({ description: 'Nội dung khoa học', type: AggregateScoreDto })
+  scientificContent: AggregateScoreDto;
+
+  @ApiProperty({ description: 'Phương pháp nghiên cứu', type: AggregateScoreDto })
+  researchMethod: AggregateScoreDto;
+
+  @ApiProperty({ description: 'Tính khả thi', type: AggregateScoreDto })
+  feasibility: AggregateScoreDto;
+
+  @ApiProperty({ description: 'Kinh phí', type: AggregateScoreDto })
+  budget: AggregateScoreDto;
+
+  @ApiProperty({ description: 'Điểm tổng trung bình' })
+  overallAvg: number;
+}
+
+/**
+ * Council Member Evaluation Summary
+ */
+export class EvaluationSummaryDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  evaluatorId: string;
+
+  @ApiProperty()
+  evaluatorName: string;
+
+  @ApiProperty()
+  evaluatorRole: string;
+
+  @ApiPropertyOptional({ description: 'Vai trò trong hội đồng' })
+  councilRole?: string;
+
+  @ApiPropertyOptional({ description: 'Là thư ký hội đồng' })
+  isSecretary?: boolean;
+
+  @ApiProperty({ enum: EvaluationState })
+  state: EvaluationState;
+
+  @ApiProperty({ description: 'Điểm nội dung khoa học' })
+  scientificContentScore: number;
+
+  @ApiProperty({ description: 'Điểm phương pháp' })
+  researchMethodScore: number;
+
+  @ApiProperty({ description: 'Điểm tính khả thi' })
+  feasibilityScore: number;
+
+  @ApiProperty({ description: 'Điểm kinh phí' })
+  budgetScore: number;
+
+  @ApiProperty({ description: 'Tổng điểm' })
+  totalScore: number;
+
+  @ApiPropertyOptional({ description: 'Kết luận' })
+  conclusion?: string;
+
+  @ApiPropertyOptional({ description: 'Nhận xét khác' })
+  otherComments?: string;
+}
+
+/**
+ * Council Evaluation Summary Data
+ * For BAN_GIAM_HOC to review before approval
+ */
+export class CouncilEvaluationSummaryDataDto {
+  @ApiProperty()
+  proposalId: string;
+
+  @ApiProperty()
+  proposalCode: string;
+
+  @ApiProperty()
+  proposalTitle: string;
+
+  @ApiProperty()
+  councilName: string;
+
+  @ApiProperty()
+  secretaryName: string;
+
+  @ApiProperty({ description: 'Số thành viên đã nộp đánh giá' })
+  submittedCount: number;
+
+  @ApiProperty({ description: 'Tổng số thành viên hội đồng' })
+  totalMembers: number;
+
+  @ApiProperty({ description: 'Tất cả đã nộp' })
+  allSubmitted: boolean;
+
+  @ApiProperty({ type: AggregateScoresDto, description: 'Điểm thống kê' })
+  aggregateScores: AggregateScoresDto;
+
+  @ApiProperty({ description: 'Kết luận cuối cùng của thư ký' })
+  finalConclusion?: 'DAT' | 'KHONG_DAT' | null;
+
+  @ApiPropertyOptional({ description: 'Nhận xét cuối cùng' })
+  finalComments?: string;
+
+  @ApiProperty({ type: [EvaluationSummaryDto], description: 'Danh sách đánh giá chi tiết' })
+  evaluations: EvaluationSummaryDto[];
+}
+
+/**
+ * Council Evaluation Summary Response DTO
+ */
+export class CouncilEvaluationSummaryResponseDto {
+  @ApiProperty()
+  success: true;
+
+  @ApiProperty({ type: CouncilEvaluationSummaryDataDto })
+  data: CouncilEvaluationSummaryDataDto;
+}

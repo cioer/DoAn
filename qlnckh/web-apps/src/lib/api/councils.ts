@@ -130,6 +130,34 @@ export const councilsApi = {
     const response = await apiClient.delete(`/council/${id}`);
     return response.data;
   },
+
+  /**
+   * Change council for a proposal
+   * @param proposalId - Proposal ID
+   * @param data - Change council data
+   */
+  async changeCouncil(
+    proposalId: string,
+    data: {
+      councilId: string;
+      secretaryId: string;
+      memberIds?: string[];
+      reason?: string;
+      idempotencyKey?: string;
+    }
+  ): Promise<{
+    success: true;
+    data: {
+      proposalId: string;
+      previousCouncilId: string;
+      newCouncilId: string;
+      councilName: string;
+      workflowLogId: string;
+    };
+  }> {
+    const response = await apiClient.post(`/council/${proposalId}/change-council`, data);
+    return response.data;
+  },
 };
 
 export default councilsApi;

@@ -870,4 +870,76 @@ export const workflowApi = {
     );
     return response.data.data;
   },
+
+  /**
+   * Get Council Evaluation Summary (OUTLINE_COUNCIL_REVIEW state)
+   * BAN_GIAM_HOC: View aggregated council evaluation results before approval
+   *
+   * @param proposalId - Proposal ID to get evaluation summary for
+   * @returns Council evaluation summary with aggregate scores and individual evaluations
+   * @throws 403 if user lacks BAN_GIAM_HOC or BGH role
+   * @throws 404 if proposal or council not found
+   */
+  getCouncilEvaluationSummary: async (
+    proposalId: string,
+  ): Promise<CouncilEvaluationSummaryData> => {
+    const response = await apiClient.get<CouncilEvaluationSummaryResponse>(
+      `/evaluations/${proposalId}/summary`,
+    );
+    return response.data.data;
+  },
 };
+
+/**
+ * Council Evaluation Summary Types
+ * For BAN_GIAM_HOC to view before approval
+ */
+
+export interface AggregateScore {
+  avg: number;
+  min: number;
+  max: number;
+}
+
+export interface AggregateScores {
+  scientificContent: AggregateScore;
+  researchMethod: AggregateScore;
+  feasibility: AggregateScore;
+  budget: AggregateScore;
+  overallAvg: number;
+}
+
+export interface EvaluationSummary {
+  id: string;
+  evaluatorId: string;
+  evaluatorName: string;
+  evaluatorRole: string;
+  isSecretary: boolean;
+  scientificContentScore: number;
+  researchMethodScore: number;
+  feasibilityScore: number;
+  budgetScore: number;
+  totalScore: number;
+  conclusion?: string;
+  otherComments?: string;
+}
+
+export interface CouncilEvaluationSummaryData {
+  proposalId: string;
+  proposalCode: string;
+  proposalTitle: string;
+  councilName: string;
+  secretaryName: string;
+  submittedCount: number;
+  totalMembers: number;
+  allSubmitted: boolean;
+  aggregateScores: AggregateScores;
+  finalConclusion?: 'DAT' | 'KHONG_DAT' | null;
+  finalComments?: string;
+  evaluations: EvaluationSummary[];
+}
+
+export interface CouncilEvaluationSummaryResponse {
+  success: true;
+  data: CouncilEvaluationSummaryData;
+}

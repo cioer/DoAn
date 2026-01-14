@@ -2,6 +2,8 @@ import { Controller, Get, Patch, Post, HttpCode, HttpStatus, Param, Body, UseGua
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { EvaluationService } from './evaluations.service';
+import { RequireRoles } from '../../common/decorators/roles.decorator';
+import { UserRole } from '@prisma/client';
 import { IdempotencyInterceptor } from '../../common/interceptors';
 import {
   UpdateEvaluationDto,
@@ -19,6 +21,7 @@ import {
   GetAllEvaluationsResponseDto,
   FinalizeCouncilEvaluationRequestDto,
   FinalizeCouncilEvaluationResponseDto,
+  CouncilEvaluationSummaryResponseDto,
 } from './dto/council-evaluation.dto';
 import { Permission } from '../rbac/permissions.enum';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -384,6 +387,53 @@ export class EvaluationController {
         targetState: result.targetState,
         finalizedAt: new Date(),
       },
+    };
+  }
+
+  /**
+   * GET /api/evaluations/:proposalId/summary
+   * BAN_GIAM_HOC Feature: Get council evaluation summary for approval decision
+   * Allows BGH to view aggregated council evaluation results before final approval
+   *
+   * @param proposalId - Proposal ID
+   * @param req - Request with user info
+   * @returns Council evaluation summary with aggregate scores and individual evaluations
+   */
+  @Get(':proposalId/summary')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.BAN_GIAM_HOC, UserRole.BGH)
+  @ApiOperation({
+    summary: 'Lấy tổng kết đánh giá hội đồng',
+    description: 'Ban Giám Học xem tổng kết đánh giá của hội đồng trước khi ra quyết định cuối cùng. Hiển thị điểm trung bình, đánh giá chi tiết từng thành viên và kết luận cuối cùng.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Council evaluation summary retrieved successfully',
+    type: CouncilEvaluationSummaryResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user is not BAN_GIAM_HOC or BGH',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal or council not found',
+    type: ErrorResponseDto,
+  })
+  async getCouncilEvaluationSummary(
+    @Param('proposalId') proposalId: string,
+    @Req() req: RequestWithUser,
+  ): Promise<CouncilEvaluationSummaryResponseDto> {
+    const summary = await this.evaluationService.getCouncilEvaluationSummaryForBGH(
+      proposalId,
+      req.user.id,
+      req.user.role,
+    );
+
+    return {
+      success: true,
+      data: summary,
     };
   }
 }

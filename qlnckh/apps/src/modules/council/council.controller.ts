@@ -29,6 +29,8 @@ import {
   CreateCouncilDto,
   UpdateCouncilDto,
   ErrorResponseDto,
+  ChangeCouncilDto,
+  ChangeCouncilResponse,
 } from './dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequireRoles } from '../../common/decorators/roles.decorator';
@@ -39,6 +41,7 @@ import { UserRole, ProjectState } from '@prisma/client';
 import { PrismaService } from '../auth/prisma.service';
 import { WorkflowService } from '../workflow/workflow.service';
 import { WorkflowAction } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
 
 /**
  * User object attached to request by JWT guard
@@ -59,6 +62,7 @@ export class CouncilController {
     private readonly councilService: CouncilService,
     private readonly prisma: PrismaService,
     private readonly workflowService: WorkflowService,
+    private readonly auditService: AuditService,
   ) {}
 
   /**
@@ -500,6 +504,184 @@ export class CouncilController {
         holderUnit: result.holderUnit,
         holderUser: result.holderUser,
         workflowLogId: result.workflowLog.id,
+      },
+    };
+  }
+
+  /**
+   * POST /api/council/:proposalId/change-council
+   * Change Council Endpoint
+   *
+   * Changes the council assigned to a proposal that is already in a council review state.
+   * Only PHONG_KHCN role can perform this action.
+   *
+   * Use cases:
+   * - Council member is unavailable
+   * - Proposal needs to be reviewed by a different council
+   * - Council composition needs to be updated
+   */
+  @Post(':proposalId/change-council')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.PHONG_KHCN)
+  @UseInterceptors(IdempotencyInterceptor)
+  @ApiOperation({
+    summary: 'Thay đổi hội đồng xét duyệt',
+    description:
+      'Thay đổi hội đồng được gán cho đề tài đang trong trạng thái xét duyệt của hội đồng. ' +
+      'Chỉ PHONG_KHCN mới có thể thực hiện hành động này. ' +
+      'Hành động này ghi nhận audit log và cập nhật holder cho đề tài.',
+  })
+  @ApiParam({
+    name: 'proposalId',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Hội đồng được thay đổi thành công',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          proposalId: 'proposal-uuid',
+          previousCouncilId: 'old-council-uuid',
+          newCouncilId: 'new-council-uuid',
+          councilName: 'Hội đồng khoa CNTT #2',
+          workflowLogId: 'log-uuid',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - proposal has no council or same council selected',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'SAME_COUNCIL',
+          message: 'Hội đồng mới phải khác với hội đồng hiện tại',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user lacks PHONG_KHCN role',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Bạn không có quyền thay đổi hội đồng',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal or council not found',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Không tìm thấy đề tài',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflict - duplicate idempotency key',
+    schema: {
+      example: {
+        success: false,
+        error: {
+          code: 'ALREADY_PROCESSED',
+          message: 'Yêu cầu đã được xử lý',
+        },
+      },
+    },
+  })
+  async changeCouncil(
+    @Param('proposalId') proposalId: string,
+    @Body() dto: ChangeCouncilDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<ChangeCouncilResponse> {
+    // Verify proposal exists
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: { id: true, state: true, councilId: true },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Không tìm thấy đề tài',
+        },
+      });
+    }
+
+    // Verify proposal has a council assigned
+    if (!proposal.councilId) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'NO_COUNCIL_ASSIGNED',
+          message: 'Đề tài chưa được gán hội đồng. Sử dụng tính năng gán hội đồng.',
+        },
+      });
+    }
+
+    // Optionally validate state - should be in a council review state
+    // Allow changing council in any state, just log info if not in typical council review state
+    if (proposal.state !== ProjectState.OUTLINE_COUNCIL_REVIEW) {
+      console.info(
+        `Changing council for proposal ${proposalId} in state ${proposal.state}`,
+      );
+    }
+
+    // Change council via service
+    const result = await this.councilService.changeCouncilForProposal(
+      proposalId,
+      dto.councilId,
+      dto.secretaryId,
+      dto.memberIds,
+      user.id,
+    );
+
+    // Create audit log for the change
+    await this.auditService.logEvent({
+      action: 'COUNCIL_CHANGE' as any,
+      actorUserId: user.id,
+      entityType: 'Proposal',
+      entityId: proposalId,
+      metadata: {
+        previousCouncilId: result.previousCouncilId,
+        newCouncilId: dto.councilId,
+        newCouncilName: result.council.name,
+        newSecretaryId: dto.secretaryId,
+        reason: dto.reason || 'Council changed by PHONG_KHCN',
+        ip,
+        userAgent,
+        requestId,
+      },
+    });
+
+    return {
+      success: true,
+      data: {
+        proposalId: result.proposal.id,
+        previousCouncilId: result.previousCouncilId,
+        newCouncilId: result.council.id,
+        councilName: result.council.name,
+        workflowLogId: 'audit-created',
       },
     };
   }

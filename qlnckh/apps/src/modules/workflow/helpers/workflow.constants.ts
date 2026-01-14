@@ -16,17 +16,19 @@ export const SPECIAL_UNIT_CODES = {
  * Role-based authorization matrix
  * Maps workflow actions to roles that can perform them
  * Epic 9: Updated with exception action permissions
+ *
+ * Note: BGH is a legacy alias for BAN_GIAM_HOC - both are valid
  */
 export const ACTION_ROLE_PERMISSIONS = {
   SUBMIT: ['GIANG_VIEN'],
-  APPROVE: ['QUAN_LY_KHOA', 'THU_KY_KHOA', 'THU_KY_HOI_DONG', 'BAN_GIAM_HOC'],
-  RETURN: ['QUAN_LY_KHOA', 'THU_KY_KHOA', 'THU_KY_HOI_DONG', 'BAN_GIAM_HOC'],
+  APPROVE: ['QUAN_LY_KHOA', 'THU_KY_KHOA', 'THU_KY_HOI_DONG', 'BAN_GIAM_HOC', 'BGH'],
+  RETURN: ['QUAN_LY_KHOA', 'THU_KY_KHOA', 'THU_KY_HOI_DONG', 'BAN_GIAM_HOC', 'BGH'],
   RESUBMIT: ['GIANG_VIEN'],
   START_PROJECT: ['GIANG_VIEN', 'PHONG_KHCN'],
   SUBMIT_ACCEPTANCE: ['GIANG_VIEN'],
   FACULTY_ACCEPT: ['QUAN_LY_KHOA', 'THU_KY_KHOA'],
-  ACCEPT: ['PHONG_KHCN', 'BAN_GIAM_HOC'],
-  REJECT: ['QUAN_LY_KHOA', 'PHONG_KHCN', 'THU_KY_HOI_DONG', 'THANH_TRUNG', 'BAN_GIAM_HOC'],
+  ACCEPT: ['PHONG_KHCN', 'BAN_GIAM_HOC', 'BGH'],
+  REJECT: ['QUAN_LY_KHOA', 'PHONG_KHCN', 'THU_KY_HOI_DONG', 'THANH_TRUNG', 'BAN_GIAM_HOC', 'BGH'],
   CANCEL: ['GIANG_VIEN'],
   WITHDRAW: ['GIANG_VIEN'],
   PAUSE: ['PHONG_KHCN'],

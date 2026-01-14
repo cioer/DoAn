@@ -48,11 +48,12 @@ export interface SchoolAcceptanceActionsProps {
 
 /**
  * Check if user can perform BAN_GIAM_HOC school acceptance actions
- * Returns true if user has BAN_GIAM_HOC role
+ * Returns true if user has BAN_GIAM_HOC or BGH role
  * AND proposal is in SCHOOL_ACCEPTANCE_REVIEW state
  */
 function canAcceptSchool(proposalState: string, userRole: string): boolean {
-  return proposalState === 'SCHOOL_ACCEPTANCE_REVIEW' && userRole === 'BAN_GIAM_HOC';
+  return proposalState === 'SCHOOL_ACCEPTANCE_REVIEW' &&
+         (userRole === 'BAN_GIAM_HOC' || userRole === 'BGH');
 }
 
 /**

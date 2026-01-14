@@ -15,7 +15,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertCircle, FileText, RotateCcw } from 'lucide-react';
+import { ArrowLeft, AlertCircle, FileText, RotateCcw, RefreshCw } from 'lucide-react';
 import { EvaluationForm, isCouncilSecretary, isCouncilMember, EvaluationResultsViewer } from '../../../components/evaluation/index';
 import { CouncilFinalizationSection } from '../../../components/evaluation/CouncilFinalizationSection';
 import { ProposalExportButton } from '../../../components/proposals/index';
@@ -27,6 +27,8 @@ import {
 } from '../../../components/workflow/index';
 import { ChangesRequestedBanner } from '../../../components/workflow/ChangesRequestedBanner';
 import { ExceptionActions } from '../../../components/workflow/exception-actions/ExceptionActions';
+import { ChangeCouncilDialog } from '../../../components/councils';
+import { CouncilEvaluationSummary } from '../../../components/workflow/CouncilEvaluationSummary';
 import type { PauseInfo } from '../../../components/workflow/exception-actions/ResumeConfirmDialog';
 // FacultyAcceptanceDecisionModal removed - using ProposalActions buttons instead
 import { proposalsApi, Proposal } from '../../../lib/api/proposals';
@@ -69,6 +71,9 @@ export default function ProposalDetailPage() {
 
   // Pause info for ExceptionActions (Story 9.3)
   const [pauseInfo, setPauseInfo] = useState<PauseInfo | null>(null);
+
+  // Change Council Dialog state
+  const [isChangeCouncilDialogOpen, setIsChangeCouncilDialogOpen] = useState(false);
 
   /**
    * Load proposal data on mount
@@ -337,6 +342,17 @@ export default function ProposalDetailPage() {
         />
       )}
 
+      {/* Council Evaluation Summary - BAN_GIAM_HOC only */}
+      {/* Shows aggregated council evaluation results before approval decision */}
+      {proposal.state === 'OUTLINE_COUNCIL_REVIEW' && currentUser?.role === 'BAN_GIAM_HOC' && (
+        <div className="mb-6">
+          <CouncilEvaluationSummary
+            proposalId={proposal.id}
+            onError={(error) => console.error('Council Evaluation Summary error:', error)}
+          />
+        </div>
+      )}
+
       {/* Workflow Actions - Show for currentUsers with approval permissions */}
       {currentUser && (
         <div className="mb-6 flex justify-end gap-3 flex-wrap">
@@ -357,6 +373,18 @@ export default function ProposalDetailPage() {
               onActionSuccess={handleActionSuccess}
               onActionError={handleActionError}
             />
+          )}
+
+          {/* PHONG_KHCN: Change Council Button */}
+          {/* Shows "Thay hội đồng" button when proposal has a council assigned */}
+          {proposal.holderUnit && user?.role === 'PHONG_KHCN' && (
+            <button
+              onClick={() => setIsChangeCouncilDialogOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Thay hội đồng
+            </button>
           )}
 
           {/* BAN_GIAM_HOC: Council Review Approval Actions */}
@@ -590,7 +618,16 @@ export default function ProposalDetailPage() {
         )}
       </div>
 
-      {/* Faculty Acceptance Decision - handled by ProposalActions component */}
+      {/* Change Council Dialog - PHONG_KHCN */}
+      <ChangeCouncilDialog
+        isOpen={isChangeCouncilDialogOpen}
+        onClose={() => setIsChangeCouncilDialogOpen(false)}
+        onSuccess={handleActionSuccess}
+        proposalId={proposal.id}
+        proposalCode={proposal.code}
+        currentCouncilId={proposal.holderUnit || undefined}
+        currentCouncilName={proposal.council?.name || `Council: ${proposal.holderUnit}`}
+      />
     </div>
   );
 }

@@ -1986,7 +1986,7 @@ export class WorkflowController {
    */
   @Post(':proposalId/approve-council')
   @HttpCode(HttpStatus.OK)
-  @RequireRoles(UserRole.BAN_GIAM_HOC)
+  @RequireRoles(UserRole.BAN_GIAM_HOC, UserRole.BGH)
   @ApiOperation({
     summary: 'Duyệt đề tài ở cấp Hội đồng',
     description:
@@ -2077,7 +2077,7 @@ export class WorkflowController {
    */
   @Post(':proposalId/return-council')
   @HttpCode(HttpStatus.OK)
-  @RequireRoles(UserRole.BAN_GIAM_HOC)
+  @RequireRoles(UserRole.BAN_GIAM_HOC, UserRole.BGH)
   @ApiOperation({
     summary: 'Yêu cầu sửa đổi từ Hội đồng',
     description:
@@ -2151,7 +2151,7 @@ export class WorkflowController {
    */
   @Post(':proposalId/accept-school')
   @HttpCode(HttpStatus.OK)
-  @RequireRoles(UserRole.BAN_GIAM_HOC)
+  @RequireRoles(UserRole.BAN_GIAM_HOC, UserRole.BGH)
   @ApiOperation({
     summary: 'Nghiệm thu cấp Trường',
     description:
@@ -2242,7 +2242,7 @@ export class WorkflowController {
    */
   @Post(':proposalId/return-school')
   @HttpCode(HttpStatus.OK)
-  @RequireRoles(UserRole.BAN_GIAM_HOC)
+  @RequireRoles(UserRole.BAN_GIAM_HOC, UserRole.BGH)
   @ApiOperation({
     summary: 'Yêu cầu sửa đổi từ nghiệm thu cấp Trường',
     description:

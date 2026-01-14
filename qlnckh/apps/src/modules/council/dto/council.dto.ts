@@ -160,6 +160,51 @@ export interface AssignCouncilResponse {
 }
 
 /**
+ * Change Council DTO
+ * Request body for changing the council assigned to a proposal
+ * Used when proposal is already in a council review state
+ */
+export class ChangeCouncilDto {
+  @ApiProperty({ description: 'New council ID to assign' })
+  @IsUUID()
+  councilId: string;
+
+  @ApiProperty({ description: 'New secretary user ID' })
+  @IsUUID()
+  secretaryId: string;
+
+  @ApiPropertyOptional({ type: [String], description: 'Optional: new member IDs' })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  memberIds?: string[];
+
+  @ApiPropertyOptional({ description: 'Reason for changing council' })
+  @IsString()
+  @IsOptional()
+  reason?: string;
+
+  @ApiPropertyOptional()
+  @IsUUID()
+  @IsOptional()
+  idempotencyKey?: string;
+}
+
+/**
+ * Change Council Response DTO
+ */
+export interface ChangeCouncilResponse {
+  success: true;
+  data: {
+    proposalId: string;
+    previousCouncilId: string;
+    newCouncilId: string;
+    councilName: string;
+    workflowLogId: string;
+  };
+}
+
+/**
  * Error Response DTO
  */
 export class ErrorResponseDto {

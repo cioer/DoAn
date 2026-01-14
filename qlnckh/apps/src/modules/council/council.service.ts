@@ -536,4 +536,141 @@ export class CouncilService {
 
     return this.getCouncilById(proposal.councilId);
   }
+
+  /**
+   * Change council for a proposal
+   * Used when proposal is already in a council review state and needs council reassignment
+   *
+   * @param proposalId - Proposal ID
+   * @param newCouncilId - New council ID to assign
+   * @param newSecretaryId - New secretary user ID
+   * @param newMemberIds - Optional array of new member IDs
+   * @param actorId - User performing the change (for audit)
+   * @returns Updated proposal with new council assignment
+   */
+  async changeCouncilForProposal(
+    proposalId: string,
+    newCouncilId: string,
+    newSecretaryId: string,
+    newMemberIds?: string[],
+    actorId?: string,
+  ) {
+    // Verify proposal exists and has a council assigned
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: {
+        id: true,
+        code: true,
+        councilId: true,
+        title: true,
+      },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Không tìm thấy đề tài',
+        },
+      });
+    }
+
+    if (!proposal.councilId) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'NO_COUNCIL_ASSIGNED',
+          message: 'Đề tài chưa được gán hội đồng. Sử dụng tính năng gán hội đồng.',
+        },
+      });
+    }
+
+    // Verify new council exists
+    const newCouncil = await this.prisma.council.findUnique({
+      where: { id: newCouncilId },
+      include: {
+        secretary: true,
+        members: true,
+      },
+    });
+
+    if (!newCouncil) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'COUNCIL_NOT_FOUND',
+          message: 'Không tìm thấy hội đồng mới',
+        },
+      });
+    }
+
+    // Verify new secretary exists
+    const newSecretary = await this.prisma.user.findUnique({
+      where: { id: newSecretaryId },
+    });
+
+    if (!newSecretary) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'SECRETARY_NOT_FOUND',
+          message: 'Không tìm thấy thư ký mới',
+        },
+      });
+    }
+
+    // Check if trying to assign the same council
+    if (proposal.councilId === newCouncilId) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'SAME_COUNCIL',
+          message: 'Hội đồng mới phải khác với hội đồng hiện tại',
+        },
+      });
+    }
+
+    const previousCouncilId = proposal.councilId;
+
+    // Update proposal with new council assignment
+    const updatedProposal = await this.prisma.proposal.update({
+      where: { id: proposalId },
+      data: {
+        councilId: newCouncilId,
+        holderUnit: newCouncilId,
+        holderUser: newSecretaryId,
+      },
+    });
+
+    this.logger.log(
+      `Council changed for proposal ${updatedProposal.code}: ${previousCouncilId} -> ${newCouncilId}`,
+    );
+
+    // Log audit event if actorId provided
+    if (actorId) {
+      await this.auditService.logEvent({
+        action: 'COUNCIL_CHANGE' as AuditAction,
+        actorUserId: actorId,
+        entityType: 'Proposal',
+        entityId: proposalId,
+        metadata: {
+          proposalCode: proposal.code,
+          proposalTitle: proposal.title,
+          previousCouncilId,
+          newCouncilId,
+          newCouncilName: newCouncil.name,
+          newSecretaryId,
+          reason: 'Council changed by PHONG_KHCN',
+        },
+      });
+    }
+
+    return {
+      proposal: updatedProposal,
+      council: newCouncil,
+      secretary: newSecretary,
+      previousCouncilId,
+    };
+  }
 }

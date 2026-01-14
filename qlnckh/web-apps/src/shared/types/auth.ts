@@ -6,12 +6,16 @@
 import { Permission } from './permissions';
 
 export enum UserRole {
-  GIANG_VIEN = 'GIANG_VIEN',
-  QUAN_LY_KHOA = 'QUAN_LY_KHOA',
-  HOI_DONG = 'HOI_DONG',
-  BGH = 'BGH',
-  PHONG_KHCN = 'PHONG_KHCN',
-  ADMIN = 'ADMIN',
+  GIANG_VIEN = 'GIANG_VIEN',         // Giảng viên / PI
+  QUAN_LY_KHOA = 'QUAN_LY_KHOA',     // Quản lý Khoa
+  THU_KY_KHOA = 'THU_KY_KHOA',      // Thư ký Khoa
+  PHONG_KHCN = 'PHONG_KHCN',        // Phòng KHCN
+  THU_KY_HOI_DONG = 'THU_KY_HOI_DONG',  // Thư ký Hội đồng
+  THANH_TRUNG = 'THANH_TRUNG',      // Thành viên Hội đồng
+  BAN_GIAM_HOC = 'BAN_GIAM_HOC',    // Ban Giám học
+  HOI_DONG = 'HOI_DONG',            // Legacy: Thành viên Hội đồng (same as THANH_TRUNG)
+  BGH = 'BGH',                      // Legacy: Ban Giám hiệu (same as BAN_GIAM_HOC)
+  ADMIN = 'ADMIN',                  // Quản trị hệ thống
 }
 
 export interface User {
