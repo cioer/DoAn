@@ -39,7 +39,9 @@ type ProposalStatus =
   | 'REJECTED'
   | 'CHANGES_REQUESTED'
   | 'CANCELLED'
-  | 'WITHDRAWN';
+  | 'WITHDRAWN'
+  | 'FACULTY_ACCEPTANCE_REVIEW'
+  | 'SCHOOL_ACCEPTANCE_REVIEW';
 
 interface FacultyDashboardKpi {
   totalProposals: number;
@@ -48,6 +50,8 @@ interface FacultyDashboardKpi {
   returned: number;
   inProgress: number;
   completed: number;
+  pendingAcceptance: number;
+  acceptedByFaculty: number;
 }
 
 interface RecentProposal {
@@ -86,6 +90,8 @@ const getStatusColor = (state: ProposalStatus): string => {
     CHANGES_REQUESTED: 'bg-amber-100 text-amber-700 border-amber-200',
     CANCELLED: 'bg-slate-100 text-slate-500 border-slate-200',
     WITHDRAWN: 'bg-slate-100 text-slate-500 border-slate-200',
+    FACULTY_ACCEPTANCE_REVIEW: 'bg-cyan-100 text-cyan-700 border-cyan-200',
+    SCHOOL_ACCEPTANCE_REVIEW: 'bg-teal-100 text-teal-700 border-teal-200',
   };
   return colors[state] || colors.DRAFT;
 };
@@ -101,6 +107,8 @@ const getStatusLabel = (state: ProposalStatus): string => {
     CHANGES_REQUESTED: 'Yêu cầu sửa',
     CANCELLED: 'Đã hủy',
     WITHDRAWN: 'Đã rút',
+    FACULTY_ACCEPTANCE_REVIEW: 'Nghiệm thu Khoa',
+    SCHOOL_ACCEPTANCE_REVIEW: 'Nghiệm thu Trường',
   };
   return labels[state] || state;
 };
@@ -119,7 +127,7 @@ function StatCard({
   icon: typeof FileText;
   label: string;
   value: number;
-  color: 'blue' | 'green' | 'amber' | 'red' | 'purple';
+  color: 'blue' | 'green' | 'amber' | 'red' | 'purple' | 'cyan' | 'teal';
   delay?: number;
   onClick?: () => void;
 }) {
@@ -129,6 +137,8 @@ function StatCard({
     amber: 'bg-amber-500 text-white',
     red: 'bg-red-500 text-white',
     purple: 'bg-purple-500 text-white',
+    cyan: 'bg-cyan-500 text-white',
+    teal: 'bg-teal-500 text-white',
   };
 
   const bgClasses = {
@@ -137,6 +147,8 @@ function StatCard({
     amber: 'hover:border-amber-200',
     red: 'hover:border-red-200',
     purple: 'hover:border-purple-200',
+    cyan: 'hover:border-cyan-200',
+    teal: 'hover:border-teal-200',
   };
 
   return (
@@ -234,6 +246,8 @@ export default function FacultyDashboardPage() {
     returned: 0,
     inProgress: 0,
     completed: 0,
+    pendingAcceptance: 0,
+    acceptedByFaculty: 0,
   });
   const [recentProposals, setRecentProposals] = useState<RecentProposal[]>([]);
   const [facultyName, setFacultyName] = useState<string>('');
@@ -326,7 +340,7 @@ export default function FacultyDashboardPage() {
         </div>
 
         {/* KPI Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-4 mb-8">
           <StatCard
             icon={FileText}
             label="Tổng số"
@@ -374,6 +388,22 @@ export default function FacultyDashboardPage() {
             color="green"
             delay={600}
             onClick={() => handleViewByState('COMPLETED')}
+          />
+          <StatCard
+            icon={Clock}
+            label="Chờ nghiệm thu"
+            value={kpi.pendingAcceptance}
+            color="cyan"
+            delay={700}
+            onClick={() => handleViewByState('FACULTY_ACCEPTANCE_REVIEW')}
+          />
+          <StatCard
+            icon={CheckCircle2}
+            label="Đã nghiệm thu"
+            value={kpi.acceptedByFaculty}
+            color="teal"
+            delay={800}
+            onClick={() => handleViewByState('SCHOOL_ACCEPTANCE_REVIEW')}
           />
         </div>
 

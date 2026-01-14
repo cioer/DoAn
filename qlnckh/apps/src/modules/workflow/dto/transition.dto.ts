@@ -405,3 +405,55 @@ export class SubmitAcceptanceDto {
   @IsUUID()
   idempotencyKey?: string;
 }
+
+/**
+ * Accept Faculty Acceptance DTO (QUAN_LY_KHOA, THU_KY_KHOA)
+ * Specific DTO for accepting proposal at Faculty Acceptance stage
+ * (FACULTY_ACCEPTANCE_REVIEW → SCHOOL_ACCEPTANCE_REVIEW)
+ */
+export class AcceptFacultyAcceptanceDto {
+  @ApiProperty({
+    description: 'ID của đề tài cần nghiệm thu cấp Khoa',
+    example: 'uuid-v4',
+  })
+  @IsUUID()
+  proposalId: string;
+
+  @ApiPropertyOptional({
+    description: 'Idempotency key để tránh double-submit',
+    example: 'uuid-v4',
+  })
+  @IsOptional()
+  @IsUUID()
+  idempotencyKey?: string;
+}
+
+/**
+ * Return Faculty Acceptance DTO (QUAN_LY_KHOA, THU_KY_KHOA)
+ * Specific DTO for returning proposal at Faculty Acceptance stage
+ * (FACULTY_ACCEPTANCE_REVIEW → CHANGES_REQUESTED)
+ */
+export class ReturnFacultyAcceptanceDto {
+  @ApiProperty({
+    description: 'ID của đề tài cần trả về từ nghiệm thu Khoa',
+    example: 'uuid-v4',
+  })
+  @IsUUID()
+  proposalId: string;
+
+  @ApiProperty({
+    description: 'Lý do trả về',
+    example: 'Sản phẩm nghiên cứu chưa đáp ứng yêu cầu',
+  })
+  @IsString()
+  @IsNotEmpty()
+  reason: string;
+
+  @ApiPropertyOptional({
+    description: 'Idempotency key để tránh double-submit',
+    example: 'uuid-v4',
+  })
+  @IsOptional()
+  @IsUUID()
+  idempotencyKey?: string;
+}

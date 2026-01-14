@@ -28,7 +28,7 @@ import {
 import { ChangesRequestedBanner } from '../../../components/workflow/ChangesRequestedBanner';
 import { ExceptionActions } from '../../../components/workflow/exception-actions/ExceptionActions';
 import type { PauseInfo } from '../../../components/workflow/exception-actions/ResumeConfirmDialog';
-import { FacultyAcceptanceDecisionModal } from '../../../components/acceptance-handover/FacultyAcceptanceDecisionModal';
+// FacultyAcceptanceDecisionModal removed - using ProposalActions buttons instead
 import { proposalsApi, Proposal } from '../../../lib/api/proposals';
 import { workflowApi } from '../../../lib/api/workflow';
 import { attachmentsApi, Attachment } from '../../../lib/api/attachments';
@@ -65,8 +65,7 @@ export default function ProposalDetailPage() {
   // Latest return log for ChangesRequestedBanner
   const [latestReturnLog, setLatestReturnLog] = useState<any>(null);
 
-  // Faculty acceptance decision modal state
-  const [showAcceptanceModal, setShowAcceptanceModal] = useState(false);
+  // Faculty acceptance decision - handled by ProposalActions component
 
   // Pause info for ExceptionActions (Story 9.3)
   const [pauseInfo, setPauseInfo] = useState<PauseInfo | null>(null);
@@ -341,18 +340,8 @@ export default function ProposalDetailPage() {
       {/* Workflow Actions - Show for currentUsers with approval permissions */}
       {currentUser && (
         <div className="mb-6 flex justify-end gap-3 flex-wrap">
-          {/* Faculty Acceptance Decision Button - Show for QUAN_LY_KHOA */}
-          {/* Note: Check actual user role, not actingAs role, for admin actions */}
-          {proposal.state === 'FACULTY_ACCEPTANCE_REVIEW' &&
-           (user?.role === 'QUAN_LY_KHOA' || user?.role === 'ADMIN') && (
-            <button
-              onClick={() => setShowAcceptanceModal(true)}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium flex items-center gap-2"
-            >
-              <FileText className="h-4 w-4" />
-              Nghiệm thu Khoa
-            </button>
-          )}
+          {/* Faculty Acceptance Decision - handled by ProposalActions component below */}
+          {/* Removed duplicate button - ProposalActions has complete logic with idempotency */}
 
           {/* Story 5.1: PHONG_KHCN School Selection Actions */}
           {/* Shows "Phân bổ hội đồng" and "Yêu cầu sửa" buttons */}
@@ -601,16 +590,7 @@ export default function ProposalDetailPage() {
         )}
       </div>
 
-      {/* Faculty Acceptance Decision Modal */}
-      {currentUser && (
-        <FacultyAcceptanceDecisionModal
-          open={showAcceptanceModal}
-          onOpenChange={setShowAcceptanceModal}
-          proposalId={proposal.id}
-          proposalTitle={proposal.title}
-          onSuccess={handleActionSuccess}
-        />
-      )}
+      {/* Faculty Acceptance Decision - handled by ProposalActions component */}
     </div>
   );
 }

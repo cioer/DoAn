@@ -310,6 +310,8 @@ export class DashboardService {
       returned,
       inProgress,
       completed,
+      pendingAcceptance,
+      acceptedByFaculty,
     ] = await Promise.all([
       // Total proposals for this faculty
       this.prisma.proposal.count({
@@ -355,6 +357,22 @@ export class DashboardService {
           deletedAt: null,
         },
       }),
+      // Pending acceptance (FACULTY_ACCEPTANCE_REVIEW) - proposals waiting for faculty manager to accept
+      this.prisma.proposal.count({
+        where: {
+          facultyId,
+          state: ProjectState.FACULTY_ACCEPTANCE_REVIEW,
+          deletedAt: null,
+        },
+      }),
+      // Accepted by faculty (SCHOOL_ACCEPTANCE_REVIEW) - proposals that faculty has accepted
+      this.prisma.proposal.count({
+        where: {
+          facultyId,
+          state: ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+          deletedAt: null,
+        },
+      }),
     ]);
 
     // Get recent proposals for this faculty (latest 10)
@@ -375,6 +393,8 @@ export class DashboardService {
       returned,
       inProgress,
       completed,
+      pendingAcceptance,
+      acceptedByFaculty,
     };
 
     this.logger.log(

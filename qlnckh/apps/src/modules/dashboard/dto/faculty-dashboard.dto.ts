@@ -11,6 +11,8 @@ export class FacultyDashboardKpiDto {
   returned: number;
   inProgress: number;
   completed: number;
+  pendingAcceptance: number; // Proposals in FACULTY_ACCEPTANCE_REVIEW state
+  acceptedByFaculty: number; // Proposals moved to SCHOOL_ACCEPTANCE_REVIEW state
 }
 
 /**

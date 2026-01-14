@@ -110,6 +110,28 @@ function canSubmitAcceptance(proposalState: string, userId: string, ownerId?: st
 }
 
 /**
+ * Faculty Acceptance: Can Accept Faculty Acceptance check
+ * Returns true if user has QUAN_LY_KHOA or THU_KY_KHOA role
+ * AND proposal is in FACULTY_ACCEPTANCE_REVIEW state
+ */
+function canAcceptFacultyAcceptance(proposalState: string, userRole: string): boolean {
+  return (
+    proposalState === 'FACULTY_ACCEPTANCE_REVIEW' && APPROVAL_ROLES.includes(userRole as ApprovalRole)
+  );
+}
+
+/**
+ * Faculty Acceptance: Can Return Faculty Acceptance check
+ * Returns true if user has QUAN_LY_KHOA or THU_KY_KHOA role
+ * AND proposal is in FACULTY_ACCEPTANCE_REVIEW state
+ */
+function canReturnFacultyAcceptance(proposalState: string, userRole: string): boolean {
+  return (
+    proposalState === 'FACULTY_ACCEPTANCE_REVIEW' && APPROVAL_ROLES.includes(userRole as ApprovalRole)
+  );
+}
+
+/**
  * Return Dialog Component (Story 4.2: AC3, AC4)
  *
  * Displays a dialog with:
@@ -317,11 +339,16 @@ export function ProposalActions({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isSubmittingAcceptance, setIsSubmittingAcceptance] = useState(false);
+  const [isAcceptingFacultyAcceptance, setIsAcceptingFacultyAcceptance] = useState(false);
+  const [isReturningFacultyAcceptance, setIsReturningFacultyAcceptance] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [showStartConfirm, setShowStartConfirm] = useState(false);
   const [showSubmitAcceptanceConfirm, setShowSubmitAcceptanceConfirm] = useState(false);
+  const [showAcceptFacultyAcceptanceConfirm, setShowAcceptFacultyAcceptanceConfirm] = useState(false);
+  const [showReturnFacultyAcceptanceDialog, setShowReturnFacultyAcceptanceDialog] = useState(false);
+  const [returnFacultyAcceptanceReason, setReturnFacultyAcceptanceReason] = useState('');
   const [error, setError] = useState<{ code: string; message: string } | null>(
     null,
   );
@@ -339,6 +366,8 @@ export function ProposalActions({
   const showSubmitButton = canSubmit(proposalState, currentUser?.id || '', ownerId);
   const showStartButton = canStartProject(proposalState, currentUser?.id || '', ownerId);
   const showSubmitAcceptanceButton = canSubmitAcceptance(proposalState, currentUser?.id || '', ownerId);
+  const showAcceptFacultyAcceptanceButton = canAcceptFacultyAcceptance(proposalState, currentUser?.role || '');
+  const showReturnFacultyAcceptanceButton = canReturnFacultyAcceptance(proposalState, currentUser?.role || '');
 
   /**
    * Story 4.1: AC3 & AC5 - Execute approve action
@@ -537,8 +566,91 @@ export function ProposalActions({
     }
   };
 
+  /**
+   * Faculty Acceptance: Accept Faculty Acceptance Action
+   * Transitions FACULTY_ACCEPTANCE_REVIEW → SCHOOL_ACCEPTANCE_REVIEW
+   */
+  const handleAcceptFacultyAcceptance = async () => {
+    setIsAcceptingFacultyAcceptance(true);
+    setError(null);
+
+    try {
+      const idempotencyKey = generateIdempotencyKey();
+
+      await workflowApi.acceptFacultyAcceptance(
+        proposalId,
+        idempotencyKey,
+      );
+
+      setShowAcceptFacultyAcceptanceConfirm(false);
+
+      if (onActionSuccess) {
+        onActionSuccess();
+      }
+    } catch (err: unknown) {
+      const apiError = err as {
+        response?: { data?: { success: false; error: { code: string; message: string } } };
+      };
+
+      const errorData =
+        apiError.response?.data?.error || { code: 'UNKNOWN_ERROR', message: 'Lỗi không xác định' };
+      setError(errorData);
+
+      if (onActionError) {
+        onActionError(errorData);
+      }
+    } finally {
+      setIsAcceptingFacultyAcceptance(false);
+    }
+  };
+
+  /**
+   * Faculty Acceptance: Return Faculty Acceptance Action
+   * Transitions FACULTY_ACCEPTANCE_REVIEW → CHANGES_REQUESTED
+   */
+  const handleReturnFacultyAcceptance = async () => {
+    if (!returnFacultyAcceptanceReason.trim()) {
+      setError({ code: 'VALIDATION_ERROR', message: 'Vui lòng nhập lý do trả về' });
+      return;
+    }
+
+    setIsReturningFacultyAcceptance(true);
+    setError(null);
+
+    try {
+      const idempotencyKey = generateIdempotencyKey();
+
+      await workflowApi.returnFacultyAcceptance(
+        proposalId,
+        idempotencyKey,
+        returnFacultyAcceptanceReason,
+      );
+
+      setShowReturnFacultyAcceptanceDialog(false);
+      setReturnFacultyAcceptanceReason('');
+
+      if (onActionSuccess) {
+        onActionSuccess();
+      }
+    } catch (err: unknown) {
+      const apiError = err as {
+        response?: { data?: { success: false; error: { code: string; message: string } } };
+      };
+
+      const errorData =
+        apiError.response?.data?.error || { code: 'UNKNOWN_ERROR', message: 'Lỗi không xác định' };
+      setError(errorData);
+
+      if (onActionError) {
+        onActionError(errorData);
+      }
+    } finally {
+      setIsReturningFacultyAcceptance(false);
+    }
+  };
+
   // AC2: Buttons hidden for wrong role/state
-  if (!showApproveButton && !showReturnButton && !showSubmitButton && !showStartButton && !showSubmitAcceptanceButton) {
+  if (!showApproveButton && !showReturnButton && !showSubmitButton && !showStartButton && !showSubmitAcceptanceButton && !showAcceptFacultyAcceptanceButton && !showReturnFacultyAcceptanceButton) {
     return null;
   }
 
@@ -607,6 +719,32 @@ export function ProposalActions({
           >
             <Send className="w-4 h-4" />
             Gửi duyệt
+          </button>
+        )}
+
+        {/* Faculty Acceptance: "Yêu cầu sửa" button for QUAN_LY_KHOA at FACULTY_ACCEPTANCE_REVIEW */}
+        {showReturnFacultyAcceptanceButton && (
+          <button
+            onClick={() => setShowReturnFacultyAcceptanceDialog(true)}
+            disabled={isReturningFacultyAcceptance}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+            aria-label="Yêu cầu sửa từ nghiệm thu khoa"
+          >
+            <XCircle className="w-4 h-4" />
+            Yêu cầu sửa
+          </button>
+        )}
+
+        {/* Faculty Acceptance: "Nghiệm thu" button for QUAN_LY_KHOA at FACULTY_ACCEPTANCE_REVIEW */}
+        {showAcceptFacultyAcceptanceButton && (
+          <button
+            onClick={() => setShowAcceptFacultyAcceptanceConfirm(true)}
+            disabled={isAcceptingFacultyAcceptance}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+            aria-label="Nghiệm thu cấp Khoa"
+          >
+            <CheckCircle className="w-4 h-4" />
+            Nghiệm thu cấp Khoa
           </button>
         )}
       </div>
@@ -817,6 +955,126 @@ export function ProposalActions({
                 className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
               >
                 {isSubmittingAcceptance ? 'Đang xử lý...' : 'Nộp nghiệm thu'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Accept Faculty Acceptance Confirmation Dialog */}
+      {showAcceptFacultyAcceptanceConfirm && (
+        <div
+          className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="accept-faculty-acceptance-confirm-title"
+        >
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h3
+              id="accept-faculty-acceptance-confirm-title"
+              className="text-lg font-semibold text-gray-900 mb-2"
+            >
+              Xác nhận nghiệm thu cấp Khoa
+            </h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Bạn có chắc chắn muốn nghiệm thu đề tài này? Sau khi nghiệm thu,
+              đề tài sẽ được chuyển lên Phòng KHCN để nghiệm thu cấp Trường.
+            </p>
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-red-800">Lỗi</p>
+                  <p className="text-sm text-red-700">{error.message}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowAcceptFacultyAcceptanceConfirm(false);
+                  setError(null);
+                }}
+                disabled={isAcceptingFacultyAcceptance}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed font-medium"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleAcceptFacultyAcceptance}
+                disabled={isAcceptingFacultyAcceptance}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+              >
+                {isAcceptingFacultyAcceptance ? 'Đang xử lý...' : 'Xác nhận nghiệm thu'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Return Faculty Acceptance Dialog */}
+      {showReturnFacultyAcceptanceDialog && (
+        <div
+          className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="return-faculty-acceptance-title"
+        >
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h3
+              id="return-faculty-acceptance-title"
+              className="text-lg font-semibold text-gray-900 mb-2"
+            >
+              Yêu cầu sửa đổi từ nghiệm thu Khoa
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Vui lòng nhập lý do yêu cầu sửa đổi để gửi về cho giảng viên.
+            </p>
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-red-800">Lỗi</p>
+                  <p className="text-sm text-red-700">{error.message}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="mb-4">
+              <label htmlFor="return-faculty-acceptance-reason" className="block text-sm font-medium text-gray-700 mb-1">
+                Lý do trả về <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                id="return-faculty-acceptance-reason"
+                placeholder="Nhập lý do yêu cầu sửa đổi..."
+                value={returnFacultyAcceptanceReason}
+                onChange={(e) => setReturnFacultyAcceptanceReason(e.target.value)}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowReturnFacultyAcceptanceDialog(false);
+                  setReturnFacultyAcceptanceReason('');
+                  setError(null);
+                }}
+                disabled={isReturningFacultyAcceptance}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed font-medium"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleReturnFacultyAcceptance}
+                disabled={isReturningFacultyAcceptance || !returnFacultyAcceptanceReason.trim()}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+              >
+                {isReturningFacultyAcceptance ? 'Đang gửi...' : 'Gửi yêu cầu'}
               </button>
             </div>
           </div>

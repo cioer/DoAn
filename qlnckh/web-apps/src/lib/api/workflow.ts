@@ -812,4 +812,62 @@ export const workflowApi = {
     );
     return response.data.data;
   },
+
+  /**
+   * Accept Faculty Acceptance Review (FACULTY_ACCEPTANCE_REVIEW → SCHOOL_ACCEPTANCE_REVIEW)
+   * QUAN_LY_KHOA/THU_KY_KHOA: Faculty acceptance - proposal moves to school acceptance review
+   *
+   * @param proposalId - Proposal ID to accept
+   * @param idempotencyKey - UUID v4 idempotency key
+   * @returns Transition result with proposal state and workflow log
+   * @throws 400 if proposal not in FACULTY_ACCEPTANCE_REVIEW state
+   * @throws 403 if user lacks QUAN_LY_KHOA or THU_KY_KHOA role
+   * @throws 404 if proposal not found
+   * @throws 409 if idempotency key was already used
+   */
+  acceptFacultyAcceptance: async (
+    proposalId: string,
+    idempotencyKey: string,
+  ): Promise<TransitionResult> => {
+    const response = await apiClient.post<{ success: true; data: TransitionResult }>(
+      `/workflow/${proposalId}/accept-faculty-acceptance`,
+      { proposalId, idempotencyKey },
+      {
+        headers: {
+          'X-Idempotency-Key': idempotencyKey,
+        },
+      },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Return Faculty Acceptance Review (FACULTY_ACCEPTANCE_REVIEW → CHANGES_REQUESTED)
+   * QUAN_LY_KHOA/THU_KY_KHOA: Return proposal for changes during faculty acceptance
+   *
+   * @param proposalId - Proposal ID to return
+   * @param idempotencyKey - UUID v4 idempotency key
+   * @param reason - Return reason text
+   * @returns Transition result with proposal state and workflow log
+   * @throws 400 if proposal not in FACULTY_ACCEPTANCE_REVIEW state
+   * @throws 403 if user lacks QUAN_LY_KHOA or THU_KY_KHOA role
+   * @throws 404 if proposal not found
+   * @throws 409 if idempotency key was already used
+   */
+  returnFacultyAcceptance: async (
+    proposalId: string,
+    idempotencyKey: string,
+    reason: string,
+  ): Promise<TransitionResult> => {
+    const response = await apiClient.post<{ success: true; data: TransitionResult }>(
+      `/workflow/${proposalId}/return-faculty-acceptance`,
+      { proposalId, reason, idempotencyKey },
+      {
+        headers: {
+          'X-Idempotency-Key': idempotencyKey,
+        },
+      },
+    );
+    return response.data.data;
+  },
 };

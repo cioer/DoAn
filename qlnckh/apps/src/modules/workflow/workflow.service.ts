@@ -111,6 +111,21 @@ export class WorkflowService {
   }
 
   /**
+   * Calculate SLA deadline from start date and business days
+   * Wrapper around SlaService.calculateDeadline()
+   *
+   * @param startDate - Start date for SLA calculation
+   * @param businessDays - Number of business days for SLA
+   * @returns Deadline as Date
+   */
+  private async calculateSlaDeadline(
+    startDate: Date,
+    businessDays: number,
+  ): Promise<Date> {
+    return this.slaService.calculateDeadline(startDate, businessDays);
+  }
+
+  /**
    * Validate that user has permission to perform the workflow action
    * RBAC validation (M1 fix)
    *
@@ -2582,6 +2597,278 @@ export class WorkflowService {
 
         this.logger.log(
           `Proposal ${proposal.code} returned by BAN_GIAM_HOC: ${proposal.state} → ${toState}`,
+        );
+
+        return transitionResult;
+      },
+    );
+
+    // Return the unwrapped result
+    return idempotencyResult.data;
+  }
+
+  /**
+   * Accept Faculty Acceptance (FACULTY_ACCEPTANCE_REVIEW → SCHOOL_ACCEPTANCE_REVIEW)
+   * QUAN_LY_KHOA/THU_KY_KHOA: Accept proposal after Faculty Acceptance Review
+   *
+   * When QUAN_LY_KHOA accepts:
+   * - State transitions FACULTY_ACCEPTANCE_REVIEW → SCHOOL_ACCEPTANCE_REVIEW
+   * - holder_unit = "PHONG_KHCN"
+   * - workflow_logs entry with action=FACULTY_ACCEPT
+   *
+   * @param proposalId - Proposal ID
+   * @param context - Transition context
+   * @returns Transition result
+   */
+  async acceptFacultyAcceptance(
+    proposalId: string,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    const toState = ProjectState.SCHOOL_ACCEPTANCE_REVIEW;
+    const action = WorkflowAction.FACULTY_ACCEPT;
+
+    // Use IdempotencyService for atomic idempotency check
+    const idempotencyResult = await this.idempotency.setIfAbsent(
+      context.idempotencyKey || `accept-faculty-acceptance-${proposalId}`,
+      async () => {
+        // Get proposal
+        const proposal = await this.prisma.proposal.findUnique({
+          where: { id: proposalId },
+          include: { owner: true, faculty: true },
+        });
+
+        if (!proposal) {
+          throw new NotFoundException('Đề tài không tồn tại');
+        }
+
+        // Use WorkflowValidatorService for validation
+        await this.validator.validateTransition(
+          proposalId,
+          toState,
+          action,
+          {
+            proposal,
+            user: {
+              id: context.userId,
+              role: context.userRole,
+              facultyId: context.userFacultyId,
+            },
+          },
+        );
+
+        // Fixed holder for school acceptance review
+        const holder = { holderUnit: 'PHONG_KHCN', holderUser: null };
+
+        // Get user display name for audit log
+        const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+        // Calculate SLA dates (5 business days for school acceptance review)
+        const slaStartDate = new Date();
+        const slaDeadline = await this.calculateSlaDeadline(
+          slaStartDate,
+          5, // 5 business days for school acceptance
+        );
+
+        // Use TransactionService for transaction orchestration
+        const result = await this.transaction.updateProposalWithLog({
+          proposalId,
+          userId: context.userId,
+          userDisplayName: actorDisplayName,
+          action,
+          fromState: proposal.state,
+          toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+          slaStartDate,
+          slaDeadline,
+        });
+
+        // Build transition result
+        const transitionResult: TransitionResult = {
+          proposal: result.proposal,
+          workflowLog: result.workflowLog,
+          previousState: proposal.state,
+          currentState: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        };
+
+        // Use AuditHelperService for audit logging with retry (fire-and-forget)
+        this.auditHelper
+          .logWorkflowTransition(
+            {
+              proposalId,
+              proposalCode: proposal.code,
+              fromState: proposal.state,
+              toState,
+              action: 'FACULTY_ACCEPT',
+              holderUnit: holder.holderUnit,
+              holderUser: holder.holderUser,
+              slaStartDate,
+              slaDeadline,
+            },
+            {
+              userId: context.userId,
+              userDisplayName: actorDisplayName,
+              ip: context.ip,
+              userAgent: context.userAgent,
+              requestId: context.requestId,
+              facultyId: context.userFacultyId,
+              role: context.userRole,
+            },
+          )
+          .catch((err) => {
+            this.logger.error(
+              `Audit log failed for proposal ${proposal.code}: ${err.message}`,
+            );
+          });
+
+        this.logger.log(
+          `Proposal ${proposal.code} faculty accepted by QUAN_LY_KHOA: ${proposal.state} → ${toState}`,
+        );
+
+        return transitionResult;
+      },
+    );
+
+    // Return the unwrapped result
+    return idempotencyResult.data;
+  }
+
+  /**
+   * Return Faculty Acceptance (FACULTY_ACCEPTANCE_REVIEW → CHANGES_REQUESTED)
+   * QUAN_LY_KHOA/THU_KY_KHOA: Return proposal for changes during Faculty Acceptance Review
+   *
+   * When QUAN_LY_KHOA returns:
+   * - State transitions FACULTY_ACCEPTANCE_REVIEW → CHANGES_REQUESTED
+   * - holder_unit = owner_faculty_id (back to PI for revision)
+   * - return_target_state = FACULTY_ACCEPTANCE_REVIEW stored in workflow_logs
+   *
+   * @param proposalId - Proposal ID
+   * @param reason - Return reason
+   * @param context - Transition context
+   * @returns Transition result
+   */
+  async returnFacultyAcceptance(
+    proposalId: string,
+    reason: string,
+    context: TransitionContext,
+  ): Promise<TransitionResult> {
+    const toState = ProjectState.CHANGES_REQUESTED;
+    const action = WorkflowAction.RETURN;
+
+    // Atomic idempotency
+    const idempotencyResult = await this.idempotency.setIfAbsent(
+      context.idempotencyKey || `return-faculty-acceptance-${proposalId}`,
+      async () => {
+        // 1. Get proposal
+        const proposal = await this.prisma.proposal.findUnique({
+          where: { id: proposalId },
+          include: { owner: true, faculty: true },
+        });
+
+        if (!proposal) {
+          throw new NotFoundException('Đề tài không tồn tại');
+        }
+
+        // 2. Validation
+        await this.validator.validateTransition(
+          proposalId,
+          toState,
+          action,
+          {
+            proposal,
+            user: {
+              id: context.userId,
+              role: context.userRole,
+              facultyId: context.userFacultyId,
+            },
+          },
+        );
+
+        // 3. Calculate holder - back to owner's faculty
+        const holder = {
+          holderUnit: proposal.facultyId,
+          holderUser: proposal.ownerId,
+        };
+
+        // 4. Get user display name
+        const actorDisplayName = await this.getUserDisplayName(context.userId);
+
+        // 5. Store return target for resubmit
+        const returnTargetState = ProjectState.FACULTY_ACCEPTANCE_REVIEW;
+        const returnTargetHolderUnit = proposal.facultyId;
+
+        // 6. No SLA for CHANGES_REQUESTED state
+        const slaStartDate = new Date();
+        const slaDeadline = null;
+
+        // 7. Execute transaction
+        const result = await this.transaction.updateProposalWithLog({
+          proposalId,
+          userId: context.userId,
+          userDisplayName: actorDisplayName,
+          action,
+          fromState: proposal.state,
+          toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+          slaStartDate,
+          slaDeadline,
+          comment: reason,
+          metadata: {
+            returnTargetState,
+            returnTargetHolderUnit,
+          },
+        });
+
+        // 8. Build transition result
+        const transitionResult: TransitionResult = {
+          proposal: result.proposal,
+          workflowLog: result.workflowLog,
+          previousState: proposal.state,
+          currentState: toState,
+          holderUnit: holder.holderUnit,
+          holderUser: holder.holderUser,
+        };
+
+        // 9. Audit logging (fire-and-forget)
+        this.auditHelper
+          .logWorkflowTransition(
+            {
+              proposalId,
+              proposalCode: proposal.code,
+              fromState: proposal.state,
+              toState,
+              action: action.toString(),
+              holderUnit: holder.holderUnit,
+              holderUser: holder.holderUser,
+              slaStartDate,
+              slaDeadline,
+              metadata: {
+                returnTargetState,
+                returnTargetHolderUnit,
+                reason,
+              },
+            },
+            {
+              userId: context.userId,
+              userDisplayName: actorDisplayName,
+              ip: context.ip,
+              userAgent: context.userAgent,
+              requestId: context.requestId,
+              facultyId: context.userFacultyId,
+              role: context.userRole,
+            },
+          )
+          .catch((err) => {
+            this.logger.error(
+              `Audit log failed for proposal ${proposal.code}: ${err.message}`,
+            );
+          });
+
+        this.logger.log(
+          `Proposal ${proposal.code} returned by QUAN_LY_KHOA from faculty acceptance: ${proposal.state} → ${toState}`,
         );
 
         return transitionResult;

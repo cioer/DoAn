@@ -68,6 +68,8 @@ import {
   ReturnSchoolReviewDto,
   StartProjectDto,
   SubmitAcceptanceDto,
+  AcceptFacultyAcceptanceDto,
+  ReturnFacultyAcceptanceDto,
 } from './dto/transition.dto';
 
 /**
@@ -847,6 +849,195 @@ export class WorkflowController {
         previousState: result.previousState,
         currentState: result.currentState,
         action: 'SUBMIT_ACCEPTANCE',
+        holderUnit: result.holderUnit,
+        holderUser: result.holderUser,
+        workflowLogId: result.workflowLog.id,
+      },
+    };
+  }
+
+  /**
+   * POST /api/workflow/:proposalId/accept-faculty-acceptance
+   * Faculty Acceptance Review: Accept proposal after Faculty Acceptance Review
+   *
+   * Accepts a proposal at FACULTY_ACCEPTANCE_REVIEW state, transitioning it to
+   * SCHOOL_ACCEPTANCE_REVIEW. Only QUAN_LY_KHOA and THU_KY_KHOA roles can perform this action.
+   *
+   * AC1: When QUAN_LY_KHOA/THU_KY_KHOA accepts:
+   * - State transitions FACULTY_ACCEPTANCE_REVIEW → SCHOOL_ACCEPTANCE_REVIEW
+   * - holder_unit = "PHONG_KHCN"
+   * - workflow_logs entry with action=FACULTY_ACCEPT
+   */
+  @Post(':proposalId/accept-faculty-acceptance')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.QUAN_LY_KHOA, UserRole.THU_KY_KHOA)
+  @ApiOperation({
+    summary: 'Nghiệm thu cấp Khoa',
+    description:
+      'Chuyển đề tài từ trạng thái FACULTY_ACCEPTANCE_REVIEW sang SCHOOL_ACCEPTANCE_REVIEW. Chỉ QUAN_LY_KHOA và THU_KY_KHOA mới có thể nghiệm thu.',
+  })
+  @ApiParam({
+    name: 'proposalId',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Đề tài được nghiệm thu cấp Khoa thành công',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          proposalId: 'proposal-uuid',
+          previousState: 'FACULTY_ACCEPTANCE_REVIEW',
+          currentState: 'SCHOOL_ACCEPTANCE_REVIEW',
+          action: 'FACULTY_ACCEPT',
+          holderUnit: 'PHONG_KHCN',
+          holderUser: null,
+          workflowLogId: 'log-uuid',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - proposal not in FACULTY_ACCEPTANCE_REVIEW state',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user lacks QUAN_LY_KHOA or THU_KY_KHOA role',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflict - duplicate idempotency key',
+  })
+  async acceptFacultyAcceptance(
+    @Param('proposalId') proposalId: string,
+    @Body() dto: AcceptFacultyAcceptanceDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<TransitionResponseDto> {
+    const result = await this.workflowService.acceptFacultyAcceptance(
+      proposalId,
+      {
+        userId: user.id,
+        userRole: user.role,
+        userFacultyId: user.facultyId,
+        idempotencyKey: dto.idempotencyKey,
+        ip,
+        userAgent,
+        requestId,
+      },
+    );
+
+    return {
+      success: true,
+      data: {
+        proposalId: result.proposal.id,
+        previousState: result.previousState,
+        currentState: result.currentState,
+        action: 'FACULTY_ACCEPT',
+        holderUnit: result.holderUnit,
+        holderUser: result.holderUser,
+        workflowLogId: result.workflowLog.id,
+      },
+    };
+  }
+
+  /**
+   * POST /api/workflow/:proposalId/return-faculty-acceptance
+   * Faculty Acceptance Review: Return proposal for changes
+   *
+   * Returns a proposal at FACULTY_ACCEPTANCE_REVIEW state, transitioning it to
+   * CHANGES_REQUESTED. Only QUAN_LY_KHOA and THU_KY_KHOA roles can perform this action.
+   *
+   * AC1: When QUAN_LY_KHOA/THU_KY_KHOA returns:
+   * - State transitions FACULTY_ACCEPTANCE_REVIEW → CHANGES_REQUESTED
+   * - holder_unit = owner_faculty_id (back to PI)
+   * - return_target_state stored in workflow_logs
+   */
+  @Post(':proposalId/return-faculty-acceptance')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.QUAN_LY_KHOA, UserRole.THU_KY_KHOA)
+  @ApiOperation({
+    summary: 'Yêu cầu sửa đổi từ nghiệm thu cấp Khoa',
+    description:
+      'Chuyển đề tài từ trạng thái FACULTY_ACCEPTANCE_REVIEW sang CHANGES_REQUESTED. Chỉ QUAN_LY_KHOA và THU_KY_KHOA mới có thể trả về.',
+  })
+  @ApiParam({
+    name: 'proposalId',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Đề tài được trả về thành công',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          proposalId: 'proposal-uuid',
+          previousState: 'FACULTY_ACCEPTANCE_REVIEW',
+          currentState: 'CHANGES_REQUESTED',
+          action: 'RETURN',
+          holderUnit: 'faculty-id',
+          holderUser: 'owner-id',
+          workflowLogId: 'log-uuid',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - proposal not in FACULTY_ACCEPTANCE_REVIEW state',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - user lacks QUAN_LY_KHOA or THU_KY_KHOA role',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflict - duplicate idempotency key',
+  })
+  async returnFacultyAcceptance(
+    @Param('proposalId') proposalId: string,
+    @Body() dto: ReturnFacultyAcceptanceDto,
+    @CurrentUser() user: RequestUser,
+    @Query('ip') ip?: string,
+    @Query('userAgent') userAgent?: string,
+    @Query('requestId') requestId?: string,
+  ): Promise<TransitionResponseDto> {
+    const result = await this.workflowService.returnFacultyAcceptance(
+      proposalId,
+      dto.reason,
+      {
+        userId: user.id,
+        userRole: user.role,
+        userFacultyId: user.facultyId,
+        idempotencyKey: dto.idempotencyKey,
+        ip,
+        userAgent,
+        requestId,
+      },
+    );
+
+    return {
+      success: true,
+      data: {
+        proposalId: result.proposal.id,
+        previousState: result.previousState,
+        currentState: result.currentState,
+        action: 'RETURN',
         holderUnit: result.holderUnit,
         holderUser: result.holderUser,
         workflowLogId: result.workflowLog.id,
