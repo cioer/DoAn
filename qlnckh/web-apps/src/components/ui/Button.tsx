@@ -11,29 +11,26 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonProps['variant'], string> = {
   primary:
-    'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 focus:ring-offset-2',
+    'bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-soft hover:shadow-soft-lg hover:-translate-y-0.5 border-transparent',
   secondary:
-    'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-gray-200 focus:ring-offset-2',
+    'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 shadow-sm hover:-translate-y-0.5',
   danger:
-    'bg-error-600 text-white hover:bg-error-700 focus:ring-error-500 focus:ring-offset-2',
+    'bg-error-500 text-white shadow-soft hover:shadow-soft-lg hover:bg-error-600 hover:-translate-y-0.5 border-transparent',
   ghost:
-    'bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-gray-200 focus:ring-offset-0',
-  // Story 9.3: Pause button (warning variant)
+    'bg-transparent text-gray-600 hover:bg-gray-100 hover:text-primary-600 border-transparent',
   warning:
-    'bg-amber-500 text-white hover:bg-amber-600 focus:ring-amber-500 focus:ring-offset-2',
-  // Story 9.3: Resume button (success variant)
+    'bg-warning-500 text-white shadow-soft hover:shadow-soft-lg hover:bg-warning-600 hover:-translate-y-0.5 border-transparent',
   success:
-    'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 focus:ring-offset-2',
-  // Alias for danger (used by SchoolSelectionActions)
+    'bg-success-500 text-white shadow-soft hover:shadow-soft-lg hover:bg-success-600 hover:-translate-y-0.5 border-transparent',
   destructive:
-    'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 focus:ring-offset-2',
+    'bg-error-600 text-white shadow-soft hover:shadow-soft-lg hover:bg-error-700 hover:-translate-y-0.5 border-transparent',
 };
 
 const sizeStyles: Record<ButtonProps['size'], string> = {
-  xs: 'px-2 py-1 text-xs rounded-sm',
-  sm: 'px-3 py-1.5 text-sm rounded-sm',
-  md: 'px-4 py-2 text-sm rounded-md',
-  lg: 'px-6 py-3 text-base rounded-lg',
+  xs: 'px-3 py-1.5 text-xs rounded-lg',
+  sm: 'px-3.5 py-2 text-sm rounded-lg',
+  md: 'px-5 py-2.5 text-sm rounded-xl',
+  lg: 'px-6 py-3.5 text-base rounded-xl',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -53,7 +50,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      'inline-flex items-center justify-center font-medium transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+      'inline-flex items-center justify-center font-medium transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:ring-offset-1 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none active:scale-95';
 
     const classes = [
       baseStyles,
@@ -65,7 +62,6 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       .filter(Boolean)
       .join(' ');
 
-    // Extract leftIcon and rightIcon from props so they don't get passed to DOM element
     const { leftIcon: _, rightIcon: __, ...domProps } = props as any;
 
     return (
@@ -101,9 +97,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           </>
         ) : (
           <>
-            {leftIcon && <span className="mr-2">{leftIcon}</span>}
+            {leftIcon && <span className="mr-2 -ml-1">{leftIcon}</span>}
             {children}
-            {rightIcon && <span className="ml-2">{rightIcon}</span>}
+            {rightIcon && <span className="ml-2 -mr-1">{rightIcon}</span>}
           </>
         )}
       </button>

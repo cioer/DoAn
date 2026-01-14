@@ -1,7 +1,37 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { Permission } from '../../shared/types/permissions';
 import { Button } from '../ui';
+import { ReactNode } from 'react';
+
+/**
+ * NavItem Component
+ * Helper for consistent navigation link styling with active state
+ */
+const NavItem = ({
+  children,
+  onClick,
+  isActive,
+  color = 'blue'
+}: {
+  children: ReactNode;
+  onClick: () => void;
+  isActive: boolean;
+  color?: 'blue' | 'emerald' | 'indigo'
+}) => {
+  const activeClass = isActive
+    ? `bg-${color}-50 text-${color}-700 font-semibold shadow-sm ring-1 ring-${color}-200`
+    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900';
+
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-2 rounded-lg text-sm transition-all duration-200 ${activeClass}`}
+    >
+      {children}
+    </button>
+  );
+};
 
 /**
  * Header Component
@@ -14,6 +44,7 @@ import { Button } from '../ui';
  */
 export function Header() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, actingAs, isAuthenticated, logout, getEffectiveUser, hasPermission } = useAuthStore();
 
   if (!isAuthenticated) {
@@ -25,13 +56,13 @@ export function Header() {
 
   // Check navigation permissions
   const canViewDashboard = effectiveUser?.role === 'PHONG_KHCN' ||
-                          effectiveUser?.role === 'ADMIN' ||
-                          effectiveUser?.role === 'HOI_DONG' ||
-                          effectiveUser?.role === 'THU_KY_HOI_DONG';
-  // BAN_GIAM_HOC dashboard
+    effectiveUser?.role === 'ADMIN' ||
+    effectiveUser?.role === 'HOI_DONG' ||
+    effectiveUser?.role === 'THU_KY_HOI_DONG';
+
   const canViewBghDashboard = (effectiveUser?.role === 'BAN_GIAM_HOC' || effectiveUser?.role === 'BGH') &&
-                               hasPermission(Permission.DASHBOARD_VIEW);
-  // Researcher dashboard: only for GIANG_VIEN who have the permission
+    hasPermission(Permission.DASHBOARD_VIEW);
+
   const canViewResearcherDashboard = effectiveUser?.role === 'GIANG_VIEN' && hasPermission(Permission.DASHBOARD_VIEW);
   const canViewFacultyDashboard = hasPermission(Permission.FACULTY_DASHBOARD_VIEW);
   const canViewCalendar = hasPermission(Permission.CALENDAR_MANAGE);
@@ -39,7 +70,7 @@ export function Header() {
   const canViewAuditLog = hasPermission(Permission.AUDIT_VIEW);
   const canViewFormTemplates = hasPermission(Permission.FORM_TEMPLATE_IMPORT);
   const canViewCouncils = effectiveUser?.role === 'PHONG_KHCN' || effectiveUser?.role === 'ADMIN';
-  const canViewImport = effectiveUser?.role === 'ADMIN'; // Story 10.1: Import Excel - ADMIN only
+  const canViewImport = effectiveUser?.role === 'ADMIN';
   const canManageUsers = hasPermission(Permission.USER_MANAGE);
 
   const handleLogout = async () => {
@@ -51,122 +82,99 @@ export function Header() {
     }
   };
 
+  const isActive = (path: string) => location.pathname.startsWith(path);
+
   return (
-    <header className="bg-white border-b border-gray-200 shadow-sm">
+    <header className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-sticky transition-all duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Left side: App title and Navigation */}
-          <div className="flex items-center gap-6">
-            <h1 className="text-xl font-bold text-gray-900">
-              Hệ thống Quản lý NCKH
-            </h1>
+          <div className="flex items-center gap-8">
+            <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-soft">
+                QL
+              </div>
+              <h1 className="text-lg font-bold text-gray-900 tracking-tight">
+                NCKH
+              </h1>
+            </div>
 
             {/* Navigation links */}
-            <nav className="hidden md:flex items-center gap-4">
-              <button
+            <nav className="hidden lg:flex items-center gap-1.5">
+              <NavItem
                 onClick={() => navigate('/proposals')}
-                className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                isActive={isActive('/proposals')}
               >
                 Đề tài
-              </button>
+              </NavItem>
 
               {canViewResearcherDashboard && (
-                <button
+                <NavItem
                   onClick={() => navigate('/dashboard/researcher')}
-                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                  isActive={isActive('/dashboard/researcher')}
                 >
                   Dashboard
-                </button>
+                </NavItem>
               )}
 
               {canViewFacultyDashboard && (
-                <button
+                <NavItem
                   onClick={() => navigate('/dashboard/faculty')}
-                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                  isActive={isActive('/dashboard/faculty')}
                 >
-                  Dashboard Khoa
-                </button>
+                  Khoa
+                </NavItem>
               )}
 
               {canViewBghDashboard && (
-                <button
+                <NavItem
                   onClick={() => navigate('/dashboard/bgh')}
-                  className="text-sm font-medium text-gray-700 hover:text-emerald-600 transition-colors flex items-center gap-1"
+                  isActive={isActive('/dashboard/bgh')}
+                  color="emerald"
                 >
-                  <span>Dashboard Hiệu trưởng</span>
-                </button>
+                  Hiệu trưởng
+                </NavItem>
               )}
 
               {canViewDashboard && (
-                <button
+                <NavItem
                   onClick={() => navigate('/dashboard')}
-                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                  isActive={isActive('/dashboard') && !isActive('/dashboard/')}
                 >
-                  Dashboard
-                </button>
+                  Tổng quan
+                </NavItem>
               )}
 
               {canViewCalendar && (
-                <button
+                <NavItem
                   onClick={() => navigate('/calendar')}
-                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                  isActive={isActive('/calendar')}
                 >
-                  Lịch làm việc
-                </button>
-              )}
-
-              {canViewBulkOps && (
-                <button
-                  onClick={() => navigate('/bulk-operations')}
-                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
-                >
-                  Tác vụ hàng loạt
-                </button>
-              )}
-
-              {canViewAuditLog && (
-                <button
-                  onClick={() => navigate('/audit')}
-                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
-                >
-                  Nhật ký
-                </button>
-              )}
-
-              {canViewFormTemplates && (
-                <button
-                  onClick={() => navigate('/form-templates')}
-                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
-                >
-                  Biểu mẫu
-                </button>
+                  Lịch
+                </NavItem>
               )}
 
               {canViewCouncils && (
-                <button
+                <NavItem
                   onClick={() => navigate('/councils')}
-                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                  isActive={isActive('/councils')}
                 >
                   Hội đồng
-                </button>
+                </NavItem>
               )}
 
-              {canViewImport && (
-                <button
-                  onClick={() => navigate('/admin/import')}
-                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
-                >
-                  Import
-                </button>
+              {/* Management Group */}
+              {(canViewBulkOps || canViewAuditLog || canViewFormTemplates || canViewImport || canManageUsers) && (
+                <div className="h-6 w-px bg-gray-200 mx-2" />
               )}
 
               {canManageUsers && (
-                <button
+                <NavItem
                   onClick={() => navigate('/admin/users')}
-                  className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                  isActive={isActive('/admin/users')}
                 >
                   Quản trị
-                </button>
+                </NavItem>
               )}
             </nav>
           </div>
@@ -174,20 +182,21 @@ export function Header() {
           {/* Right side: User info, Logout */}
           <div className="flex items-center gap-4">
             {/* User info */}
-            <div className="text-sm text-gray-700">
-              <span className="font-medium">{displayName}</span>
+            <div className="text-sm text-right hidden sm:block">
+              <div className="font-semibold text-gray-800">{displayName}</div>
               {actingAs && user && (
-                <span className="ml-2 text-gray-500">
-                  (thật: {user.displayName})
-                </span>
+                <div className="text-xs text-indigo-500 font-medium bg-indigo-50 px-1.5 py-0.5 rounded ml-auto w-fit mt-0.5">
+                  View: {user.displayName}
+                </div>
               )}
             </div>
 
-            {/* Logout button - using Button component */}
+            {/* Logout button */}
             <Button
               variant="secondary"
               size="sm"
               onClick={handleLogout}
+              className="!rounded-lg !px-3"
             >
               Đăng xuất
             </Button>

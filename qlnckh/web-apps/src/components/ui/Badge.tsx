@@ -1,126 +1,37 @@
-import { cva, type VariantProps } from 'class-variance-authority';
-import { forwardRef, type HTMLAttributes } from 'react';
+import { HTMLAttributes, forwardRef } from 'react';
 
-/**
- * Badge Component Variants
- */
-const badgeVariants = cva(
-  'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-  {
-    variants: {
-      variant: {
-        default: 'bg-gray-100 text-gray-800',
-        primary: 'bg-primary-100 text-primary-800',
-        secondary: 'bg-secondary-100 text-secondary-800',
-        success: 'bg-success-100 text-success-800',
-        warning: 'bg-warning-100 text-warning-800',
-        error: 'bg-error-100 text-error-800',
-        info: 'bg-info-100 text-info-800',
-        outline: 'border border-gray-300 text-gray-700',
-      },
-      size: {
-        sm: 'px-2 py-0.5 text-xs',
-        md: 'px-2.5 py-0.5 text-xs',
-        lg: 'px-3 py-1 text-sm',
-      },
-    },
-    defaultVariants: {
-      variant: 'default',
-      size: 'md',
-    },
-  }
-);
-
-/**
- * Badge Component Props
- */
-export interface BadgeProps
-  extends HTMLAttributes<HTMLSpanElement>,
-    VariantProps<typeof badgeVariants> {
-  /** Optional icon to display before text */
-  icon?: React.ReactNode;
+export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
+  variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'info' | 'gray';
+  size?: 'sm' | 'md' | 'lg';
 }
 
-/**
- * Badge Component
- *
- * Small status indicator for labels, counts, and states.
- *
- * @example
- * ```tsx
- * <Badge variant="success">Active</Badge>
- * <Badge variant="error">3 errors</Badge>
- * <Badge variant="warning" icon={<AlertTriangle />}>Pending</Badge>
- * ```
- */
+const variantStyles: Record<Required<BadgeProps>['variant'], string> = {
+  primary: 'bg-primary-50 text-primary-700 border border-primary-100',
+  secondary: 'bg-purple-50 text-purple-700 border border-purple-100',
+  success: 'bg-success-50 text-success-700 border border-success-100',
+  warning: 'bg-warning-50 text-warning-700 border border-warning-100',
+  danger: 'bg-error-50 text-error-700 border border-error-100',
+  info: 'bg-info-50 text-info-700 border border-info-100',
+  gray: 'bg-gray-100 text-gray-700 border border-gray-200',
+};
+
+const sizeStyles: Record<Required<BadgeProps>['size'], string> = {
+  sm: 'px-2 py-0.5 text-xs',
+  md: 'px-2.5 py-0.5 text-sm',
+  lg: 'px-3 py-1 text-sm',
+};
+
 export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
-  ({ variant, size, icon, children, className, ...props }, ref) => {
+  ({ variant = 'gray', size = 'md', className = '', children, ...props }, ref) => {
     return (
       <span
         ref={ref}
-        className={badgeVariants({ variant, size, className })}
+        className={`inline-flex items-center justify-center font-medium rounded-full ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
         {...props}
       >
-        {icon && <span className="mr-1">{icon}</span>}
         {children}
       </span>
     );
   }
 );
-
 Badge.displayName = 'Badge';
-
-/**
- * Status Badge Props - for common workflow states
- */
-export interface StatusBadgeProps extends Omit<BadgeProps, 'variant'> {
-  status: 'draft' | 'pending' | 'in_review' | 'approved' | 'rejected' | 'cancelled' | 'paused' | 'changes_requested';
-}
-
-const statusVariantMap: Record<StatusBadgeProps['status'], BadgeProps['variant']> = {
-  draft: 'default',
-  pending: 'info',
-  in_review: 'primary',
-  approved: 'success',
-  rejected: 'error',
-  cancelled: 'secondary',
-  paused: 'warning',
-  changes_requested: 'warning',
-};
-
-/**
- * Status Badge Component
- *
- * Pre-configured badge for common workflow states.
- *
- * @example
- * ```tsx
- * <StatusBadge status="approved" />
- * <StatusBadge status="pending">Đang chờ</StatusBadge>
- * ```
- */
-export const StatusBadge = forwardRef<HTMLSpanElement, StatusBadgeProps>(
-  ({ status, children, ...props }, ref) => {
-    const variant = statusVariantMap[status];
-
-    // Default labels for Vietnamese
-    const defaultLabels: Record<StatusBadgeProps['status'], string> = {
-      draft: 'Bản nháp',
-      pending: 'Đang chờ',
-      in_review: 'Đang xem xét',
-      approved: 'Đã duyệt',
-      rejected: 'Đã từ chối',
-      cancelled: 'Đã hủy',
-      paused: 'Tạm dừng',
-      changes_requested: 'Yêu cầu sửa',
-    };
-
-    return (
-      <Badge ref={ref} variant={variant} {...props}>
-        {children || defaultLabels[status]}
-      </Badge>
-    );
-  }
-);
-
-StatusBadge.displayName = 'StatusBadge';

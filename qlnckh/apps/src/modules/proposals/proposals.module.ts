@@ -1,5 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ProposalsController } from './proposals.controller';
+import {
+  ProposalsCrudController,
+  ProposalsAcceptanceController,
+  ProposalsQueryController,
+} from './controllers';
 import { ProposalsService } from './proposals.service';
 import { FormDataValidationService } from './form-data-validation.service';
 import { DossierExportService } from './dossier-export.service';
@@ -26,7 +31,14 @@ import {
     IdempotencyModule,
     WorkflowModule,
   ],
-  controllers: [ProposalsController],
+  controllers: [
+    // New split controllers (order matters for route matching)
+    ProposalsQueryController, // Must come first for /filter and /holder/my-queue routes
+    ProposalsCrudController,
+    ProposalsAcceptanceController,
+    // Original controller kept for backward compatibility during transition
+    // ProposalsController,
+  ],
   providers: [
     ProposalsService,
     ProposalsCrudService,
@@ -47,4 +59,4 @@ import {
     DossierExportService,
   ],
 })
-export class ProposalsModule {}
+export class ProposalsModule { }
