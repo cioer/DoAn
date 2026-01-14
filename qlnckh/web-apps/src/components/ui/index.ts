@@ -32,8 +32,8 @@ export type { DialogProps, DialogHeaderProps } from './Dialog';
 export { Alert, AlertActions } from './Alert';
 export type { AlertProps } from './Alert';
 
-export { Badge, StatusBadge } from './Badge';
-export type { BadgeProps, StatusBadgeProps } from './Badge';
+export { Badge } from './Badge';
+export type { BadgeProps } from './Badge';
 
 // Form Controls
 export { Checkbox, IndeterminateIcon } from './Checkbox';
