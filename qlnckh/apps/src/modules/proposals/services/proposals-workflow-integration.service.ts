@@ -123,7 +123,7 @@ export class ProposalsWorkflowService {
   }
 
   /**
-   * Complete handover (HANDOVER → APPROVED)
+   * Complete handover (HANDOVER → COMPLETED)
    */
   async completeHandover(
     proposalId: string,
@@ -131,7 +131,12 @@ export class ProposalsWorkflowService {
   ) {
     this.logger.log(`Completing handover for proposal ${proposalId}`);
 
-    const result = await this.workflow.acceptSchoolReview(proposalId, context);
+    const result = await this.workflow.transitionState(
+      proposalId,
+      ProjectState.COMPLETED,
+      WorkflowAction.HANDOVER_COMPLETE,
+      context,
+    );
 
     return result;
   }
