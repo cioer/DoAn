@@ -2,24 +2,27 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { forwardRef, type TextareaHTMLAttributes } from 'react';
 
 /**
- * Textarea Component Variants
+ * Textarea Component Variants - Modern Soft UI
  */
 const textareaVariants = cva(
   // Base classes
-  'w-full px-3 py-2 border rounded-md resize-none transition-colors focus:outline-none focus:ring-2 focus:ring-offset-0 disabled:bg-gray-100 disabled:cursor-not-allowed',
+  'w-full px-4 py-3 rounded-xl border resize-none transition-all duration-200',
+  'focus:outline-none focus:ring-2 focus:ring-offset-0',
+  'disabled:bg-gray-100 disabled:cursor-not-allowed',
+  'placeholder:text-gray-400',
   {
     variants: {
       // Size variants
       textareaSize: {
-        sm: 'px-2.5 py-1.5 text-sm',
-        md: 'px-3 py-2 text-base',
-        lg: 'px-4 py-3 text-lg',
+        sm: 'px-3 py-2 text-sm rounded-lg',
+        md: 'px-4 py-3 text-base rounded-xl',
+        lg: 'px-5 py-4 text-lg rounded-xl',
       },
       // State variants
       state: {
-        default: 'border-gray-300 focus:ring-primary-500 focus:border-transparent',
-        error: 'border-error-500 focus:ring-error-500 focus:border-transparent',
-        success: 'border-success-500 focus:ring-success-500 focus:border-transparent',
+        default: 'border-gray-200 focus:border-primary-500 focus:ring-primary-500/20',
+        error: 'border-error-300 focus:border-error-500 focus:ring-error-500/20',
+        success: 'border-success-300 focus:border-success-500 focus:ring-success-500/20',
       },
     },
     // Default values
@@ -49,9 +52,9 @@ export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
 }
 
 /**
- * Textarea Component
+ * Textarea Component - Modern Soft UI
  *
- * Consistent textarea input with error states and helper text.
+ * Consistent textarea with soft rounded corners and focus states.
  *
  * @example
  * ```tsx
@@ -84,7 +87,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         {label && (
           <label
             htmlFor={textareaId}
-            className="block text-sm font-medium text-gray-700 mb-1"
+            className="block text-sm font-semibold text-gray-700 mb-2 ml-1"
           >
             {label}
             {required && <span className="text-error-500 ml-1">*</span>}
@@ -107,13 +110,16 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         />
 
         {error && (
-          <p id={`${textareaId}-error`} className="mt-1 text-sm text-error-600">
+          <p id={`${textareaId}-error`} className="mt-2 text-sm text-error-600 ml-1 flex items-center gap-1">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
             {error}
           </p>
         )}
 
         {helperText && !error && (
-          <p id={`${textareaId}-helper`} className="mt-1 text-sm text-gray-500">
+          <p id={`${textareaId}-helper`} className="mt-2 text-sm text-gray-500 ml-1">
             {helperText}
           </p>
         )}

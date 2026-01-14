@@ -5,15 +5,15 @@ import { cn } from '../../lib/utils/cn';
 import { Button } from './Button';
 
 /**
- * Dialog Component Variants
+ * Dialog Component Variants - Modern Soft UI
  */
 const dialogVariants = cva(
-  'fixed bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+  'fixed bg-gray-900/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
   {
     variants: {
       position: {
-        center: 'inset-0 flex items-center justify-center',
-        top: 'inset-x-0 top-0 flex items-center justify-center',
+        center: 'inset-0 flex items-center justify-center p-4',
+        top: 'inset-x-0 top-0 flex items-center justify-center p-4',
       },
     },
     defaultVariants: {
@@ -37,20 +37,20 @@ export interface DialogProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 /**
- * Dialog Content Size Classes
+ * Dialog Content Size Classes - Modern Soft UI
  */
 const dialogSizes = {
-  sm: 'max-w-sm',
-  md: 'max-w-md',
-  lg: 'max-w-lg',
-  xl: 'max-w-xl',
-  full: 'max-w-full mx-4',
+  sm: 'max-w-sm w-full',
+  md: 'max-w-md w-full',
+  lg: 'max-w-lg w-full',
+  xl: 'max-w-xl w-full',
+  full: 'max-w-4xl w-full',
 };
 
 /**
- * Dialog Component
+ * Dialog Component - Modern Soft UI
  *
- * Modal dialog for focused user interactions.
+ * Modal dialog with glassmorphism backdrop and soft shadows.
  *
  * @example
  * ```tsx
@@ -99,8 +99,8 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
       >
         <div
           className={cn(
-            'bg-white rounded-lg shadow-xl w-full',
-            'animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
+            'bg-white/95 backdrop-blur-md rounded-2xl shadow-soft-lg w-full',
+            'animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-bottom-4',
             dialogSizes[size],
             className
           )}
@@ -109,12 +109,12 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
         >
           {/* Header */}
           {(title || showCloseButton) && (
-            <div className="flex items-center justify-between p-6 border-b">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100/80">
               <div className="flex-1">
                 {title && (
                   <h2
                     id="dialog-title"
-                    className="text-lg font-semibold text-gray-900"
+                    className="text-lg font-bold text-gray-900"
                   >
                     {title}
                   </h2>
@@ -128,7 +128,11 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
               {showCloseButton && onClose && (
                 <button
                   onClick={onClose}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className={cn(
+                    'flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center',
+                    'text-gray-400 hover:text-gray-600 hover:bg-gray-100',
+                    'transition-all duration-200'
+                  )}
                   aria-label="Đóng"
                 >
                   <X className="w-5 h-5" />
@@ -138,11 +142,15 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
           )}
 
           {/* Body */}
-          {children && <div className="p-6">{children}</div>}
+          {children && (
+            <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              {children}
+            </div>
+          )}
 
           {/* Footer */}
           {footer && (
-            <div className="p-6 border-t bg-gray-50 rounded-b-lg">
+            <div className="p-6 border-t border-gray-100/80 bg-gray-50/50 rounded-b-2xl">
               {footer}
             </div>
           )}
@@ -165,9 +173,9 @@ export interface DialogHeaderProps extends HTMLAttributes<HTMLDivElement> {
 export const DialogHeader = forwardRef<HTMLDivElement, DialogHeaderProps>(
   ({ title, description, className, ...props }, ref) => {
     return (
-      <div ref={ref} className={cn('p-6 border-b', className)} {...props}>
+      <div ref={ref} className={cn('p-6 border-b border-gray-100/80', className)} {...props}>
         {title && (
-          <h2 id="dialog-title" className="text-lg font-semibold text-gray-900">
+          <h2 id="dialog-title" className="text-lg font-bold text-gray-900">
             {title}
           </h2>
         )}
@@ -188,7 +196,13 @@ DialogHeader.displayName = 'DialogHeader';
  */
 export const DialogBody = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => {
-    return <div ref={ref} className={cn('p-6', className)} {...props} />;
+    return (
+      <div
+        ref={ref}
+        className={cn('p-6 max-h-[70vh] overflow-y-auto custom-scrollbar', className)}
+        {...props}
+      />
+    );
   }
 );
 
@@ -202,7 +216,7 @@ export const DialogFooter = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEle
     return (
       <div
         ref={ref}
-        className={cn('p-6 border-t bg-gray-50 rounded-b-lg flex justify-end gap-3', className)}
+        className={cn('p-6 border-t border-gray-100/80 bg-gray-50/50 rounded-b-2xl flex justify-end gap-3', className)}
         {...props}
       />
     );

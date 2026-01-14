@@ -28,7 +28,7 @@ import {
   RETURN_REASON_LABELS,
   CANONICAL_SECTIONS,
 } from '../../lib/api/workflow';
-import { Button } from '../ui';
+import { Button, Dialog, DialogFooter, Alert, Select, Textarea } from '../ui';
 
 /**
  * User role from JWT token
@@ -191,111 +191,22 @@ function ReturnDialog({ isOpen, onClose, onSubmit, isSubmitting }: ReturnDialogP
     );
   };
 
-  if (!isOpen) return null;
+  // Build select options for reason codes
+  const reasonCodeOptions = [
+    { value: '', label: '-- Chọn lý do --' },
+    ...Object.entries(RETURN_REASON_LABELS).map(([code, label]) => ({ value: code, label })),
+  ];
 
   return (
-    <div
-      className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="return-dialog-title"
-    >
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="p-6 border-b">
-          <h2
-            id="return-dialog-title"
-            className="text-lg font-semibold text-gray-900"
-          >
-            Yêu cầu sửa hồ sơ
-          </h2>
-          <p className="text-sm text-gray-600 mt-1">
-            Chọn lý do và các phần cần sửa để gửi về cho giảng viên
-          </p>
-        </div>
-
-        {/* Body */}
-        <div className="p-6 space-y-4">
-          {/* Error message */}
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
-          )}
-
-          {/* AC3: Reason code dropdown (required) */}
-          <div>
-            <label htmlFor="reason-code" className="block text-sm font-medium text-gray-700 mb-1">
-              Lý do trả về <span className="text-red-500">*</span>
-            </label>
-            <select
-              id="reason-code"
-              value={reasonCode}
-              onChange={(e) => setReasonCode(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">-- Chọn lý do --</option>
-              {Object.entries(RETURN_REASON_LABELS).map(([code, label]) => (
-                <option key={code} value={code}>{label}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* AC3: Section checkboxes (required, min 1) */}
-          <fieldset>
-            <legend className="block text-sm font-medium text-gray-700 mb-2">
-              Phần cần sửa <span className="text-red-500">*</span>
-              <span className="text-xs text-gray-500 ml-1">(ít nhất một phần)</span>
-            </legend>
-            <div className="space-y-2 border rounded-md p-3 max-h-48 overflow-y-auto" role="group" aria-label="Các phần cần sửa">
-              {CANONICAL_SECTIONS.map((section) => {
-                const checkboxId = `section-${section.id}`;
-                return (
-                  <div key={section.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded">
-                    <input
-                      id={checkboxId}
-                      type="checkbox"
-                      checked={revisionSections.includes(section.id)}
-                      onChange={() => toggleSection(section.id)}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                      aria-describedby="selection-count"
-                    />
-                    <label
-                      htmlFor={checkboxId}
-                      className="text-sm text-gray-700 cursor-pointer flex-1"
-                    >
-                      {section.label}
-                    </label>
-                  </div>
-                );
-              })}
-            </div>
-            {revisionSections.length > 0 && (
-              <p id="selection-count" className="text-xs text-gray-500 mt-1">
-                Đã chọn: {revisionSections.length} phần
-              </p>
-            )}
-          </fieldset>
-
-          {/* AC3: Comment textarea (optional) */}
-          <div>
-            <label htmlFor="comment" className="block text-sm font-medium text-gray-700 mb-1">
-              Ghi chú thêm <span className="text-xs text-gray-500">(tùy chọn)</span>
-            </label>
-            <textarea
-              id="comment"
-              placeholder="Nhập ghi chú chi tiết về các vấn đề cần sửa..."
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-        </div>
-
-        {/* Footer - using Button components */}
-        <div className="p-6 border-t bg-gray-50 rounded-b-lg flex justify-end gap-3">
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Yêu cầu sửa hồ sơ"
+      description="Chọn lý do và các phần cần sửa để gửi về cho giảng viên"
+      size="lg"
+      showCloseButton={!isSubmitting}
+      footer={
+        <DialogFooter>
           <Button
             variant="secondary"
             onClick={onClose}
@@ -303,17 +214,90 @@ function ReturnDialog({ isOpen, onClose, onSubmit, isSubmitting }: ReturnDialogP
           >
             Hủy
           </Button>
-          {/* AC4: "Gửi" button disabled when validation fails */}
-          <button
+          <Button
+            variant="error"
             onClick={handleSubmit}
-            disabled={isSubmitting || !isValid}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+            isLoading={isSubmitting}
+            disabled={!isValid}
+            leftIcon={<XCircle className="w-4 h-4" />}
           >
             {isSubmitting ? 'Đang gửi...' : 'Gửi yêu cầu'}
-          </button>
+          </Button>
+        </DialogFooter>
+      }
+    >
+      {/* Error message */}
+      {error && (
+        <Alert variant="error" className="mb-4">
+          {error}
+        </Alert>
+      )}
+
+      {/* AC3: Reason code dropdown (required) */}
+      <Select
+        label="Lý do trả về"
+        required
+        placeholder="-- Chọn lý do --"
+        options={reasonCodeOptions}
+        value={reasonCode}
+        onChange={(e) => setReasonCode(e.target.value)}
+        disabled={isSubmitting}
+      />
+
+      {/* AC3: Section checkboxes (required, min 1) */}
+      <fieldset className="mt-4">
+        <legend className="block text-sm font-semibold text-gray-700 mb-2">
+          Phần cần sửa <span className="text-error-500 ml-1">*</span>
+          <span className="text-xs text-gray-500 ml-1 font-normal">(ít nhất một phần)</span>
+        </legend>
+        <div className="space-y-2 border border-gray-200 rounded-xl p-3 max-h-48 overflow-y-auto shadow-inner" role="group" aria-label="Các phần cần sửa">
+          {CANONICAL_SECTIONS.map((section) => {
+            const checkboxId = `section-${section.id}`;
+            const isChecked = revisionSections.includes(section.id);
+            return (
+              <label
+                key={section.id}
+                htmlFor={checkboxId}
+                className={`flex items-center gap-2 p-2.5 rounded-lg cursor-pointer transition-all ${isChecked ? 'bg-primary-50' : 'hover:bg-gray-50'}`}
+              >
+                <input
+                  id={checkboxId}
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={() => toggleSection(section.id)}
+                  className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:ring-offset-1"
+                  aria-describedby="selection-count"
+                />
+                <span className="text-sm font-medium text-gray-700 flex-1">
+                  {section.label}
+                </span>
+              </label>
+            );
+          })}
         </div>
+        {revisionSections.length > 0 && (
+          <p id="selection-count" className="text-xs text-gray-500 mt-2 flex items-center gap-1.5">
+            <span className="bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full font-semibold">
+              {revisionSections.length} phần
+            </span>
+            đã chọn
+          </p>
+        )}
+      </fieldset>
+
+      {/* AC3: Comment textarea (optional) */}
+      <div className="mt-4">
+        <Textarea
+          label="Ghi chú thêm"
+          placeholder="Nhập ghi chú chi tiết về các vấn đề cần sửa..."
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          rows={3}
+          disabled={isSubmitting}
+          helperText="Tùy chọn"
+        />
       </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -659,426 +643,393 @@ export function ProposalActions({
       <div className="flex items-center gap-2">
         {/* Story 4.2: AC1 - "Yêu cầu sửa" button (destructive) - using Button component */}
         {showReturnButton && (
-          <button
+          <Button
+            variant="error"
             onClick={() => setShowReturnDialog(true)}
-            disabled={isReturning}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
-            aria-label="Yêu cầu sửa hồ sơ"
+            isLoading={isReturning}
+            leftIcon={<XCircle className="w-4 h-4" />}
+            className="rounded-xl"
           >
-            <XCircle className="w-4 h-4" />
             Yêu cầu sửa
-          </button>
+          </Button>
         )}
 
         {/* Story 4.1: AC1 - "Duyệt hồ sơ" button (primary) - using Button component */}
         {showApproveButton && (
-          <button
+          <Button
+            variant="primary"
             onClick={() => setShowApproveConfirm(true)}
-            disabled={isApproving}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
-            aria-label="Duyệt hồ sơ đề tài"
+            isLoading={isApproving}
+            leftIcon={<CheckCircle className="w-4 h-4" />}
+            className="rounded-xl"
           >
-            <CheckCircle className="w-4 h-4" />
             Duyệt hồ sơ
-          </button>
+          </Button>
         )}
 
         {/* GIANG_VIEN Feature: "Bắt đầu thực hiện" button for proposal owner at APPROVED state */}
         {showStartButton && (
-          <button
+          <Button
+            variant="primary"
             onClick={() => setShowStartConfirm(true)}
-            disabled={isStarting}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
-            aria-label="Bắt đầu thực hiện đề tài"
+            isLoading={isStarting}
+            leftIcon={<Play className="w-4 h-4" />}
+            className="rounded-xl bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700"
           >
-            <Play className="w-4 h-4" />
             Bắt đầu thực hiện
-          </button>
+          </Button>
         )}
 
         {/* GIANG_VIEN Feature: "Nộp nghiệm thu" button for proposal owner at IN_PROGRESS state */}
         {showSubmitAcceptanceButton && (
-          <button
+          <Button
+            variant="primary"
             onClick={() => setShowSubmitAcceptanceConfirm(true)}
-            disabled={isSubmittingAcceptance}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
-            aria-label="Nộp nghiệm thu đề tài"
+            isLoading={isSubmittingAcceptance}
+            leftIcon={<FileCheck className="w-4 h-4" />}
+            className="rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700"
           >
-            <FileCheck className="w-4 h-4" />
             Nộp nghiệm thu
-          </button>
+          </Button>
         )}
 
         {/* GIANG_VIEN Feature: "Gửi duyệt" button for proposal owner at DRAFT state */}
         {showSubmitButton && (
-          <button
+          <Button
+            variant="primary"
             onClick={() => setShowSubmitConfirm(true)}
-            disabled={isSubmitting}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
-            aria-label="Gửi hồ sơ đề tài duyệt"
+            isLoading={isSubmitting}
+            leftIcon={<Send className="w-4 h-4" />}
+            className="rounded-xl bg-gradient-to-r from-success-600 to-emerald-600 hover:from-success-700 hover:to-emerald-700"
           >
-            <Send className="w-4 h-4" />
             Gửi duyệt
-          </button>
+          </Button>
         )}
 
         {/* Faculty Acceptance: "Yêu cầu sửa" button for QUAN_LY_KHOA at FACULTY_ACCEPTANCE_REVIEW */}
         {showReturnFacultyAcceptanceButton && (
-          <button
+          <Button
+            variant="error"
             onClick={() => setShowReturnFacultyAcceptanceDialog(true)}
-            disabled={isReturningFacultyAcceptance}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
-            aria-label="Yêu cầu sửa từ nghiệm thu khoa"
+            isLoading={isReturningFacultyAcceptance}
+            leftIcon={<XCircle className="w-4 h-4" />}
+            className="rounded-xl"
           >
-            <XCircle className="w-4 h-4" />
             Yêu cầu sửa
-          </button>
+          </Button>
         )}
 
         {/* Faculty Acceptance: "Nghiệm thu" button for QUAN_LY_KHOA at FACULTY_ACCEPTANCE_REVIEW */}
         {showAcceptFacultyAcceptanceButton && (
-          <button
+          <Button
+            variant="primary"
             onClick={() => setShowAcceptFacultyAcceptanceConfirm(true)}
-            disabled={isAcceptingFacultyAcceptance}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
-            aria-label="Nghiệm thu cấp Khoa"
+            isLoading={isAcceptingFacultyAcceptance}
+            leftIcon={<CheckCircle className="w-4 h-4" />}
+            className="rounded-xl bg-gradient-to-r from-success-600 to-emerald-600 hover:from-success-700 hover:to-emerald-700"
           >
-            <CheckCircle className="w-4 h-4" />
             Nghiệm thu cấp Khoa
-          </button>
+          </Button>
         )}
       </div>
 
-      {/* Approve Confirmation Dialog (Story 4.1) - using Button components */}
+      {/* Approve Confirmation Dialog (Story 4.1) - using Dialog component */}
       {showApproveConfirm && (
-        <div
-          className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="approve-confirm-title"
-        >
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-            <h3
-              id="approve-confirm-title"
-              className="text-lg font-semibold text-gray-900 mb-2"
-            >
-              Xác nhận duyệt hồ sơ
-            </h3>
-            <p className="text-sm text-gray-600 mb-6">
-              Bạn có chắc chắn muốn duyệt hồ sơ này? Sau khi duyệt, đề tài sẽ được
-              chuyển lên Phòng KHCN để phân bổ Hội đồng xét duyệt.
-            </p>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-red-800">Lỗi</p>
-                  <p className="text-sm text-red-700">{error.message}</p>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-3">
-              <button
+        <Dialog
+          isOpen={showApproveConfirm}
+          onClose={() => {
+            setShowApproveConfirm(false);
+            setError(null);
+          }}
+          title="Xác nhận duyệt hồ sơ"
+          description="Bạn có chắc chắn muốn duyệt hồ sơ này? Sau khi duyệt, đề tài sẽ được chuyển lên Phòng KHCN để phân bổ Hội đồng xét duyệt."
+          showCloseButton={!isApproving}
+          footer={
+            <DialogFooter>
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setShowApproveConfirm(false);
                   setError(null);
                 }}
                 disabled={isApproving}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed font-medium"
               >
                 Hủy
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
                 onClick={handleApprove}
-                disabled={isApproving}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+                isLoading={isApproving}
               >
                 {isApproving ? 'Đang xử lý...' : 'Xác nhận duyệt'}
-              </button>
-            </div>
-          </div>
-        </div>
+              </Button>
+            </DialogFooter>
+          }
+        >
+          {error && (
+            <Alert variant="error" className="mb-2">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold">Lỗi</p>
+                  <p className="text-sm">{error.message}</p>
+                </div>
+              </div>
+            </Alert>
+          )}
+        </Dialog>
       )}
 
       {/* Start Project Confirmation Dialog (GIANG_VIEN Feature) */}
       {showStartConfirm && (
-        <div
-          className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="start-confirm-title"
-        >
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-            <h3
-              id="start-confirm-title"
-              className="text-lg font-semibold text-gray-900 mb-2"
-            >
-              Xác nhận bắt đầu thực hiện
-            </h3>
-            <p className="text-sm text-gray-600 mb-6">
-              Bạn có chắc chắn muốn bắt đầu thực hiện đề tài này? Sau khi bắt đầu,
-              đề tài sẽ được chuyển sang trạng thái Đang thực hiện (IN_PROGRESS).
-            </p>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-red-800">Lỗi</p>
-                  <p className="text-sm text-red-700">{error.message}</p>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-3">
-              <button
+        <Dialog
+          isOpen={showStartConfirm}
+          onClose={() => {
+            setShowStartConfirm(false);
+            setError(null);
+          }}
+          title="Xác nhận bắt đầu thực hiện"
+          description="Bạn có chắc chắn muốn bắt đầu thực hiện đề tài này? Sau khi bắt đầu, đề tài sẽ được chuyển sang trạng thái Đang thực hiện (IN_PROGRESS)."
+          showCloseButton={!isStarting}
+          footer={
+            <DialogFooter>
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setShowStartConfirm(false);
                   setError(null);
                 }}
                 disabled={isStarting}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed font-medium"
               >
                 Hủy
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
                 onClick={handleStart}
-                disabled={isStarting}
-                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+                isLoading={isStarting}
+                className="bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700"
               >
                 {isStarting ? 'Đang xử lý...' : 'Bắt đầu thực hiện'}
-              </button>
-            </div>
-          </div>
-        </div>
+              </Button>
+            </DialogFooter>
+          }
+        >
+          {error && (
+            <Alert variant="error" className="mb-2">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold">Lỗi</p>
+                  <p className="text-sm">{error.message}</p>
+                </div>
+              </div>
+            </Alert>
+          )}
+        </Dialog>
       )}
 
       {/* Submit Confirmation Dialog (GIANG_VIEN Feature) */}
       {showSubmitConfirm && (
-        <div
-          className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="submit-confirm-title"
-        >
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-            <h3
-              id="submit-confirm-title"
-              className="text-lg font-semibold text-gray-900 mb-2"
-            >
-              Xác nhận gửi hồ sơ duyệt
-            </h3>
-            <p className="text-sm text-gray-600 mb-6">
-              Bạn có chắc chắn muốn gửi hồ sơ này để Quản lý khoa duyệt? Sau khi gửi,
-              đề tài sẽ được chuyển sang trạng thái chờ duyệt.
-            </p>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-red-800">Lỗi</p>
-                  <p className="text-sm text-red-700">{error.message}</p>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-3">
-              <button
+        <Dialog
+          isOpen={showSubmitConfirm}
+          onClose={() => {
+            setShowSubmitConfirm(false);
+            setError(null);
+          }}
+          title="Xác nhận gửi hồ sơ duyệt"
+          description="Bạn có chắc chắn muốn gửi hồ sơ này để Quản lý khoa duyệt? Sau khi gửi, đề tài sẽ được chuyển sang trạng thái chờ duyệt."
+          showCloseButton={!isSubmitting}
+          footer={
+            <DialogFooter>
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setShowSubmitConfirm(false);
                   setError(null);
                 }}
                 disabled={isSubmitting}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed font-medium"
               >
                 Hủy
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
                 onClick={handleSubmit}
-                disabled={isSubmitting}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+                isLoading={isSubmitting}
+                className="bg-gradient-to-r from-success-600 to-emerald-600 hover:from-success-700 hover:to-emerald-700"
               >
                 {isSubmitting ? 'Đang gửi...' : 'Gửi duyệt'}
-              </button>
-            </div>
-          </div>
-        </div>
+              </Button>
+            </DialogFooter>
+          }
+        >
+          {error && (
+            <Alert variant="error" className="mb-2">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold">Lỗi</p>
+                  <p className="text-sm">{error.message}</p>
+                </div>
+              </div>
+            </Alert>
+          )}
+        </Dialog>
       )}
 
       {/* Submit Acceptance Confirmation Dialog (GIANG_VIEN Feature) */}
       {showSubmitAcceptanceConfirm && (
-        <div
-          className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="submit-acceptance-confirm-title"
-        >
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-            <h3
-              id="submit-acceptance-confirm-title"
-              className="text-lg font-semibold text-gray-900 mb-2"
-            >
-              Xác nhận nộp nghiệm thu
-            </h3>
-            <p className="text-sm text-gray-600 mb-6">
-              Bạn có chắc chắn muốn nộp nghiệm thu đề tài này? Sau khi nộp,
-              đề tài sẽ được chuyển sang trạng thái chờ nghiệm thu cấp Khoa.
-            </p>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-red-800">Lỗi</p>
-                  <p className="text-sm text-red-700">{error.message}</p>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-3">
-              <button
+        <Dialog
+          isOpen={showSubmitAcceptanceConfirm}
+          onClose={() => {
+            setShowSubmitAcceptanceConfirm(false);
+            setError(null);
+          }}
+          title="Xác nhận nộp nghiệm thu"
+          description="Bạn có chắc chắn muốn nộp nghiệm thu đề tài này? Sau khi nộp, đề tài sẽ được chuyển sang trạng thái chờ nghiệm thu cấp Khoa."
+          showCloseButton={!isSubmittingAcceptance}
+          footer={
+            <DialogFooter>
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setShowSubmitAcceptanceConfirm(false);
                   setError(null);
                 }}
                 disabled={isSubmittingAcceptance}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed font-medium"
               >
                 Hủy
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
                 onClick={handleSubmitAcceptance}
-                disabled={isSubmittingAcceptance}
-                className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+                isLoading={isSubmittingAcceptance}
+                className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700"
               >
                 {isSubmittingAcceptance ? 'Đang xử lý...' : 'Nộp nghiệm thu'}
-              </button>
-            </div>
-          </div>
-        </div>
+              </Button>
+            </DialogFooter>
+          }
+        >
+          {error && (
+            <Alert variant="error" className="mb-2">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold">Lỗi</p>
+                  <p className="text-sm">{error.message}</p>
+                </div>
+              </div>
+            </Alert>
+          )}
+        </Dialog>
       )}
 
       {/* Accept Faculty Acceptance Confirmation Dialog */}
       {showAcceptFacultyAcceptanceConfirm && (
-        <div
-          className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="accept-faculty-acceptance-confirm-title"
-        >
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-            <h3
-              id="accept-faculty-acceptance-confirm-title"
-              className="text-lg font-semibold text-gray-900 mb-2"
-            >
-              Xác nhận nghiệm thu cấp Khoa
-            </h3>
-            <p className="text-sm text-gray-600 mb-6">
-              Bạn có chắc chắn muốn nghiệm thu đề tài này? Sau khi nghiệm thu,
-              đề tài sẽ được chuyển lên Phòng KHCN để nghiệm thu cấp Trường.
-            </p>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-red-800">Lỗi</p>
-                  <p className="text-sm text-red-700">{error.message}</p>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-3">
-              <button
+        <Dialog
+          isOpen={showAcceptFacultyAcceptanceConfirm}
+          onClose={() => {
+            setShowAcceptFacultyAcceptanceConfirm(false);
+            setError(null);
+          }}
+          title="Xác nhận nghiệm thu cấp Khoa"
+          description="Bạn có chắc chắn muốn nghiệm thu đề tài này? Sau khi nghiệm thu, đề tài sẽ được chuyển lên Phòng KHCN để nghiệm thu cấp Trường."
+          showCloseButton={!isAcceptingFacultyAcceptance}
+          footer={
+            <DialogFooter>
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setShowAcceptFacultyAcceptanceConfirm(false);
                   setError(null);
                 }}
                 disabled={isAcceptingFacultyAcceptance}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed font-medium"
               >
                 Hủy
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
                 onClick={handleAcceptFacultyAcceptance}
-                disabled={isAcceptingFacultyAcceptance}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+                isLoading={isAcceptingFacultyAcceptance}
+                className="bg-gradient-to-r from-success-600 to-emerald-600 hover:from-success-700 hover:to-emerald-700"
               >
                 {isAcceptingFacultyAcceptance ? 'Đang xử lý...' : 'Xác nhận nghiệm thu'}
-              </button>
-            </div>
-          </div>
-        </div>
+              </Button>
+            </DialogFooter>
+          }
+        >
+          {error && (
+            <Alert variant="error" className="mb-2">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold">Lỗi</p>
+                  <p className="text-sm">{error.message}</p>
+                </div>
+              </div>
+            </Alert>
+          )}
+        </Dialog>
       )}
 
       {/* Return Faculty Acceptance Dialog */}
       {showReturnFacultyAcceptanceDialog && (
-        <div
-          className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="return-faculty-acceptance-title"
-        >
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-            <h3
-              id="return-faculty-acceptance-title"
-              className="text-lg font-semibold text-gray-900 mb-2"
-            >
-              Yêu cầu sửa đổi từ nghiệm thu Khoa
-            </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Vui lòng nhập lý do yêu cầu sửa đổi để gửi về cho giảng viên.
-            </p>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-red-800">Lỗi</p>
-                  <p className="text-sm text-red-700">{error.message}</p>
-                </div>
-              </div>
-            )}
-
-            <div className="mb-4">
-              <label htmlFor="return-faculty-acceptance-reason" className="block text-sm font-medium text-gray-700 mb-1">
-                Lý do trả về <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                id="return-faculty-acceptance-reason"
-                placeholder="Nhập lý do yêu cầu sửa đổi..."
-                value={returnFacultyAcceptanceReason}
-                onChange={(e) => setReturnFacultyAcceptanceReason(e.target.value)}
-                rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <div className="flex justify-end gap-3">
-              <button
+        <Dialog
+          isOpen={showReturnFacultyAcceptanceDialog}
+          onClose={() => {
+            setShowReturnFacultyAcceptanceDialog(false);
+            setReturnFacultyAcceptanceReason('');
+            setError(null);
+          }}
+          title="Yêu cầu sửa đổi từ nghiệm thu Khoa"
+          description="Vui lòng nhập lý do yêu cầu sửa đổi để gửi về cho giảng viên."
+          showCloseButton={!isReturningFacultyAcceptance}
+          footer={
+            <DialogFooter>
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setShowReturnFacultyAcceptanceDialog(false);
                   setReturnFacultyAcceptanceReason('');
                   setError(null);
                 }}
                 disabled={isReturningFacultyAcceptance}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed font-medium"
               >
                 Hủy
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="error"
                 onClick={handleReturnFacultyAcceptance}
-                disabled={isReturningFacultyAcceptance || !returnFacultyAcceptanceReason.trim()}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+                isLoading={isReturningFacultyAcceptance}
+                disabled={!returnFacultyAcceptanceReason.trim()}
               >
                 {isReturningFacultyAcceptance ? 'Đang gửi...' : 'Gửi yêu cầu'}
-              </button>
-            </div>
-          </div>
-        </div>
+              </Button>
+            </DialogFooter>
+          }
+        >
+          {error && (
+            <Alert variant="error" className="mb-4">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold">Lỗi</p>
+                  <p className="text-sm">{error.message}</p>
+                </div>
+              </div>
+            </Alert>
+          )}
+
+          <Textarea
+            label="Lý do trả về"
+            required
+            placeholder="Nhập lý do yêu cầu sửa đổi..."
+            value={returnFacultyAcceptanceReason}
+            onChange={(e) => setReturnFacultyAcceptanceReason(e.target.value)}
+            rows={4}
+            disabled={isReturningFacultyAcceptance}
+          />
+        </Dialog>
       )}
 
       {/* Return Dialog (Story 4.2) */}

@@ -126,7 +126,7 @@ export function calculateSLABadge(
 }
 
 /**
- * Get CSS classes for SLA badge based on status
+ * Get CSS classes for SLA badge based on status - Modern Soft UI
  *
  * @param status - The SLA status
  * @param compact - Whether to use compact variant
@@ -134,14 +134,14 @@ export function calculateSLABadge(
  */
 export function getSLABadgeClasses(status: SLAStatus, compact = false): string {
   const baseClasses = compact
-    ? 'inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full'
-    : 'inline-flex items-center gap-2 text-sm font-medium px-3 py-1 rounded-full';
+    ? 'inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full shadow-soft transition-all duration-200'
+    : 'inline-flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-full shadow-soft transition-all duration-200 hover:shadow-soft-md';
 
   const statusClasses: Record<SLAStatus, string> = {
-    ok: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-    warning: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-    overdue: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-    paused: 'bg-gray-50 text-gray-700 dark:bg-gray-800 dark:text-gray-400',
+    ok: 'bg-gradient-to-r from-info-50 to-blue-50 text-info-700 border border-info-200',
+    warning: 'bg-gradient-to-r from-warning-50 to-amber-50 text-warning-700 border border-warning-200',
+    overdue: 'bg-gradient-to-r from-error-50 to-red-50 text-error-700 border border-error-200',
+    paused: 'bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 border border-gray-200',
   };
 
   return `${baseClasses} ${statusClasses[status]}`;

@@ -1,18 +1,21 @@
 import { useState, useRef } from 'react';
-import { Download, FileText, RefreshCw, Trash2, Lock, Loader2 } from 'lucide-react';
+import { Download, FileText, RefreshCw, Trash2, Lock, Loader2, File } from 'lucide-react';
 import { Attachment, attachmentsApi } from '../../lib/api/attachments';
-import { Alert, Button } from '../ui';
+import { Alert, AlertActions, Button } from '../ui';
+import { ProgressBar } from './ProgressBar';
+import { cn } from '../../lib/utils/cn';
 
 /**
- * AttachmentList Component (Story 2.4, 2.5)
+ * AttachmentList Component - Modern Soft UI (Story 2.4, 2.5)
  *
  * Displays list of uploaded files with:
- * - File name and size
- * - Upload date
- * - Download button
+ * - File name and size with improved typography
+ * - Upload date with calendar icon
+ * - Download button with hover effect
  * - Replace button (DRAFT and CHANGES_REQUESTED only, Story 2.5)
  * - Delete button (DRAFT and CHANGES_REQUESTED only, Story 2.5)
  * - Total size warning when > 50MB
+ * - Modern Soft UI styling with gradients and soft shadows
  *
  * @param proposalId - Proposal ID
  * @param proposalState - Proposal state (for gating replace/delete)
@@ -29,6 +32,22 @@ interface AttachmentListProps {
 }
 
 const MAX_TOTAL_SIZE = 50 * 1024 * 1024; // 50MB
+
+// File type icons with gradient colors
+const getFileTypeColor = (fileName: string): string => {
+  const ext = fileName.split('.').pop()?.toLowerCase() || '';
+  const colorMap: Record<string, string> = {
+    pdf: 'from-red-500 to-rose-600',
+    doc: 'from-blue-500 to-indigo-600',
+    docx: 'from-blue-500 to-indigo-600',
+    xls: 'from-green-500 to-emerald-600',
+    xlsx: 'from-green-500 to-emerald-600',
+    jpg: 'from-amber-500 to-orange-600',
+    jpeg: 'from-amber-500 to-orange-600',
+    png: 'from-purple-500 to-violet-600',
+  };
+  return colorMap[ext] || 'from-gray-400 to-gray-500';
+};
 
 export function AttachmentList({
   proposalId,
@@ -48,6 +67,7 @@ export function AttachmentList({
   const isEditable = proposalState === 'DRAFT' || proposalState === 'CHANGES_REQUESTED';
   const formatFileSize = attachmentsApi.formatFileSize;
   const isOverLimit = totalSize > MAX_TOTAL_SIZE;
+  const storagePercentage = (totalSize / MAX_TOTAL_SIZE) * 100;
 
   const handleReplaceClick = (attachmentId: string) => {
     setSelectedAttachmentId(attachmentId);
@@ -76,13 +96,11 @@ export function AttachmentList({
       onAttachmentChange?.();
 
       // Show success feedback
-      // Note: In a full implementation, this would use a toast notification
       console.log('Attachment replaced successfully:', result);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Thay thế tài liệu thất bại';
       setError(errorMessage);
 
-      // Handle specific error codes
       if (errorMessage.includes('PROPOSAL_NOT_DRAFT')) {
         setError('Không thể sửa sau khi nộp. Vui lòng liên hệ admin nếu cần sửa.');
       }
@@ -98,7 +116,6 @@ export function AttachmentList({
   };
 
   const handleDeleteClick = async (attachmentId: string, fileName: string) => {
-    // Confirmation dialog
     const confirmed = window.confirm(
       `Bạn có chắc muốn xóa "${fileName}"?`,
     );
@@ -111,14 +128,11 @@ export function AttachmentList({
     try {
       await attachmentsApi.delete(proposalId, attachmentId);
       onAttachmentChange?.();
-
-      // Show success feedback
       console.log('Attachment deleted successfully');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Xóa tài liệu thất bại';
       setError(errorMessage);
 
-      // Handle specific error codes
       if (errorMessage.includes('PROPOSAL_NOT_DRAFT')) {
         setError('Không thể sửa sau khi nộp. Vui lòng liên hệ admin nếu cần sửa.');
       }
@@ -128,33 +142,76 @@ export function AttachmentList({
   };
 
   return (
-    <div className="space-y-3">
-      {/* Header with total size */}
+    <div className="space-y-4">
+      {/* Header with total size - Modern Soft UI */}
       <div className="flex justify-between items-center">
-        <h3 className="font-medium text-sm">Tài liệu đính kèm</h3>
-        <span className={`text-sm ${isOverLimit ? 'text-error-600 font-semibold' : 'text-gray-600'}`}>
-          {formatFileSize(totalSize)} / 50 MB
-        </span>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-info-50 to-blue-50 flex items-center justify-center">
+            <FileText className="w-4 h-4 text-info-600" />
+          </div>
+          <h3 className="font-semibold text-gray-800">Tài liệu đính kèm</h3>
+          <span className="bg-gray-100 text-gray-600 text-xs font-semibold px-2 py-0.5 rounded-full">
+            {attachments.length}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={cn(
+            'text-sm font-medium',
+            isOverLimit ? 'text-error-600' : storagePercentage >= 80 ? 'text-warning-600' : 'text-gray-500'
+          )}>
+            {formatFileSize(totalSize)} / 50 MB
+          </span>
+        </div>
       </div>
 
-      {/* Warning when over limit - using Alert component */}
+      {/* Storage progress bar */}
+      {attachments.length > 0 && (
+        <div className="bg-white rounded-xl p-3 shadow-soft border border-gray-100">
+          <ProgressBar
+            progress={storagePercentage}
+            color={isOverLimit ? 'error' : storagePercentage >= 80 ? 'warning' : 'success'}
+            size="sm"
+          />
+        </div>
+      )}
+
+      {/* Warning when over limit */}
       {isOverLimit && (
-        <Alert variant="warning" className="text-sm">
-          Tổng dung lượng đã vượt giới hạn (50MB/proposal)
+        <Alert variant="error" className="text-sm">
+          <div className="flex items-start gap-2">
+            <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <span className="flex-1">Tổng dung lượng đã vượt giới hạn (50MB/proposal)</span>
+          </div>
         </Alert>
       )}
 
-      {/* Error message - using Alert component */}
+      {/* Error message */}
       {error && (
         <Alert variant="error" className="text-sm">
           {error.replace(/^[A-Z_]+:\s*/, '')}
+          <AlertActions>
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => setError(null)}
+              className="text-error-600 hover:text-error-800 hover:bg-error-50 rounded-lg"
+            >
+              Đóng
+            </Button>
+          </AlertActions>
         </Alert>
       )}
 
-      {/* Empty state */}
+      {/* Empty state - Modern Soft UI */}
       {attachments.length === 0 && (
-        <div className="text-center py-8 text-gray-500 text-sm border-2 border-dashed rounded-lg">
-          Chưa có tài liệu đính kèm
+        <div className="text-center py-12 bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-200">
+          <div className="mx-auto w-12 h-12 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center mb-3">
+            <File className="w-6 h-6 text-gray-400" />
+          </div>
+          <p className="text-sm font-medium text-gray-500">Chưa có tài liệu đính kèm</p>
+          <p className="text-xs text-gray-400 mt-1">Sử dụng phần tải lên để thêm tài liệu</p>
         </div>
       )}
 
@@ -168,34 +225,63 @@ export function AttachmentList({
         disabled={!isEditable}
       />
 
-      {/* Attachments list */}
+      {/* Attachments list - Modern Soft UI */}
       <div className="space-y-2">
         {attachments.map((attachment) => {
           const isReplacingThis = replacingId === attachment.id;
           const isDeletingThis = deletingId === attachment.id;
+          const fileGradient = getFileTypeColor(attachment.fileName);
 
           return (
             <div
               key={attachment.id}
-              className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+              className={cn(
+                'group flex items-center justify-between p-4 rounded-xl border transition-all duration-200',
+                'shadow-soft hover:shadow-soft-lg hover:-translate-y-0.5',
+                // Disabled state when replacing/deleting other
+                (replacingId || deletingId) && !isReplacingThis && !isDeletingThis
+                  ? 'opacity-50 pointer-events-none'
+                  : 'bg-white border-gray-100 hover:border-gray-200'
+              )}
             >
+              {/* File icon with gradient background */}
               <div className="flex items-center gap-3 flex-1 min-w-0">
-                <FileText className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                <div className={cn(
+                  'w-10 h-10 rounded-xl flex items-center justify-center shadow-soft flex-shrink-0',
+                  'bg-gradient-to-br',
+                  fileGradient
+                )}>
+                  <FileText className="w-5 h-5 text-white" />
+                </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{attachment.fileName}</p>
-                  <p className="text-xs text-gray-500">
-                    {formatFileSize(attachment.fileSize)} • {new Date(attachment.uploadedAt).toLocaleDateString('vi-VN')}
+                  <p className="text-sm font-semibold text-gray-800 truncate group-hover:text-primary-600 transition-colors">
+                    {attachment.fileName}
                   </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-xs text-gray-500">
+                      {formatFileSize(attachment.fileSize)}
+                    </p>
+                    <span className="text-gray-300">•</span>
+                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      {new Date(attachment.uploadedAt).toLocaleDateString('vi-VN')}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Action buttons - using Button component for icon buttons */}
+              {/* Action buttons */}
               <div className="flex items-center gap-1">
                 {/* Download button - always available */}
                 <a
                   href={attachmentsApi.getDownloadUrl(attachment)}
                   download={attachment.fileName}
-                  className="p-2 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
+                  className={cn(
+                    'p-2.5 rounded-lg transition-all duration-200',
+                    'text-gray-500 hover:text-primary-600 hover:bg-primary-50 hover:shadow-soft'
+                  )}
                   title="Tải xuống"
                 >
                   <Download className="h-4 w-4" />
@@ -209,7 +295,10 @@ export function AttachmentList({
                     onClick={() => handleReplaceClick(attachment.id)}
                     disabled={!!replacingId || !!deletingId}
                     isLoading={isReplacingThis}
-                    className="p-2 text-gray-600 hover:text-success-600 hover:bg-success-50"
+                    className={cn(
+                      'p-2.5 rounded-lg shadow-soft',
+                      'text-gray-500 hover:text-success-600 hover:bg-success-50'
+                    )}
                     title="Thay thế tài liệu"
                   >
                     {!isReplacingThis && <RefreshCw className="h-4 w-4" />}
@@ -224,7 +313,10 @@ export function AttachmentList({
                     onClick={() => handleDeleteClick(attachment.id, attachment.fileName)}
                     disabled={!!replacingId || !!deletingId}
                     isLoading={isDeletingThis}
-                    className="p-2 text-gray-600 hover:text-error-600 hover:bg-error-50"
+                    className={cn(
+                      'p-2.5 rounded-lg shadow-soft',
+                      'text-gray-500 hover:text-error-600 hover:bg-error-50'
+                    )}
                     title="Xóa tài liệu"
                   >
                     {!isDeletingThis && <Trash2 className="h-4 w-4" />}
@@ -234,7 +326,7 @@ export function AttachmentList({
                 {/* Lock icon for non-editable states */}
                 {!isEditable && (
                   <span
-                    className="p-2 text-gray-400 cursor-help"
+                    className="p-2.5 text-gray-400 cursor-help rounded-lg hover:bg-gray-100 transition-colors"
                     title="Không thể sửa sau khi nộp. Vui lòng liên hệ admin nếu cần sửa."
                   >
                     <Lock className="h-4 w-4" />
@@ -246,19 +338,17 @@ export function AttachmentList({
         })}
       </div>
 
-      {/* Replace progress indicator - using Alert component */}
+      {/* Replace progress indicator - Modern Soft UI */}
       {replacingId && (
         <Alert variant="info" className="text-sm">
-          <div className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Đang thay thế tài liệu... {replaceProgress}%</span>
+          <div className="flex items-center gap-2 mb-2">
+            <Loader2 className="h-4 w-4 animate-spin text-primary-600" />
+            <span className="font-medium">Đang thay thế tài liệu...</span>
+            <span className="text-primary-600 font-semibold ml-auto">
+              {replaceProgress}%
+            </span>
           </div>
-          <div className="w-full bg-primary-200 rounded-full h-1.5 mt-2">
-            <div
-              className="bg-primary-600 h-1.5 rounded-full transition-all duration-300"
-              style={{ width: `${replaceProgress}%` }}
-            />
-          </div>
+          <ProgressBar progress={replaceProgress} color="primary" size="sm" />
         </Alert>
       )}
     </div>

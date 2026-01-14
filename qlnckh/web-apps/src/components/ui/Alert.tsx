@@ -5,18 +5,18 @@ import { cn } from '../../lib/utils/cn';
 import { Button } from './Button';
 
 /**
- * Alert Component Variants
+ * Alert Component Variants - Modern Soft UI
  */
 const alertVariants = cva(
-  'flex items-start gap-3 p-3 rounded-md border',
+  'flex items-start gap-3 p-4 rounded-xl border transition-all duration-200',
   {
     variants: {
       variant: {
-        default: 'bg-gray-50 border-gray-200 text-gray-800',
-        info: 'bg-info-50 border-info-200 text-info-800',
-        success: 'bg-success-50 border-success-200 text-success-800',
-        warning: 'bg-warning-50 border-warning-200 text-warning-800',
-        error: 'bg-error-50 border-error-200 text-error-800',
+        default: 'bg-gray-50/80 border-gray-200/80 text-gray-800 shadow-soft',
+        info: 'bg-info-50/80 border-info-200/80 text-info-800 shadow-soft',
+        success: 'bg-success-50/80 border-success-200/80 text-success-800 shadow-soft',
+        warning: 'bg-warning-50/80 border-warning-200/80 text-warning-800 shadow-soft',
+        error: 'bg-error-50/80 border-error-200/80 text-error-800 shadow-soft',
       },
     },
     defaultVariants: {
@@ -26,7 +26,7 @@ const alertVariants = cva(
 );
 
 /**
- * Alert Icon Map
+ * Alert Icon Map with gradient fills for Modern Soft UI
  */
 const alertIcons = {
   default: Info,
@@ -34,6 +34,17 @@ const alertIcons = {
   success: CheckCircle,
   warning: AlertTriangle,
   error: AlertCircle,
+};
+
+/**
+ * Alert Icon Gradient Classes
+ */
+const iconGradients = {
+  default: 'text-gray-600',
+  info: 'text-info-600',
+  success: 'text-success-600',
+  warning: 'text-warning-600',
+  error: 'text-error-600',
 };
 
 /**
@@ -49,9 +60,9 @@ export interface AlertProps
 }
 
 /**
- * Alert Component
+ * Alert Component - Modern Soft UI
  *
- * Display important messages to users.
+ * Display important messages to users with soft shadows and rounded corners.
  *
  * @example
  * ```tsx
@@ -74,26 +85,45 @@ export const Alert = forwardRef<HTMLDivElement, AlertProps>(
   ref
 ) => {
     const IconComponent = alertIcons[variant as keyof typeof alertIcons] || Info;
+    const iconGradientClass = iconGradients[variant as keyof typeof iconGradients] || iconGradients.default;
 
     return (
       <div ref={ref} className={alertVariants({ variant, className })} {...props}>
-        {customIcon || <IconComponent className="w-5 h-5 flex-shrink-0 mt-0.5" />}
+        {/* Icon with soft gradient background */}
+        <div className={cn(
+          'flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center',
+          'bg-white/50 backdrop-blur-sm'
+        )}>
+          {customIcon || <IconComponent className={cn('w-5 h-5', iconGradientClass)} />}
+        </div>
 
+        {/* Content */}
         <div className="flex-1 min-w-0">
-          {title && <p className="font-medium">{title}</p>}
+          {title && (
+            <p className="font-semibold text-sm">
+              {title}
+            </p>
+          )}
           {typeof children === 'string' ? (
-            <p className={title ? 'text-sm mt-1' : 'text-sm'}>{children}</p>
+            <p className={cn(
+              'text-sm mt-0.5 leading-relaxed',
+              title ? 'text-opacity-80' : ''
+            )}>
+              {children}
+            </p>
           ) : (
             children
           )}
         </div>
 
+        {/* Close Button */}
         {showCloseButton && onClose && (
           <button
             onClick={onClose}
             className={cn(
-              'text-current opacity-70 hover:opacity-100',
-              'transition-opacity'
+              'flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center',
+              'text-current opacity-60 hover:opacity-100 hover:bg-white/50',
+              'transition-all duration-200'
             )}
             aria-label="Đóng"
           >
@@ -113,7 +143,7 @@ Alert.displayName = 'Alert';
 export const AlertActions = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => {
     return (
-      <div ref={ref} className={cn('flex gap-2 mt-3', className)} {...props} />
+      <div ref={ref} className={cn('flex gap-2 mt-3 ml-11', className)} {...props} />
     );
   }
 );

@@ -18,7 +18,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { CheckCircle, AlertTriangle, Send, Download } from 'lucide-react';
 import { workflowApi, CANONICAL_SECTIONS, WorkflowLog, generateIdempotencyKey, downloadRevisionPdf } from '@/lib/api/workflow';
-import { Button } from '../ui';
+import { Button, Alert } from '../ui';
 
 export interface RevisionPanelProps {
   proposalId: string;
@@ -81,31 +81,33 @@ function SectionItem({
   onScrollToSection,
 }: SectionItemProps) {
   return (
-    <div className={`flex items-start gap-3 p-3 rounded-md border transition-colors ${isChecked ? 'bg-success-50 border-success-200' : 'bg-white border-gray-200 hover:border-gray-300'}`}>
+    <div className={`flex items-start gap-3 p-4 rounded-xl border transition-all duration-200 shadow-soft ${isChecked ? 'bg-gradient-to-r from-success-50 to-emerald-50 border-success-200 shadow-soft-lg' : 'bg-white border-gray-100 hover:border-gray-200 hover:shadow-soft-md hover:-translate-y-0.5'}`}>
       <input
         type="checkbox"
         id={`section-${sectionId}`}
         checked={isChecked}
         onChange={() => onToggle(sectionId)}
-        className="w-4 h-4 mt-1 text-success-600 border-gray-300 rounded focus:ring-2 focus:ring-success-500"
+        className="w-4 h-4 mt-1 text-success-600 border-gray-300 rounded focus:ring-2 focus:ring-success-500 focus:ring-offset-1"
       />
       <div className="flex-1 min-w-0">
         <label
           htmlFor={`section-${sectionId}`}
-          className="block font-medium text-gray-900 cursor-pointer hover:text-primary-600 transition-colors"
+          className="block font-semibold text-gray-900 cursor-pointer hover:text-primary-600 transition-colors"
         >
           {sectionLabel}
         </label>
         <button
           type="button"
           onClick={() => onScrollToSection(sectionId)}
-          className="text-xs text-primary-600 hover:text-primary-700 mt-1 underline"
+          className="text-xs text-primary-600 hover:text-primary-700 mt-1 underline decoration-dotted underline-offset-2"
         >
           Xem trong form →
         </button>
       </div>
       {isChecked && (
-        <CheckCircle className="w-5 h-5 text-success-600 flex-shrink-0 mt-0.5" />
+        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-success-500 to-emerald-600 flex items-center justify-center shadow-soft flex-shrink-0 mt-0.5">
+          <CheckCircle className="w-4 h-4 text-white" />
+        </div>
       )}
     </div>
   );
@@ -336,9 +338,9 @@ export function RevisionPanel({
   // Loading state
   if (loading) {
     return (
-      <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4 flex items-center gap-3">
-        <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-gray-600">Đang tải thông tin yêu cầu sửa...</p>
+      <div className="bg-white border border-gray-100 rounded-2xl p-6 mb-4 flex items-center gap-3 shadow-soft">
+        <div className="w-5 h-5 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-gray-600 font-medium">Đang tải thông tin yêu cầu sửa...</p>
       </div>
     );
   }
@@ -346,17 +348,17 @@ export function RevisionPanel({
   // Error state - still show minimal panel
   if (error || !returnLog) {
     return (
-      <div className="bg-white border border-warning-200 rounded-lg p-4 mb-4">
-        <div className="flex items-start gap-3 mb-3">
-          <AlertTriangle className="w-5 h-5 text-warning-600 flex-shrink-0 mt-0.5" />
+      <Alert variant="warning" className="mb-4">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
           <div>
-            <h3 className="font-medium text-gray-900">Cần sửa các phần:</h3>
+            <h3 className="font-semibold text-gray-900">Cần sửa các phần:</h3>
             <p className="text-sm text-gray-600 mt-1">
               {error || 'Không thể tải chi tiết yêu cầu sửa. Vui lòng kiểm tra lịch sử thay đổi.'}
             </p>
           </div>
         </div>
-      </div>
+      </Alert>
     );
   }
 
@@ -365,13 +367,13 @@ export function RevisionPanel({
   const sectionItems = getSectionLabels(revisionSectionIds);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
+    <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-4 shadow-soft">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <h3 className="font-semibold text-gray-900">Cần sửa các phần:</h3>
-          <span className="text-sm text-gray-500">
-            ({checkedSections.length}/{sectionItems.length} đã sửa)
+          <h3 className="font-bold text-gray-900">Cần sửa các phần:</h3>
+          <span className="bg-primary-50 text-primary-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+            {checkedSections.length}/{sectionItems.length} đã sửa
           </span>
         </div>
 
@@ -384,6 +386,7 @@ export function RevisionPanel({
           disabled={downloadingPdf}
           leftIcon={<Download className="w-3.5 h-3.5" />}
           title="Xuất PDF yêu cầu sửa"
+          className="rounded-lg"
         >
           Xuất PDF
         </Button>
@@ -408,37 +411,45 @@ export function RevisionPanel({
       )}
 
       {/* AC6: Warning Message */}
-      <div className="flex items-start gap-2 p-3 bg-warning-50 border border-warning-200 rounded-md">
-        <AlertTriangle className="w-4 h-4 text-warning-600 flex-shrink-0 mt-0.5" />
-        <p className="text-sm text-warning-800">
-          Nộp lại sẽ giữ nguyên lịch sử; không quay về DRAFT.
-        </p>
-      </div>
+      <Alert variant="warning" className="text-sm">
+        <div className="flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <p className="text-warning-800">
+            Nộp lại sẽ giữ nguyên lịch sử; không quay về DRAFT.
+          </p>
+        </div>
+      </Alert>
 
       {/* Story 4.5: Resubmit Success Message */}
       {resubmitSuccess && (
-        <div className="mt-4 p-3 bg-success-50 border border-success-200 rounded-md flex items-start gap-2">
-          <CheckCircle className="w-4 h-4 text-success-600 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-success-800">
-            Đã nộp lại hồ sơ thành công! Đang chuyển về lại cho người reviewing...
-          </p>
-        </div>
+        <Alert variant="success" className="text-sm mt-4">
+          <div className="flex items-start gap-2">
+            <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <p className="text-success-800">
+              Đã nộp lại hồ sơ thành công! Đang chuyển về lại cho người reviewing...
+            </p>
+          </div>
+        </Alert>
       )}
 
       {/* Resubmit Error Message */}
       {resubmitError && (
-        <div className="mt-4 p-3 bg-error-50 border border-error-200 rounded-md flex items-start gap-2">
-          <AlertTriangle className="w-4 h-4 text-error-600 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-error-800">{resubmitError}</p>
-        </div>
+        <Alert variant="error" className="text-sm mt-4">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <p className="text-error-800">{resubmitError}</p>
+          </div>
+        </Alert>
       )}
 
       {/* PDF Error Message */}
       {pdfError && (
-        <div className="mt-4 p-3 bg-error-50 border border-error-200 rounded-md flex items-start gap-2">
-          <AlertTriangle className="w-4 h-4 text-error-600 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-error-800">{pdfError}</p>
-        </div>
+        <Alert variant="error" className="text-sm mt-4">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <p className="text-error-800">{pdfError}</p>
+          </div>
+        </Alert>
       )}
 
       {/* Story 4.5: Resubmit Button - using Button component */}

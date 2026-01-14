@@ -1,19 +1,21 @@
 import { useState, useRef, useCallback } from 'react';
-import { Upload, File, X, AlertTriangle } from 'lucide-react';
+import { Upload, File, X, AlertTriangle, FileText } from 'lucide-react';
 import { ProgressBar } from './ProgressBar';
 import { attachmentsApi, Attachment } from '../../lib/api/attachments';
 import { Alert, AlertActions, Button } from '../ui';
+import { cn } from '../../lib/utils/cn';
 
 /**
- * FileUpload Component (Story 2.4)
+ * FileUpload Component - Modern Soft UI (Story 2.4)
  *
  * Features:
- * - Drag-drop support
+ * - Drag-drop support with visual feedback
  * - File picker with accept attribute
  * - Client-side file size validation (5MB per file)
- * - Progress bar during upload
- * - Error display (timeout, validation errors)
+ * - Progress bar during upload with gradient fill
+ * - Error display with soft alerts
  * - Total size warning before upload (AC5 fix)
+ * - Modern Soft UI styling with gradients and soft shadows
  *
  * @param proposalId - Proposal ID
  * @param onUploadSuccess - Callback when upload succeeds
@@ -41,6 +43,7 @@ export function FileUpload({
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingFileRef = useRef<File | null>(null);
 
@@ -48,6 +51,17 @@ export function FileUpload({
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  const getStoragePercentage = (): number => {
+    return (currentTotalSize / MAX_TOTAL_SIZE) * 100;
+  };
+
+  const getStorageColor = (): 'success' | 'warning' | 'error' => {
+    const pct = getStoragePercentage();
+    if (pct >= 100) return 'error';
+    if (pct >= 80) return 'warning';
+    return 'success';
   };
 
   const handleFileSelect = useCallback(
@@ -121,6 +135,7 @@ export function FileUpload({
     (e: React.DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      setIsDragging(false);
 
       if (disabled || uploading) return;
 
@@ -135,6 +150,16 @@ export function FileUpload({
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (!disabled && !uploading) {
+      setIsDragging(true);
+    }
+  }, [disabled, uploading]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
   }, []);
 
   const handleFileInputChange = useCallback(
@@ -166,20 +191,34 @@ export function FileUpload({
   }, [handleFileSelect]);
 
   return (
-    <div className="space-y-3">
-      {/* Upload zone */}
+    <div className="space-y-4">
+      {/* Upload Zone - Modern Soft UI */}
       <div
         onClick={handleClick}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
-        className={`
-          border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
-          ${disabled || uploading
-            ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
-            : 'bg-white border-gray-300 hover:border-blue-400 hover:bg-blue-50'
-          }
-        `}
+        onDragLeave={handleDragLeave}
+        className={cn(
+          'group relative overflow-hidden rounded-2xl border-2 border-dashed p-8',
+          'text-center cursor-pointer transition-all duration-300',
+          'shadow-soft hover:shadow-soft-lg',
+          // Disabled/Uploading state
+          (disabled || uploading) && [
+            'bg-gray-50/80 border-gray-200 cursor-not-allowed opacity-60',
+          ],
+          // Active states
+          !disabled && !uploading && [
+            isDragging
+              ? 'border-primary-400 bg-primary-50/80 scale-[1.01] shadow-soft-lg'
+              : 'bg-white border-gray-200 hover:border-primary-300 hover:bg-gradient-to-br hover:from-primary-50/50 hover:to-blue-50/50',
+          ],
+        )}
       >
+        {/* Animated background gradient for hover state */}
+        {!disabled && !uploading && !isDragging && (
+          <div className="absolute inset-0 bg-gradient-to-br from-primary-50/0 via-transparent to-blue-50/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+        )}
+
         <input
           ref={fileInputRef}
           type="file"
@@ -189,38 +228,84 @@ export function FileUpload({
           disabled={disabled || uploading}
         />
 
-        <div className="flex flex-col items-center gap-2">
+        {/* Icon with soft background */}
+        <div className="relative mb-4 inline-flex">
+          <div className={cn(
+            'w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300',
+            uploading || isDragging
+              ? 'bg-gradient-to-br from-primary-500 to-primary-600 shadow-soft scale-110'
+              : 'bg-gradient-to-br from-gray-100 to-gray-200 group-hover:from-primary-100 group-hover:to-blue-100 shadow-soft'
+          )}>
+            {uploading ? (
+              <File className="w-8 h-8 text-white animate-pulse" />
+            ) : (
+              <Upload className={cn(
+                'w-8 h-8 transition-colors duration-300',
+                isDragging ? 'text-white' : 'text-gray-400 group-hover:text-primary-500'
+              )} />
+            )}
+          </div>
+          {/* Animated ring for dragging */}
+          {isDragging && (
+            <div className="absolute inset-0 rounded-2xl border-2 border-primary-400 animate-ping" />
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="relative">
           {uploading ? (
-            <>
-              <div className="animate-pulse">
-                <File className="h-8 w-8 text-blue-600" />
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-gray-700">
+                Đang tải lên...
+              </p>
+              <div className="max-w-xs mx-auto">
+                <ProgressBar progress={progress} showPercentage />
               </div>
-              <p className="text-sm text-gray-600">Đang tải lên...</p>
-              <div className="w-full max-w-xs mt-2">
-                <ProgressBar progress={progress} />
-                <p className="text-xs text-gray-500 mt-1">{progress}%</p>
-              </div>
-            </>
+            </div>
           ) : (
-            <>
-              <Upload className="h-8 w-8 text-gray-400" />
-              <p className="text-sm text-gray-600">
+            <div className="space-y-2">
+              <p className={cn(
+                'text-sm font-semibold transition-colors duration-200',
+                isDragging ? 'text-primary-700' : 'text-gray-700 group-hover:text-gray-900'
+              )}>
                 {disabled ? 'Upload bị vô hiệu' : 'Kéo file vào đây hoặc click để chọn'}
               </p>
               <p className="text-xs text-gray-500">
                 PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (tối đa 5MB)
               </p>
-              {currentTotalSize > 0 && (
-                <p className="text-xs text-gray-500">
-                  Đã dùng: {formatFileSize(currentTotalSize)} / 50 MB
-                </p>
-              )}
-            </>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Warning display (AC5: Approaching limit) - using Alert component */}
+      {/* Storage indicator - Modern Soft UI */}
+      {currentTotalSize > 0 && (
+        <div className="bg-white rounded-xl p-4 shadow-soft border border-gray-100">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-info-50 to-blue-50 flex items-center justify-center">
+                <FileText className="w-4 h-4 text-info-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-700">
+                Dung lượng lưu trữ
+              </span>
+            </div>
+            <span className={cn(
+              'text-xs font-semibold',
+              getStoragePercentage() >= 80 ? 'text-warning-600' : 'text-gray-500'
+            )}>
+              {formatFileSize(currentTotalSize)} / 50 MB
+            </span>
+          </div>
+          <ProgressBar
+            progress={getStoragePercentage()}
+            color={getStorageColor()}
+            size="sm"
+          />
+        </div>
+      )}
+
+      {/* Warning display (AC5: Approaching limit) */}
       {warning && (
         <Alert variant="warning" className="text-sm">
           <div className="flex items-start gap-2">
@@ -230,19 +315,19 @@ export function FileUpload({
           <AlertActions>
             <Button
               variant="ghost"
-              size="xxs"
+              size="xs"
               onClick={proceedWithWarning}
               disabled={uploading}
-              className="text-warning-700 hover:text-warning-900 font-medium text-xs"
+              className="text-warning-700 hover:text-warning-900 hover:bg-warning-50 font-semibold"
             >
               Tiếp tục
             </Button>
             <Button
               variant="ghost"
-              size="xxs"
+              size="xs"
               onClick={clearWarning}
               disabled={uploading}
-              className="text-warning-600 hover:text-warning-800"
+              className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -250,17 +335,17 @@ export function FileUpload({
         </Alert>
       )}
 
-      {/* Error display - using Alert component */}
+      {/* Error display */}
       {error && (
         <Alert variant="error" className="text-sm">
           {error}
           <AlertActions>
             <Button
               variant="ghost"
-              size="xxs"
+              size="xs"
               onClick={clearError}
               disabled={uploading}
-              className="text-error-600 hover:text-error-800"
+              className="text-error-600 hover:text-error-800 hover:bg-error-50 rounded-lg"
             >
               <X className="h-4 w-4" />
             </Button>

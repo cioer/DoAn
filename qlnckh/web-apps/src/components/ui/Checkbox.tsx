@@ -1,12 +1,13 @@
 import { cva, type VariantProps } from 'class-variance-authority';
 import { forwardRef, type InputHTMLAttributes } from 'react';
 import { Check } from 'lucide-react';
+import { cn } from '../../lib/utils/cn';
 
 /**
- * Checkbox Container Variants
+ * Checkbox Container Variants - Modern Soft UI
  */
 const checkboxContainerVariants = cva(
-  'flex items-center gap-2 cursor-pointer',
+  'flex items-center gap-3 cursor-pointer transition-all duration-200',
   {
     variants: {
       disabled: {
@@ -21,22 +22,23 @@ const checkboxContainerVariants = cva(
 );
 
 /**
- * Checkbox Input Variants
+ * Checkbox Input Variants - Modern Soft UI
  */
 const checkboxVariants = cva(
-  'w-4 h-4 rounded border transition-colors focus:outline-none focus:ring-2 focus:ring-offset-0',
+  'w-5 h-5 rounded-lg border transition-all duration-200 flex items-center justify-center',
+  'focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-offset-white',
   {
     variants: {
       color: {
-        default: 'text-gray-600 border-gray-300 focus:ring-gray-500 checked:bg-gray-600 checked:border-gray-600',
-        primary: 'text-primary-600 border-gray-300 focus:ring-primary-500 checked:bg-primary-600 checked:border-primary-600',
-        success: 'text-success-600 border-gray-300 focus:ring-success-500 checked:bg-success-600 checked:border-success-600',
-        warning: 'text-warning-600 border-gray-300 focus:ring-warning-500 checked:bg-warning-600 checked:border-warning-600',
-        error: 'text-error-600 border-gray-300 focus:ring-error-500 checked:bg-error-600 checked:border-error-600',
+        default: 'border-gray-300 focus:ring-gray-500 checked:bg-gray-600 checked:border-gray-600',
+        primary: 'border-gray-300 focus:ring-primary-500 checked:bg-gradient-to-br checked:from-primary-500 checked:to-primary-600 checked:border-primary-600',
+        success: 'border-gray-300 focus:ring-success-500 checked:bg-gradient-to-br checked:from-success-500 checked:to-success-600 checked:border-success-600',
+        warning: 'border-gray-300 focus:ring-warning-500 checked:bg-gradient-to-br checked:from-warning-500 checked:to-warning-600 checked:border-warning-600',
+        error: 'border-gray-300 focus:ring-error-500 checked:bg-gradient-to-br checked:from-error-500 checked:to-error-600 checked:border-error-600',
       },
     },
     defaultVariants: {
-      color: 'default',
+      color: 'primary',
     },
   }
 );
@@ -53,15 +55,15 @@ export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement
 }
 
 /**
- * Checkbox Component
+ * Checkbox Component - Modern Soft UI
  *
- * Form checkbox with label and helper text.
+ * Form checkbox with soft rounded corners and gradient checked state.
  *
  * @example
  * ```tsx
  * <Checkbox label="Accept terms" />
  * <Checkbox label="Subscribe" helperText="Get email updates" />
- * <Checkbox label="I agree" color="primary" />
+ * <Checkbox label="I agree" color="success" />
  * ```
  */
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
@@ -69,7 +71,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
     {
       label,
       helperText,
-      color = 'default',
+      color = 'primary',
       error,
       description,
       className,
@@ -89,46 +91,60 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
           htmlFor={checkboxId}
           className={checkboxContainerVariants({ disabled })}
         >
-          <input
-            ref={ref}
-            id={checkboxId}
-            type="checkbox"
-            checked={checked}
-            onChange={onChange}
-            disabled={disabled}
-            className={checkboxVariants({ color })}
-            aria-invalid={!!error}
-            aria-describedby={
-              error
-                ? `${checkboxId}-error`
-                : helperText
-                  ? `${checkboxId}-helper`
-                  : description
-                    ? `${checkboxId}-description`
-                    : undefined
-            }
-            {...props}
-          />
+          <div className="relative">
+            <input
+              ref={ref}
+              id={checkboxId}
+              type="checkbox"
+              checked={checked}
+              onChange={onChange}
+              disabled={disabled}
+              className={cn(
+                'peer appearance-none',
+                checkboxVariants({ color })
+              )}
+              aria-invalid={!!error}
+              aria-describedby={
+                error
+                  ? `${checkboxId}-error`
+                  : helperText
+                    ? `${checkboxId}-helper`
+                    : description
+                      ? `${checkboxId}-description`
+                      : undefined
+              }
+              {...props}
+            />
+            {/* Custom check icon - only shows when checked */}
+            <Check className={cn(
+              'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white pointer-events-none',
+              'opacity-0 peer-checked:opacity-100 transition-opacity duration-200'
+            )} />
+          </div>
+
           <div className="flex-1 min-w-0">
             {label && (
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-semibold text-gray-700">
                 {label}
               </span>
             )}
             {description && (
-              <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{description}</p>
             )}
           </div>
         </label>
 
         {error && (
-          <p id={`${checkboxId}-error`} className="mt-1 text-sm text-error-600">
+          <p id={`${checkboxId}-error`} className="mt-2 text-sm text-error-600 ml-8 flex items-center gap-1">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
             {error}
           </p>
         )}
 
         {helperText && !error && (
-          <p id={`${checkboxId}-helper`} className="mt-1 text-sm text-gray-500">
+          <p id={`${checkboxId}-helper`} className="mt-2 text-sm text-gray-500 ml-8">
             {helperText}
           </p>
         )}
@@ -155,7 +171,7 @@ export const IndeterminateIcon = forwardRef<
       strokeWidth="3"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="w-3 h-3"
+      className="w-3.5 h-3.5"
       {...props}
     >
       <line x1="4" y1="12" x2="20" y2="12" />
