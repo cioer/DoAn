@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useAuthStore, useHasHydrated } from '../stores/authStore';
 import { Permission } from '../shared/types/permissions';
-import { Header } from '../components/layout/Header';
+import { Layout } from '../components/layout/Layout';
 
 /**
  * User roles from Prisma schema
@@ -188,8 +188,8 @@ export function App() {
   return (
     <BrowserRouter>
       <HydrationGuard>
-        {isAuthenticated && <Header />}
-        <Routes>
+        <Layout>
+          <Routes>
         {/* Default route - redirect based on user role */}
         <Route
           path="/"
@@ -449,6 +449,7 @@ export function App() {
         {/* Catch all - 404 */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+        </Layout>
       </HydrationGuard>
     </BrowserRouter>
   );

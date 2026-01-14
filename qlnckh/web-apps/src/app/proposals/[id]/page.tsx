@@ -249,8 +249,8 @@ export default function ProposalDetailPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-          <p className="text-muted-foreground">Đang tải đề tài...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Đang tải đề tài...</p>
         </div>
       </div>
     );
@@ -297,20 +297,20 @@ export default function ProposalDetailPage() {
   return (
     <div className="max-w-5xl mx-auto p-6">
       {/* Header */}
-      <div className="mb-6 pb-4 border-b">
+      <div className="mb-6 pb-4 border-b border-gray-300 bg-white/50 backdrop-blur-sm rounded-t-xl -mx-6 px-6 pt-4">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 mb-4"
+          className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-4 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Quay lại
         </button>
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <h1 className="text-2xl font-bold text-gray-900">
               {proposal.title}
             </h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            <p className="text-sm text-gray-700 font-medium mt-1">
               Mã: {proposal.code} • Trạng thái: {getStateLabel(proposal.state)}
             </p>
           </div>
@@ -456,43 +456,43 @@ export default function ProposalDetailPage() {
       {/* Content */}
       <div className="space-y-6">
         {/* Proposal Information */}
-        <section className="border rounded-lg p-6 bg-white dark:bg-gray-800">
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
+        <section className="border border-gray-200 rounded-xl p-6 bg-white/90 backdrop-blur-sm shadow-soft">
+          <h2 className="text-lg font-bold mb-4 text-gray-900">
             Thông tin đề tài
           </h2>
           <dl className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
-              <dt className="text-gray-600 dark:text-gray-400">Mã đề tài:</dt>
-              <dd className="font-medium text-gray-900 dark:text-gray-100">{proposal.code}</dd>
+              <dt className="text-gray-700 font-medium">Mã đề tài:</dt>
+              <dd className="font-semibold text-gray-900">{proposal.code}</dd>
             </div>
             <div>
-              <dt className="text-gray-600 dark:text-gray-400">Trạng thái:</dt>
-              <dd className="font-medium text-gray-900 dark:text-gray-100">
+              <dt className="text-gray-700 font-medium">Trạng thái:</dt>
+              <dd className="font-semibold text-gray-900">
                 {getStateLabel(proposal.state)}
               </dd>
             </div>
             <div>
-              <dt className="text-gray-600 dark:text-gray-400">Người tạo:</dt>
-              <dd className="font-medium text-gray-900 dark:text-gray-100">
+              <dt className="text-gray-700 font-medium">Người tạo:</dt>
+              <dd className="font-semibold text-gray-900">
                 {proposal.owner?.displayName || proposal.ownerId}
               </dd>
             </div>
             <div>
-              <dt className="text-gray-600 dark:text-gray-400">Khoa:</dt>
-              <dd className="font-medium text-gray-900 dark:text-gray-100">
+              <dt className="text-gray-700 font-medium">Khoa:</dt>
+              <dd className="font-semibold text-gray-900">
                 {proposal.faculty?.name || proposal.facultyId}
               </dd>
             </div>
             {proposal.councilId && (
               <div>
-                <dt className="text-gray-600 dark:text-gray-400">Hội đồng:</dt>
-                <dd className="font-medium text-gray-900 dark:text-gray-100">{proposal.councilId}</dd>
+                <dt className="text-gray-700 font-medium">Hội đồng:</dt>
+                <dd className="font-semibold text-gray-900">{proposal.councilId}</dd>
               </div>
             )}
             {proposal.holderUser && (
               <div>
-                <dt className="text-gray-600 dark:text-gray-400">Người xử lý:</dt>
-                <dd className="font-medium text-gray-900 dark:text-gray-100">
+                <dt className="text-gray-700 font-medium">Người xử lý:</dt>
+                <dd className="font-semibold text-gray-900">
                   {proposal.holderUserInfo?.displayName || proposal.holderUser}
                 </dd>
               </div>
@@ -569,10 +569,10 @@ export default function ProposalDetailPage() {
         )}
 
         {/* Attachments Section (Story 11.5) */}
-        <section className="border rounded-lg p-6 bg-white dark:bg-gray-800">
+        <section className="border border-gray-200 rounded-xl p-6 bg-white/90 backdrop-blur-sm shadow-soft">
           <div className="flex items-center gap-2 mb-4">
-            <FileText className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <FileText className="h-5 w-5 text-primary-600" />
+            <h2 className="text-lg font-bold text-gray-900">
               Tài liệu đính kèm
             </h2>
           </div>
@@ -599,7 +599,7 @@ export default function ProposalDetailPage() {
               onAttachmentChange={handleAttachmentChange}
             />
           ) : (
-            <div className="text-center py-8 text-gray-500 text-sm">
+            <div className="text-center py-8 text-gray-600 text-sm font-medium">
               Đang tải tài liệu...
             </div>
           )}
@@ -607,11 +607,11 @@ export default function ProposalDetailPage() {
 
         {/* Form Data (for reference) */}
         {proposal.formData && Object.keys(proposal.formData).length > 0 && (
-          <section className="border rounded-lg p-6 bg-white dark:bg-gray-800">
-            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
+          <section className="border border-gray-200 rounded-xl p-6 bg-white/90 backdrop-blur-sm shadow-soft">
+            <h2 className="text-lg font-bold mb-4 text-gray-900">
               Nội dung đề tài
             </h2>
-            <pre className="text-xs text-gray-600 dark:text-gray-400 overflow-auto max-h-96">
+            <pre className="text-xs text-gray-700 bg-gray-50 rounded-lg p-4 overflow-auto max-h-96 border border-gray-200">
               {JSON.stringify(proposal.formData, null, 2)}
             </pre>
           </section>

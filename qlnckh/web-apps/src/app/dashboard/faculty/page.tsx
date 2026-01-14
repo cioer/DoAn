@@ -2,7 +2,7 @@
  * Faculty Dashboard for QUAN_LY_KHOA (Faculty Manager)
  *
  * Features:
- * - Faculty-specific KPI metrics
+ * - Faculty-specific KPI metrics organized by priority
  * - Proposal list from faculty
  * - Quick actions for faculty management
  * - Recent proposals requiring attention
@@ -19,9 +19,9 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   Users,
   Eye,
-  Settings,
   TrendingUp,
 } from 'lucide-react';
 import { useAuthStore } from '../../../stores/authStore';
@@ -121,66 +121,60 @@ function StatCard({
   label,
   value,
   color,
-  delay = 0,
+  size = 'normal',
   onClick,
 }: {
   icon: typeof FileText;
   label: string;
   value: number;
-  color: 'blue' | 'green' | 'amber' | 'red' | 'purple' | 'cyan' | 'teal';
-  delay?: number;
+  color: 'red' | 'amber' | 'blue' | 'green' | 'purple' | 'cyan' | 'gray';
+  size?: 'normal' | 'large';
   onClick?: () => void;
 }) {
   const colorClasses = {
+    red: 'bg-red-500 text-white',
+    amber: 'bg-amber-500 text-white',
     blue: 'bg-blue-500 text-white',
     green: 'bg-emerald-500 text-white',
-    amber: 'bg-amber-500 text-white',
-    red: 'bg-red-500 text-white',
     purple: 'bg-purple-500 text-white',
     cyan: 'bg-cyan-500 text-white',
-    teal: 'bg-teal-500 text-white',
+    gray: 'bg-gray-500 text-white',
   };
 
   const bgClasses = {
-    blue: 'hover:border-blue-200',
-    green: 'hover:border-emerald-200',
-    amber: 'hover:border-amber-200',
-    red: 'hover:border-red-200',
-    purple: 'hover:border-purple-200',
-    cyan: 'hover:border-cyan-200',
-    teal: 'hover:border-teal-200',
+    red: 'hover:border-red-300 hover:shadow-red-100',
+    amber: 'hover:border-amber-300 hover:shadow-amber-100',
+    blue: 'hover:border-blue-300 hover:shadow-blue-100',
+    green: 'hover:border-emerald-300 hover:shadow-emerald-100',
+    purple: 'hover:border-purple-300 hover:shadow-purple-100',
+    cyan: 'hover:border-cyan-300 hover:shadow-cyan-100',
+    gray: 'hover:border-gray-300 hover:shadow-gray-100',
   };
+
+  const sizeClasses = size === 'large'
+    ? 'p-6'
+    : 'p-4';
 
   return (
     <div
-      className={`group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-300 ${bgClasses[color]} hover:shadow-lg ${onClick ? 'cursor-pointer' : ''}`}
-      style={{ animation: `fadeSlideIn 0.5s ease-out ${delay}ms both` }}
+      className={`
+        group relative overflow-hidden rounded-xl border border-gray-200
+        bg-white shadow-soft transition-all duration-300
+        ${bgClasses[color]} hover:shadow-soft-lg
+        ${onClick ? 'cursor-pointer' : ''}
+        ${sizeClasses}
+      `}
       onClick={onClick}
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-50/50 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-      <div className="relative">
-        <div className="flex items-start justify-between">
-          <div className="rounded-xl p-3 shadow-sm">
-            <Icon className={`h-6 w-6 ${colorClasses[color]}`} />
-          </div>
+      <div className="flex items-center gap-3">
+        <div className={`rounded-lg p-2 ${colorClasses[color]} shadow-sm`}>
+          <Icon className={`h-5 w-5 ${size === 'large' ? 'h-6 w-6' : ''}`} />
         </div>
-        <div className="mt-4">
-          <p className="text-sm font-medium text-gray-500">{label}</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{value}</p>
+        <div>
+          <p className={`text-gray-500 ${size === 'large' ? 'text-sm' : 'text-xs'}`}>{label}</p>
+          <p className={`font-bold text-gray-900 ${size === 'large' ? 'text-2xl' : 'text-xl'}`}>{value}</p>
         </div>
       </div>
-      <style>{`
-        @keyframes fadeSlideIn {
-          from {
-            opacity: 0;
-            transform: translateY(15px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
     </div>
   );
 }
@@ -305,10 +299,10 @@ export default function FacultyDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
@@ -339,76 +333,88 @@ export default function FacultyDashboardPage() {
           </div>
         </div>
 
-        {/* KPI Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-4 mb-8">
-          <StatCard
-            icon={FileText}
-            label="Tổng số"
-            value={kpi.totalProposals}
-            color="blue"
-            delay={100}
-            onClick={() => navigate('/proposals')}
-          />
-          <StatCard
-            icon={Clock}
-            label="Chờ duyệt"
-            value={kpi.pendingReview}
-            color="amber"
-            delay={200}
-            onClick={() => handleViewByState('FACULTY_REVIEW')}
-          />
-          <StatCard
-            icon={CheckCircle2}
-            label="Đã duyệt"
-            value={kpi.approved}
-            color="green"
-            delay={300}
-            onClick={() => handleViewByState('APPROVED')}
-          />
-          <StatCard
-            icon={AlertCircle}
-            label="Cần sửa"
-            value={kpi.returned}
-            color="red"
-            delay={400}
-            onClick={() => handleViewByState('CHANGES_REQUESTED')}
-          />
-          <StatCard
-            icon={TrendingUp}
-            label="Đang thực hiện"
-            value={kpi.inProgress}
-            color="purple"
-            delay={500}
-            onClick={() => handleViewByState('DRAFT')}
-          />
-          <StatCard
-            icon={CheckCircle2}
-            label="Hoàn thành"
-            value={kpi.completed}
-            color="green"
-            delay={600}
-            onClick={() => handleViewByState('COMPLETED')}
-          />
-          <StatCard
-            icon={Clock}
-            label="Chờ nghiệm thu"
-            value={kpi.pendingAcceptance}
-            color="cyan"
-            delay={700}
-            onClick={() => handleViewByState('FACULTY_ACCEPTANCE_REVIEW')}
-          />
-          <StatCard
-            icon={CheckCircle2}
-            label="Đã nghiệm thu"
-            value={kpi.acceptedByFaculty}
-            color="teal"
-            delay={800}
-            onClick={() => handleViewByState('SCHOOL_ACCEPTANCE_REVIEW')}
-          />
+        {/* Priority Section: Cần hành động ngay - LARGE CARDS */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertCircle className="w-5 h-5 text-red-500" />
+            <h2 className="text-lg font-bold text-gray-900">Cần hành động ngay</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              icon={AlertTriangle}
+              label="Cần duyệt"
+              value={kpi.pendingReview}
+              color="amber"
+              size="large"
+              onClick={() => handleViewByState('FACULTY_REVIEW')}
+            />
+            <StatCard
+              icon={AlertCircle}
+              label="Yêu cầu sửa"
+              value={kpi.returned}
+              color="red"
+              size="large"
+              onClick={() => handleViewByState('CHANGES_REQUESTED')}
+            />
+            <StatCard
+              icon={Clock}
+              label="Chờ nghiệm thu"
+              value={kpi.pendingAcceptance}
+              color="cyan"
+              size="large"
+              onClick={() => handleViewByState('FACULTY_ACCEPTANCE_REVIEW')}
+            />
+            <StatCard
+              icon={CheckCircle2}
+              label="Đã nghiệm thu"
+              value={kpi.acceptedByFaculty}
+              color="green"
+              size="large"
+              onClick={() => handleViewByState('SCHOOL_ACCEPTANCE_REVIEW')}
+            />
+          </div>
+        </div>
+
+        {/* Overview Section: Tổng quan */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <TrendingUp className="w-5 h-5 text-blue-500" />
+            <h2 className="text-lg font-bold text-gray-900">Tổng quan</h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <StatCard
+              icon={FileText}
+              label="Tổng số"
+              value={kpi.totalProposals}
+              color="blue"
+              onClick={() => navigate('/proposals')}
+            />
+            <StatCard
+              icon={CheckCircle2}
+              label="Đã duyệt"
+              value={kpi.approved}
+              color="green"
+              onClick={() => handleViewByState('APPROVED')}
+            />
+            <StatCard
+              icon={TrendingUp}
+              label="Đang thực hiện"
+              value={kpi.inProgress}
+              color="purple"
+              onClick={() => handleViewByState('IN_PROGRESS')}
+            />
+            <StatCard
+              icon={CheckCircle2}
+              label="Hoàn thành"
+              value={kpi.completed}
+              color="green"
+              onClick={() => handleViewByState('COMPLETED')}
+            />
+          </div>
         </div>
 
         {/* Quick Stats Summary */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
           <Card variant="elevated">
             <CardBody>
               <div className="flex items-center gap-4">
