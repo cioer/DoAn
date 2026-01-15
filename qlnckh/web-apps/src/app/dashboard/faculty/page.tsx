@@ -29,6 +29,10 @@ import { Button } from '../../../components/ui/Button';
 import { Card, CardHeader, CardBody } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
 import { apiClient } from '../../../lib/auth/auth';
+import {
+  StatusDistributionPieChart,
+  MonthlyTrendBarChart,
+} from '../../../components/charts/DashboardCharts';
 
 type ProposalStatus =
   | 'DRAFT'
@@ -72,11 +76,27 @@ interface RecentProposal {
   };
 }
 
+interface FacultyStatusDistribution {
+  state: string;
+  stateName: string;
+  count: number;
+  percentage: number;
+}
+
+interface FacultyMonthlyTrend {
+  month: string;
+  newProposals: number;
+  approved: number;
+  completed: number;
+}
+
 interface FacultyDashboardData {
   kpi: FacultyDashboardKpi;
   recentProposals: RecentProposal[];
   facultyName: string;
   facultyId: string;
+  statusDistribution: FacultyStatusDistribution[];
+  monthlyTrends: FacultyMonthlyTrend[];
 }
 
 const getStatusColor = (state: ProposalStatus): string => {
@@ -245,6 +265,8 @@ export default function FacultyDashboardPage() {
   });
   const [recentProposals, setRecentProposals] = useState<RecentProposal[]>([]);
   const [facultyName, setFacultyName] = useState<string>('');
+  const [statusDistribution, setStatusDistribution] = useState<FacultyStatusDistribution[]>([]);
+  const [monthlyTrends, setMonthlyTrends] = useState<FacultyMonthlyTrend[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load dashboard data
@@ -268,6 +290,8 @@ export default function FacultyDashboardPage() {
 
       setKpi(data.kpi);
       setRecentProposals(data.recentProposals || []);
+      setStatusDistribution(data.statusDistribution || []);
+      setMonthlyTrends(data.monthlyTrends || []);
     } catch (error) {
       console.error('Failed to load faculty dashboard:', error);
     } finally {
@@ -460,6 +484,23 @@ export default function FacultyDashboardPage() {
                   <p className="text-2xl font-bold text-gray-900">{kpi.completed}</p>
                 </div>
               </div>
+            </CardBody>
+          </Card>
+        </div>
+
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Status Distribution Pie Chart */}
+          <Card variant="elevated">
+            <CardBody>
+              <StatusDistributionPieChart data={statusDistribution} />
+            </CardBody>
+          </Card>
+
+          {/* Monthly Trends Bar Chart */}
+          <Card variant="elevated">
+            <CardBody>
+              <MonthlyTrendBarChart data={monthlyTrends} />
             </CardBody>
           </Card>
         </div>

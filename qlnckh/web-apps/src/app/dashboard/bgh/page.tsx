@@ -37,6 +37,10 @@ import { bghDashboardApi, type BghDashboardData } from '../../../lib/api/bgh-das
 import { workflowApi, generateIdempotencyKey } from '../../../lib/api/workflow';
 import { useAuthStore } from '../../../stores/authStore';
 import type { LucideIcon } from 'lucide-react';
+import {
+  ProposalStateDonutChart,
+  FacultyPerformanceBarChart,
+} from '../../../components/charts/DashboardCharts';
 
 // Helper Components
 interface SystemStatCardProps {
@@ -352,6 +356,39 @@ export default function BghDashboardPage() {
               <SystemStatCard label="Đã từ chối" value={dashboardData.systemKpi.rejected} icon={AlertTriangle} color="red" />
               <SystemStatCard label="Đã hoàn thành" value={dashboardData.systemKpi.completed} icon={Activity} color="blue" />
               <SystemStatCard label="Tỷ lệ duyệt" value={`${dashboardData.systemKpi.approvalRate}%`} icon={TrendingUp} color="teal" />
+            </div>
+
+            {/* Charts Row - State Distribution & Faculty Performance */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              {/* Proposal State Distribution Donut Chart */}
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                <ProposalStateDonutChart
+                  data={[
+                    { state: 'DRAFT', stateName: 'Nháp', count: dashboardData.systemKpi.draft },
+                    { state: 'FACULTY_REVIEW', stateName: 'Xét duyệt Khoa', count: dashboardData.systemKpi.facultyReview },
+                    { state: 'COUNCIL_REVIEW', stateName: 'Xét duyệt Hội đồng', count: dashboardData.systemKpi.councilReview },
+                    { state: 'SCHOOL_REVIEW', stateName: 'Xét duyệt Trường', count: dashboardData.systemKpi.schoolSelectionReview },
+                    { state: 'APPROVED', stateName: 'Đã duyệt', count: dashboardData.systemKpi.approved },
+                    { state: 'REJECTED', stateName: 'Từ chối', count: dashboardData.systemKpi.rejected },
+                    { state: 'CHANGES_REQUESTED', stateName: 'Yêu cầu sửa', count: dashboardData.systemKpi.changesRequested },
+                    { state: 'IN_PROGRESS', stateName: 'Đang thực hiện', count: dashboardData.systemKpi.inProgress },
+                    { state: 'ACCEPTANCE_REVIEW', stateName: 'Nghiệm thu', count: dashboardData.systemKpi.schoolAcceptanceReview },
+                    { state: 'COMPLETED', stateName: 'Hoàn thành', count: dashboardData.systemKpi.completed },
+                    { state: 'HANDOVER', stateName: 'Bàn giao', count: dashboardData.systemKpi.handover },
+                  ]}
+                  title="Phân bổ trạng thái đề tài"
+                  size="medium"
+                />
+              </div>
+
+              {/* Faculty Performance Bar Chart */}
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                <FacultyPerformanceBarChart
+                  data={dashboardData.facultyStats}
+                  title="Hiệu suất theo Khoa"
+                  maxFaculties={8}
+                />
+              </div>
             </div>
 
             {/* Detailed Stats Row */}

@@ -14,6 +14,8 @@ import {
 import {
   FacultyDashboardKpiDto,
   FacultyDashboardDataDto,
+  FacultyStatusDistributionDto,
+  FacultyMonthlyTrendDto,
   FACULTY_DASHBOARD_STATE_MAPPING,
 } from './dto/faculty-dashboard.dto';
 import {
@@ -397,6 +399,93 @@ export class DashboardService {
       acceptedByFaculty,
     };
 
+    // Build status distribution for pie chart
+    const statusDistribution: FacultyStatusDistributionDto[] = [
+      {
+        state: 'DRAFT',
+        stateName: 'Nháp',
+        count: inProgress,
+        percentage: totalProposals > 0 ? Math.round((inProgress / totalProposals) * 100) : 0,
+      },
+      {
+        state: 'FACULTY_REVIEW',
+        stateName: 'Đang xét duyệt',
+        count: pendingReview,
+        percentage: totalProposals > 0 ? Math.round((pendingReview / totalProposals) * 100) : 0,
+      },
+      {
+        state: 'APPROVED',
+        stateName: 'Đã duyệt',
+        count: approved,
+        percentage: totalProposals > 0 ? Math.round((approved / totalProposals) * 100) : 0,
+      },
+      {
+        state: 'CHANGES_REQUESTED',
+        stateName: 'Yêu cầu sửa',
+        count: returned,
+        percentage: totalProposals > 0 ? Math.round((returned / totalProposals) * 100) : 0,
+      },
+      {
+        state: 'COMPLETED',
+        stateName: 'Hoàn thành',
+        count: completed,
+        percentage: totalProposals > 0 ? Math.round((completed / totalProposals) * 100) : 0,
+      },
+      {
+        state: 'ACCEPTANCE',
+        stateName: 'Nghiệm thu',
+        count: pendingAcceptance + acceptedByFaculty,
+        percentage: totalProposals > 0 ? Math.round(((pendingAcceptance + acceptedByFaculty) / totalProposals) * 100) : 0,
+      },
+    ].filter(item => item.count > 0); // Only show states with data
+
+    // Get monthly trends for the last 6 months
+    const now = new Date();
+    const monthlyTrends: FacultyMonthlyTrendDto[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+
+      const monthStr = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
+
+      // Count new proposals created in this month
+      const newProposals = await this.prisma.proposal.count({
+        where: {
+          facultyId,
+          createdAt: { gte: monthStart, lte: monthEnd },
+          deletedAt: null,
+        },
+      });
+
+      // Count proposals approved in this month (moved to approved states)
+      const approvedInMonth = await this.prisma.proposal.count({
+        where: {
+          facultyId,
+          state: { in: FACULTY_DASHBOARD_STATE_MAPPING.approved },
+          updatedAt: { gte: monthStart, lte: monthEnd },
+          deletedAt: null,
+        },
+      });
+
+      // Count proposals completed in this month
+      const completedInMonth = await this.prisma.proposal.count({
+        where: {
+          facultyId,
+          state: { in: FACULTY_DASHBOARD_STATE_MAPPING.completed },
+          updatedAt: { gte: monthStart, lte: monthEnd },
+          deletedAt: null,
+        },
+      });
+
+      monthlyTrends.push({
+        month: monthStr,
+        newProposals,
+        approved: approvedInMonth,
+        completed: completedInMonth,
+      });
+    }
+
     this.logger.log(
       `Faculty dashboard data retrieved for faculty ${facultyId}: ${totalProposals} total, ${pendingReview} pending, ${approved} approved`,
     );
@@ -416,6 +505,8 @@ export class DashboardService {
       recentProposals,
       facultyName,
       facultyId,
+      statusDistribution,
+      monthlyTrends,
     };
   }
 
