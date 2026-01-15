@@ -8,11 +8,12 @@
  * - Upcoming deadlines
  * - Submission timeline
  *
- * Aesthetic Direction:
- * - Clean, minimal design with purposeful color accents
- * - Card-based layout with subtle shadows
- * - Warm color palette (orange/amber accents) for creativity
- * - Data visualization with progress indicators
+ * Design: Modern Soft UI matching login page style
+ * - Blue-900 primary color
+ * - Slate color palette for text
+ * - Rounded-lg corners
+ * - Font-serif for headings
+ * - Shadow-lg for depth
  */
 
 import { useState, useEffect } from 'react';
@@ -25,9 +26,10 @@ import {
   AlertCircle,
   TrendingUp,
   Calendar,
-  MoreVertical,
   Eye,
   Edit,
+  Sparkles,
+  Target,
 } from 'lucide-react';
 import { proposalsApi, Proposal } from '../../../lib/api/proposals';
 import { useAuthStore } from '../../../stores/authStore';
@@ -114,135 +116,71 @@ const getDeadlineColor = (days: number): string => {
 };
 
 /**
- * Stat Card Component with hover effect and click navigation
+ * Stat Card Component - Modern Soft UI matching login page style
  */
 function StatCard({
   icon: Icon,
   label,
   value,
   color,
-  trend,
-  delay = 0,
   onClick,
 }: {
   icon: typeof FileText;
   label: string;
   value: number;
-  color: 'blue' | 'green' | 'amber' | 'red' | 'purple';
-  trend?: { value: number; isPositive: boolean };
-  delay?: number;
+  color: 'blue' | 'green' | 'amber' | 'red' | 'purple' | 'emerald' | 'orange';
   onClick?: () => void;
 }) {
-  const colorClasses = {
-    blue: 'bg-blue-500 text-white',
-    green: 'bg-emerald-500 text-white',
-    amber: 'bg-amber-500 text-white',
-    red: 'bg-red-500 text-white',
-    purple: 'bg-purple-500 text-white',
+  const gradientColors = {
+    blue: 'bg-gradient-to-br from-blue-900 to-blue-800',
+    green: 'bg-gradient-to-br from-slate-700 to-slate-800',
+    amber: 'bg-gradient-to-br from-amber-500 to-amber-600',
+    red: 'bg-gradient-to-br from-red-500 to-red-600',
+    purple: 'bg-gradient-to-br from-purple-500 to-purple-600',
+    emerald: 'bg-gradient-to-br from-slate-700 to-slate-800',
+    orange: 'bg-gradient-to-br from-orange-500 to-orange-600',
   };
 
-  const bgClasses = {
-    blue: 'hover:border-blue-200 cursor-pointer',
-    green: 'hover:border-emerald-200 cursor-pointer',
-    amber: 'hover:border-amber-200 cursor-pointer',
-    red: 'hover:border-red-200 cursor-pointer',
-    purple: 'hover:border-purple-200 cursor-pointer',
+  const bgColors = {
+    blue: 'bg-blue-50 text-blue-600',
+    green: 'bg-slate-50 text-slate-600',
+    amber: 'bg-amber-50 text-amber-600',
+    red: 'bg-red-50 text-red-600',
+    purple: 'bg-purple-50 text-purple-600',
+    emerald: 'bg-slate-50 text-slate-600',
+    orange: 'bg-orange-50 text-orange-600',
   };
 
-  return (
-    <div
-      onClick={onClick}
-      className={`group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-300 ${bgClasses[color]} hover:shadow-lg hover:-translate-y-1`}
-      style={{ animation: `fadeSlideIn 0.5s ease-out ${delay}ms both` }}
-    >
-      {/* Decorative gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-50/50 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-
-      <div className="relative">
+  if (onClick) {
+    return (
+      <button
+        onClick={onClick}
+        className="group relative overflow-hidden rounded-lg bg-white p-5 shadow-md transition-all duration-300 hover:shadow-lg border-2 border-transparent hover:border-blue-200 cursor-pointer"
+      >
         <div className="flex items-start justify-between">
-          <div className="rounded-xl p-3 shadow-sm">
-            <Icon className={`h-6 w-6 ${colorClasses[color]}`} />
+          <div>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{label}</p>
+            <p className="mt-1 text-3xl font-bold text-slate-900">{value}</p>
           </div>
-          {trend && (
-            <div
-              className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
-                trend.isPositive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-              }`}
-            >
-              <TrendingUp className={`h-3 w-3 ${trend.isPositive ? '' : 'rotate-180'}`} />
-              {trend.value}%
-            </div>
-          )}
+          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${bgColors[color]} shadow-sm`}>
+            <Icon className={`h-6 w-6`} />
+          </div>
         </div>
-
-        <div className="mt-4">
-          <p className="text-sm font-medium text-gray-500">{label}</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{value}</p>
-        </div>
-      </div>
-
-      <style>{`
-        @keyframes fadeSlideIn {
-          from {
-            opacity: 0;
-            transform: translateY(15px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-/**
- * Quick Action Button Component
- */
-function QuickActionButton({
-  icon: Icon,
-  label,
-  description,
-  onClick,
-  variant = 'primary',
-}: {
-  icon: typeof Plus;
-  label: string;
-  description: string;
-  onClick: () => void;
-  variant?: 'primary' | 'secondary';
-}) {
-  const variants = {
-    primary: 'bg-gradient-to-br from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800',
-    secondary: 'bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-300 hover:bg-blue-50',
-  };
-
-  const iconVariants = {
-    primary: 'text-white',
-    secondary: 'text-blue-600',
-  };
+      </button>
+    );
+  }
 
   return (
-    <button
-      onClick={onClick}
-      className={`group relative overflow-hidden rounded-xl p-5 text-left transition-all duration-300 ${variants[variant]} shadow-sm hover:shadow-md`}
-    >
-      <div className="flex items-start gap-4">
-        <div className={`rounded-lg p-2.5 ${variant === 'primary' ? 'bg-white/20' : 'bg-blue-100'}`}>
-          <Icon className={`h-5 w-5 ${iconVariants[variant]}`} />
+    <div className={`${gradientColors[color]} rounded-lg p-6 shadow-lg relative overflow-hidden group`}>
+      <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-150 transition-transform duration-500" />
+      <div className="relative">
+        <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+          <Icon className="h-6 w-6 text-white" />
         </div>
-        <div className="flex-1">
-          <h3 className="font-semibold">{label}</h3>
-          <p className={`mt-1 text-sm ${variant === 'primary' ? 'text-blue-100' : 'text-gray-500'}`}>
-            {description}
-          </p>
-        </div>
+        <p className="text-white/80 text-sm font-medium mb-1">{label}</p>
+        <p className="text-4xl font-bold text-white">{value}</p>
       </div>
-
-      {/* Decorative element */}
-      <div className="absolute -right-4 -bottom-4 h-16 w-16 rounded-full bg-white/10 opacity-0 transition-opacity group-hover:opacity-100" />
-    </button>
+    </div>
   );
 }
 
@@ -258,31 +196,30 @@ function ProposalRow({
   onView: (id: string) => void;
   onEdit: (id: string) => void;
 }) {
-  const [showActions, setShowActions] = useState(false);
-
   const canEdit = proposal.state === 'DRAFT' || proposal.state === 'CHANGES_REQUESTED';
 
   return (
-    <div className="group border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
+    <div className="group border-b border-slate-100 last:border-0 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-300">
       <div className="flex items-center gap-4 p-4">
         {/* Status indicator */}
-        <div className={`h-2 w-2 rounded-full ${
-          proposal.state === 'APPROVED' ? 'bg-emerald-500' :
-          proposal.state === 'DRAFT' ? 'bg-gray-400' :
-          proposal.state === 'REJECTED' ? 'bg-red-500' :
-          'bg-blue-500'
+        <div className={`h-2.5 w-2.5 rounded-full ${
+          proposal.state === 'APPROVED' ? 'bg-emerald-500 shadow-sm shadow-emerald-200' :
+          proposal.state === 'DRAFT' ? 'bg-slate-400' :
+          proposal.state === 'REJECTED' ? 'bg-red-500 shadow-sm shadow-red-200' :
+          proposal.state === 'CHANGES_REQUESTED' ? 'bg-amber-500 shadow-sm shadow-amber-200' :
+          'bg-blue-500 shadow-sm shadow-blue-200'
         }`} />
 
         {/* Proposal info */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono text-gray-500">{proposal.code}</span>
+            <span className="text-xs font-mono text-slate-500 font-medium">{proposal.code}</span>
             <Badge className={getStatusColor(proposal.state)}>
               {getStatusLabel(proposal.state)}
             </Badge>
           </div>
-          <h4 className="mt-1 truncate font-medium text-gray-900">{proposal.title}</h4>
-          <p className="mt-1 text-xs text-gray-500">
+          <h4 className="mt-1 truncate font-medium text-slate-900">{proposal.title}</h4>
+          <p className="mt-1 text-xs text-slate-500">
             Cập nhật: {new Date(proposal.updatedAt).toLocaleDateString('vi-VN')}
           </p>
         </div>
@@ -320,13 +257,13 @@ function DeadlineCard({ deadline }: { deadline: UpcomingDeadline }) {
   const urgencyColor = getDeadlineColor(deadline.daysRemaining);
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
-      <div className={`rounded-full p-2 ${urgencyColor}`}>
+    <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm hover:shadow-md transition-shadow">
+      <div className={`rounded-lg p-2 ${urgencyColor}`}>
         <Calendar className="h-4 w-4" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-gray-900">{deadline.proposalTitle}</p>
-        <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+        <p className="truncate text-sm font-medium text-slate-900">{deadline.proposalTitle}</p>
+        <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
           <span>{deadline.proposalCode}</span>
           <span>•</span>
           <span>{new Date(deadline.deadline).toLocaleDateString('vi-VN')}</span>
@@ -439,26 +376,31 @@ export default function ResearcherDashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
         <div className="text-center">
-          <div className="inline-block w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-          <p className="mt-3 text-sm text-gray-600">Đang tải dashboard...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-blue-600 mb-4"></div>
+          <p className="text-slate-800 font-medium">Đang tải dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header with Welcome */}
+        {/* Header with Welcome - Modern Soft UI Style */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Xin chào, {user?.displayName || 'Giảng viên'}!
-              </h1>
-              <p className="mt-1 text-gray-600">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 bg-blue-900 rounded-lg flex items-center justify-center shadow-lg">
+                  <Sparkles className="w-6 h-6 text-white" />
+                </div>
+                <h1 className="text-2xl font-bold text-slate-900 font-serif">
+                  Xin chào, {user?.displayName || 'Giảng viên'}!
+                </h1>
+              </div>
+              <p className="text-slate-500 ml-15">
                 Đây là tổng quan về các đề tài nghiên cứu của bạn
               </p>
             </div>
@@ -467,52 +409,49 @@ export default function ResearcherDashboardPage() {
               size="lg"
               onClick={handleCreateProposal}
               leftIcon={<Plus className="h-5 w-5" />}
+              className="bg-gradient-to-r from-blue-900 to-blue-800 hover:from-blue-800 hover:to-slate-700 shadow-lg"
             >
               Tạo đề tài mới
             </Button>
           </div>
         </div>
 
-        {/* Stats Grid */}
+        {/* Stats Grid - Gradient Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           <StatCard
             icon={FileText}
             label="Tổng số đề tài"
             value={stats.total}
             color="blue"
-            delay={100}
-            onClick={() => navigate('/proposals')}
           />
           <StatCard
             icon={Clock}
             label="Đang duyệt"
             value={stats.underReview}
             color="amber"
-            delay={200}
-            onClick={() => navigate('/proposals?state=FACULTY_REVIEW,SCHOOL_SELECTION_REVIEW,OUTLINE_COUNCIL_REVIEW,SCHOOL_ACCEPTANCE_REVIEW')}
           />
           <StatCard
             icon={CheckCircle2}
             label="Đã duyệt"
             value={stats.approved}
-            color="green"
-            delay={300}
-            onClick={() => navigate('/proposals?state=APPROVED,IN_PROGRESS,COMPLETED,HANDOVER')}
+            color="emerald"
           />
+        </div>
+
+        {/* Secondary Stats Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           <StatCard
             icon={Edit}
             label="Bản nháp"
             value={stats.draft}
             color="purple"
-            delay={400}
             onClick={() => navigate('/proposals?state=DRAFT')}
           />
           <StatCard
             icon={AlertCircle}
             label="Cần sửa"
             value={stats.changesRequested}
-            color="amber"
-            delay={500}
+            color="orange"
             onClick={() => navigate('/proposals?state=CHANGES_REQUESTED')}
           />
           <StatCard
@@ -520,70 +459,40 @@ export default function ResearcherDashboardPage() {
             label="Đã từ chối"
             value={stats.rejected}
             color="red"
-            delay={600}
             onClick={() => navigate('/proposals?state=REJECTED')}
           />
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Hành động nhanh</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <QuickActionButton
-              icon={Plus}
-              label="Tạo đề tài mới"
-              description="Đăng ký đề tài NCKH"
-              onClick={handleCreateProposal}
-            />
-            <QuickActionButton
-              icon={FileText}
-              label="Xem bản nháp"
-              description={`${stats.draft} đề tài nháp`}
-              onClick={() => navigate('/proposals?state=DRAFT')}
-              variant="secondary"
-            />
-            <QuickActionButton
-              icon={Clock}
-              label="Cần xử lý"
-              description={`${stats.changesRequested} đề tài cần sửa`}
-              onClick={() => navigate('/proposals?state=CHANGES_REQUESTED')}
-              variant="secondary"
-            />
-            <QuickActionButton
-              icon={Eye}
-              label="Tất cả đề tài"
-              description="Xem danh sách đầy đủ"
-              onClick={handleViewAllProposals}
-              variant="secondary"
-            />
-          </div>
         </div>
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent Proposals */}
           <div className="lg:col-span-2">
-            <Card variant="elevated">
-              <CardHeader
-                title="Đề tài gần đây"
-                subtitle={`Hiển thị ${recentProposals.length} đề tài mới nhất`}
-              />
-              <CardBody className="p-0">
+            <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-900 to-blue-800 px-6 py-4">
+                <div className="flex items-center gap-3">
+                  <FileText className="w-5 h-5 text-white" />
+                  <h2 className="text-lg font-semibold text-white">Đề tài gần đây</h2>
+                </div>
+                <p className="text-blue-100 text-sm mt-1">
+                  Hiển thị {recentProposals.length} đề tài mới nhất
+                </p>
+              </div>
+              <div className="divide-y divide-slate-100">
                 {recentProposals.length > 0 ? (
-                  <div>
-                    {recentProposals.map((proposal) => (
-                      <ProposalRow
-                        key={proposal.id}
-                        proposal={proposal}
-                        onView={handleViewProposal}
-                        onEdit={handleEditProposal}
-                      />
-                    ))}
-                  </div>
+                  recentProposals.map((proposal) => (
+                    <ProposalRow
+                      key={proposal.id}
+                      proposal={proposal}
+                      onView={handleViewProposal}
+                      onEdit={handleEditProposal}
+                    />
+                  ))
                 ) : (
-                  <div className="p-8 text-center">
-                    <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500">Bạn chưa có đề tài nào</p>
+                  <div className="p-12 text-center">
+                    <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <FileText className="h-10 w-10 text-blue-500" />
+                    </div>
+                    <p className="text-slate-700 font-medium">Bạn chưa có đề tài nào</p>
                     <Button
                       variant="primary"
                       size="sm"
@@ -594,48 +503,85 @@ export default function ResearcherDashboardPage() {
                     </Button>
                   </div>
                 )}
-              </CardBody>
-            </Card>
+              </div>
+            </div>
           </div>
 
-          {/* Upcoming Deadlines */}
+          {/* Sidebar */}
           <div>
-            <Card variant="elevated">
-              <CardHeader
-                title="Deadline sắp tới"
-                subtitle="Đề tài cần chú ý"
-              />
-              <CardBody className="space-y-3">
+            {/* Upcoming Deadlines */}
+            <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+              <div className="bg-gradient-to-r from-red-500 to-orange-500 px-6 py-4">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 text-white" />
+                  <h2 className="text-lg font-semibold text-white">Deadline sắp tới</h2>
+                </div>
+                <p className="text-red-100 text-sm mt-1">
+                  {deadlines.length} đề tài cần chú ý
+                </p>
+              </div>
+              <div className="p-4 space-y-3">
                 {deadlines.length > 0 ? (
                   deadlines.map((deadline) => (
                     <DeadlineCard key={deadline.proposalId} deadline={deadline} />
                   ))
                 ) : (
-                  <div className="py-6 text-center text-sm text-gray-500">
-                    <CheckCircle2 className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
+                  <div className="py-8 text-center text-sm text-slate-500">
+                    <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+                    </div>
                     Không có deadline gấp
                   </div>
                 )}
-              </CardBody>
-            </Card>
+              </div>
+            </div>
 
-            {/* Tips Card */}
-            <Card variant="flat" className="mt-4">
-              <CardBody>
-                <div className="flex items-start gap-3">
-                  <div className="rounded-lg bg-blue-100 p-2">
-                    <TrendingUp className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-sm text-gray-900">Mẹo nâng cao tỷ lệ duyệt</h4>
-                    <p className="mt-1 text-xs text-gray-600">
-                      Đảm bảo đề tài có đủ thông tin, rõ ràng và có tính khoa học cao để
-                      được duyệt nhanh hơn.
-                    </p>
-                  </div>
+            {/* Tips Card - Modern Soft UI Style */}
+            <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-lg shadow-lg p-6 text-white">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Target className="h-6 w-6 text-white" />
                 </div>
-              </CardBody>
-            </Card>
+                <div>
+                  <h4 className="font-semibold mb-2">Mẹo nâng cao tỷ lệ duyệt</h4>
+                  <p className="text-indigo-100 text-sm">
+                    Đảm bảo đề tài có đủ thông tin, rõ ràng và có tính khoa học cao để
+                    được duyệt nhanh hơn.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => navigate('/proposals?state=DRAFT')}
+                className="justify-start"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Bản nháp ({stats.draft})
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => navigate('/proposals?state=CHANGES_REQUESTED')}
+                className="justify-start"
+              >
+                <AlertCircle className="h-4 w-4 mr-2" />
+                Cần sửa ({stats.changesRequested})
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleViewAllProposals}
+                className="justify-start col-span-2"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Tất cả đề tài
+              </Button>
+            </div>
           </div>
         </div>
       </div>

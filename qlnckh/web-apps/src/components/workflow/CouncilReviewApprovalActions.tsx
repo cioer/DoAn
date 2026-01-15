@@ -371,7 +371,7 @@ export function CouncilReviewApprovalActions({
 
             <div className="p-6">
               <p className="text-sm text-gray-700 mb-4">
-                Sau khi phê duyệt, đề tài sẽ chuyển sang trạng thái <strong>Đã duyệt (APPROVED)</strong> và được thông báo nghiệm thu.
+                Sau khi phê duyệt, đề tài sẽ chuyển sang trạng thái <strong>Đã duyệt</strong> và được thông báo nghiệm thu.
               </p>
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
                 <p className="text-sm text-amber-800">

@@ -28,13 +28,13 @@ import type { UserListItem } from '../../shared/types/users';
 
 const stateOptions: SelectOption[] = [
   { value: '', label: 'Tất cả trạng thái' },
-  { value: 'DRAFT', label: 'Nháp (DRAFT)' },
-  { value: 'FACULTY_REVIEW', label: 'Thẩm duyệt Khoa (FACULTY_REVIEW)' },
-  { value: 'SCHOOL_SELECTION_REVIEW', label: 'Thẩm duyệt Phòng (SCHOOL_SELECTION_REVIEW)' },
-  { value: 'OUTLINE_COUNCIL_REVIEW', label: 'Thẩm duyệt Hội đồng (OUTLINE_COUNCIL_REVIEW)' },
-  { value: 'CHANGES_REQUESTED', label: 'Yêu cầu sửa (CHANGES_REQUESTED)' },
-  { value: 'APPROVED', label: 'Đã duyệt (APPROVED)' },
-  { value: 'IN_PROGRESS', label: 'Đang thực hiện (IN_PROGRESS)' },
+  { value: 'DRAFT', label: 'Nháp' },
+  { value: 'FACULTY_REVIEW', label: 'Đang xét (Khoa)' },
+  { value: 'SCHOOL_SELECTION_REVIEW', label: 'Đang xét (Trường)' },
+  { value: 'OUTLINE_COUNCIL_REVIEW', label: 'Đang xét (Hội đồng)' },
+  { value: 'CHANGES_REQUESTED', label: 'Yêu cầu sửa' },
+  { value: 'APPROVED', label: 'Đã duyệt' },
+  { value: 'IN_PROGRESS', label: 'Đang thực hiện' },
 ];
 
 const roleOptions: SelectOption[] = [

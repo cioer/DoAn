@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsDate, IsOptional } from 'class-validator';
 import { ProjectState } from '@prisma/client';
+import { MonthlyTrendDto } from './bgh-dashboard.dto';
 
 /**
  * Dashboard KPI DTO
@@ -33,13 +34,26 @@ export interface OverdueProposalDto {
 }
 
 /**
+ * Status Distribution Item for Dashboard Charts
+ * Used for pie chart showing proposal distribution by state
+ */
+export interface StatusDistributionDto {
+  state: string;
+  stateName: string;
+  count: number;
+  percentage: number;
+}
+
+/**
  * Dashboard Data DTO
- * Complete dashboard data including KPI and overdue list
+ * Complete dashboard data including KPI, overdue list, and chart data
  */
 export interface DashboardDataDto {
   kpi: DashboardKpiDto;
   overdueList: OverdueProposalDto[];
   lastUpdated: Date;
+  statusDistribution?: StatusDistributionDto[];
+  monthlyTrends?: MonthlyTrendDto[];
 }
 
 /**

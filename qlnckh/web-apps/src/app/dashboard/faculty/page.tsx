@@ -134,7 +134,7 @@ const getStatusLabel = (state: ProposalStatus): string => {
 };
 
 /**
- * Stat Card Component for Faculty Dashboard
+ * Stat Card Component for Faculty Dashboard with Gradient Style
  */
 function StatCard({
   icon: Icon,
@@ -151,48 +151,43 @@ function StatCard({
   size?: 'normal' | 'large';
   onClick?: () => void;
 }) {
-  const colorClasses = {
-    red: 'bg-red-500 text-white',
-    amber: 'bg-amber-500 text-white',
-    blue: 'bg-blue-500 text-white',
-    green: 'bg-emerald-500 text-white',
-    purple: 'bg-purple-500 text-white',
-    cyan: 'bg-cyan-500 text-white',
-    gray: 'bg-gray-500 text-white',
+  const gradientColors: Record<string, string> = {
+    red: 'bg-gradient-to-br from-red-500 to-red-600',
+    amber: 'bg-gradient-to-br from-amber-500 to-amber-600',
+    blue: 'bg-gradient-to-br from-blue-900 to-blue-800',
+    green: 'bg-gradient-to-br from-slate-700 to-slate-800',
+    purple: 'bg-gradient-to-br from-purple-500 to-purple-600',
+    cyan: 'bg-gradient-to-br from-cyan-500 to-cyan-600',
+    gray: 'bg-gradient-to-br from-slate-500 to-slate-600',
   };
 
-  const bgClasses = {
-    red: 'hover:border-red-300 hover:shadow-red-100',
-    amber: 'hover:border-amber-300 hover:shadow-amber-100',
-    blue: 'hover:border-blue-300 hover:shadow-blue-100',
-    green: 'hover:border-emerald-300 hover:shadow-emerald-100',
-    purple: 'hover:border-purple-300 hover:shadow-purple-100',
-    cyan: 'hover:border-cyan-300 hover:shadow-cyan-100',
-    gray: 'hover:border-gray-300 hover:shadow-gray-100',
-  };
-
-  const sizeClasses = size === 'large'
-    ? 'p-6'
-    : 'p-4';
+  const sizeClasses = size === 'large' ? 'p-6' : 'p-5';
+  const valueSize = size === 'large' ? 'text-3xl' : 'text-2xl';
+  const iconSize = size === 'large' ? 'w-7 h-7' : 'w-6 h-6';
 
   return (
     <div
       className={`
-        group relative overflow-hidden rounded-xl border border-gray-200
-        bg-white shadow-soft transition-all duration-300
-        ${bgClasses[color]} hover:shadow-soft-lg
-        ${onClick ? 'cursor-pointer' : ''}
-        ${sizeClasses}
+        ${gradientColors[color]} text-white rounded-lg shadow-lg
+        relative overflow-hidden group
+        transition-all duration-300 hover:shadow-xl hover:scale-[1.02]
+        ${onClick ? 'cursor-pointer' : ''} ${sizeClasses}
       `}
       onClick={onClick}
     >
-      <div className="flex items-center gap-3">
-        <div className={`rounded-lg p-2 ${colorClasses[color]} shadow-sm`}>
-          <Icon className={`h-5 w-5 ${size === 'large' ? 'h-6 w-6' : ''}`} />
-        </div>
-        <div>
-          <p className={`text-gray-500 ${size === 'large' ? 'text-sm' : 'text-xs'}`}>{label}</p>
-          <p className={`font-bold text-gray-900 ${size === 'large' ? 'text-2xl' : 'text-xl'}`}>{value}</p>
+      {/* Decorative circles */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-150 transition-transform duration-500" />
+      <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12" />
+
+      <div className="relative">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center shadow-md">
+            <Icon className={iconSize} />
+          </div>
+          <div>
+            <p className="text-white/90 text-sm font-medium mb-1">{label}</p>
+            <p className={`font-bold ${valueSize}`}>{value}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -323,16 +318,21 @@ export default function FacultyDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Dashboard Khoa
-              </h1>
-              <p className="mt-1 text-gray-600">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-blue-900 rounded-lg flex items-center justify-center shadow-lg">
+                  <TrendingUp className="w-5 h-5 text-white" />
+                </div>
+                <h1 className="text-2xl font-bold text-slate-900 font-serif">
+                  Dashboard Khoa
+                </h1>
+              </div>
+              <p className="mt-1 text-slate-500 ml-13">
                 Tổng quan về các đề tài {facultyName || '...'}
               </p>
             </div>
@@ -360,8 +360,10 @@ export default function FacultyDashboardPage() {
         {/* Priority Section: Cần hành động ngay - LARGE CARDS */}
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
-            <AlertCircle className="w-5 h-5 text-red-500" />
-            <h2 className="text-lg font-bold text-gray-900">Cần hành động ngay</h2>
+            <div className="w-6 h-6 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center">
+              <AlertCircle className="w-4 h-4 text-white" />
+            </div>
+            <h2 style={{ fontFamily: 'Georgia, serif' }} className="text-lg font-bold text-gray-900">Cần hành động ngay</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
@@ -402,8 +404,10 @@ export default function FacultyDashboardPage() {
         {/* Overview Section: Tổng quan */}
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
-            <TrendingUp className="w-5 h-5 text-blue-500" />
-            <h2 className="text-lg font-bold text-gray-900">Tổng quan</h2>
+            <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+              <TrendingUp className="w-4 h-4 text-white" />
+            </div>
+            <h2 style={{ fontFamily: 'Georgia, serif' }} className="text-lg font-bold text-gray-900">Tổng quan</h2>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             <StatCard
@@ -437,81 +441,104 @@ export default function FacultyDashboardPage() {
           </div>
         </div>
 
-        {/* Quick Stats Summary */}
+        {/* Quick Stats Summary - Gradient Style */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-          <Card variant="elevated">
-            <CardBody>
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 shadow-lg relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-150 transition-transform duration-500" />
+            <div className="relative">
               <div className="flex items-center gap-4">
-                <div className="rounded-xl bg-blue-100 p-3">
-                  <TrendingUp className="h-6 w-6 text-blue-600" />
+                <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
+                  <TrendingUp className="h-7 w-7 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Tỷ lệ duyệt</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-blue-100 text-sm font-medium">Tỷ lệ duyệt</p>
+                  <p className="text-3xl font-bold text-white">
                     {kpi.totalProposals > 0
                       ? Math.round((kpi.approved / kpi.totalProposals) * 100)
                       : 0}%
                   </p>
                 </div>
               </div>
-            </CardBody>
-          </Card>
+            </div>
+          </div>
 
-          <Card variant="elevated">
-            <CardBody>
+          <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-6 shadow-lg relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-150 transition-transform duration-500" />
+            <div className="relative">
               <div className="flex items-center gap-4">
-                <div className="rounded-xl bg-amber-100 p-3">
-                  <Clock className="h-6 w-6 text-amber-600" />
+                <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
+                  <Clock className="h-7 w-7 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Đề tài cần chú ý</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-amber-100 text-sm font-medium">Đề tài cần chú ý</p>
+                  <p className="text-3xl font-bold text-white">
                     {kpi.pendingReview + kpi.returned}
                   </p>
                 </div>
               </div>
-            </CardBody>
-          </Card>
+            </div>
+          </div>
 
-          <Card variant="elevated">
-            <CardBody>
+          <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-6 shadow-lg relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-150 transition-transform duration-500" />
+            <div className="relative">
               <div className="flex items-center gap-4">
-                <div className="rounded-xl bg-emerald-100 p-3">
-                  <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
+                  <CheckCircle2 className="h-7 w-7 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Hoàn thành khoa</p>
-                  <p className="text-2xl font-bold text-gray-900">{kpi.completed}</p>
+                  <p className="text-emerald-100 text-sm font-medium">Hoàn thành khoa</p>
+                  <p className="text-3xl font-bold text-white">{kpi.completed}</p>
                 </div>
               </div>
-            </CardBody>
-          </Card>
+            </div>
+          </div>
         </div>
 
         {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Status Distribution Pie Chart */}
-          <Card variant="elevated">
-            <CardBody>
-              <StatusDistributionPieChart data={statusDistribution} />
-            </CardBody>
-          </Card>
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+              <FileText className="w-4 h-4 text-white" />
+            </div>
+            <h2 style={{ fontFamily: 'Georgia, serif' }} className="text-lg font-bold text-gray-900">Thống kê & Biểu đồ</h2>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Status Distribution Pie Chart */}
+            <Card variant="elevated">
+              <CardBody>
+                <StatusDistributionPieChart data={statusDistribution} />
+              </CardBody>
+            </Card>
 
-          {/* Monthly Trends Bar Chart */}
-          <Card variant="elevated">
-            <CardBody>
-              <MonthlyTrendBarChart data={monthlyTrends} />
-            </CardBody>
-          </Card>
+            {/* Monthly Trends Bar Chart */}
+            <Card variant="elevated">
+              <CardBody>
+                <MonthlyTrendBarChart data={monthlyTrends} />
+              </CardBody>
+            </Card>
+          </div>
         </div>
 
         {/* Recent Proposals */}
-        <div>
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <Clock className="w-4 h-4 text-white" />
+              </div>
+              <h2 style={{ fontFamily: 'Georgia, serif' }} className="text-lg font-bold text-gray-900">Đề tài gần đây</h2>
+            </div>
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => navigate('/proposals')}
+              className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+            >
+              Xem tất cả →
+            </Button>
+          </div>
           <Card variant="elevated">
-            <CardHeader
-              title="Đề tài gần đây của khoa"
-              subtitle={`Hiển thị ${recentProposals.length} đề tài mới nhất`}
-            />
             <CardBody className="p-0">
               {recentProposals.length > 0 ? (
                 <div>

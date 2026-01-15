@@ -372,7 +372,7 @@ export function SchoolAcceptanceActions({
 
             <div className="p-6">
               <p className="text-sm text-gray-700 mb-4">
-                Sau khi nghiệm thu, đề tài sẽ chuyển sang trạng thái <strong>Đã bàn giao (HANDOVER)</strong>.
+                Sau khi nghiệm thu, đề tài sẽ chuyển sang trạng thái <strong>Bàn giao</strong>.
               </p>
               <div className="space-y-2">
                 <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">

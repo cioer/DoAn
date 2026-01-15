@@ -270,7 +270,7 @@ export function CouncilFinalizationSection({
 
             <p className="text-xs text-gray-500 text-center">
               Sau khi finalize, đề tài sẽ chuyển sang trạng thái{' '}
-              <span className="font-medium">{finalConclusion === 'DAT' ? 'APPROVED (Đạt)' : 'CHANGES_REQUESTED (Cần sửa đổi)'}</span>
+              <span className="font-medium">{finalConclusion === 'DAT' ? 'Đã duyệt' : 'Yêu cầu sửa'}</span>
             </p>
           </div>
         </div>

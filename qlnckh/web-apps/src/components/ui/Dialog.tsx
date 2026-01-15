@@ -1,5 +1,6 @@
 import { cva, type VariantProps } from 'class-variance-authority';
 import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '../../lib/utils/cn';
 import { Button } from './Button';
@@ -8,7 +9,7 @@ import { Button } from './Button';
  * Dialog Component Variants - Modern Soft UI
  */
 const dialogVariants = cva(
-  'fixed bg-gray-900/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+  'fixed bg-gray-900/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 z-[9999]',
   {
     variants: {
       position: {
@@ -87,7 +88,7 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
       }
     };
 
-    return (
+    const dialogContent = (
       <div
         ref={ref}
         className={dialogVariants({ position: 'center', className })}
@@ -99,7 +100,7 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
       >
         <div
           className={cn(
-            'bg-white/95 backdrop-blur-md rounded-2xl shadow-soft-lg w-full',
+            'bg-white/95 backdrop-blur-md rounded-2xl shadow-soft-lg w-full relative',
             'animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:slide-in-from-bottom-4',
             dialogSizes[size],
             className
@@ -157,6 +158,10 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
         </div>
       </div>
     );
+
+    // Use Portal to render dialog at document.body level
+    // This ensures the dialog is outside any parent stacking contexts
+    return createPortal(dialogContent, document.body);
   }
 );
 

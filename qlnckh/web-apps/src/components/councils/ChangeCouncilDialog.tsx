@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Users, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
 import { councilsApi, Council, EligibleMember } from '../../lib/api/councils';
 import { Button } from '../ui/Button';
@@ -152,14 +153,14 @@ export function ChangeCouncilDialog({
 
   if (!isOpen) return null;
 
-  return (
+  const dialogContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50"
       role="dialog"
       aria-modal="true"
       aria-labelledby="change-council-dialog-title"
     >
-      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col relative">
         {/* Header */}
         <div className="p-6 border-b flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -340,6 +341,9 @@ export function ChangeCouncilDialog({
       </div>
     </div>
   );
+
+  // Use Portal to render dialog at document.body level
+  return createPortal(dialogContent, document.body);
 }
 
 export default ChangeCouncilDialog;

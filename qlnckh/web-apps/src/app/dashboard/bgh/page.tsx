@@ -4,12 +4,12 @@
  * Executive dashboard for Ban Giám Học - highest decision-making authority
  * Shows proposals awaiting school acceptance (nghiệm thu cấp trường)
  *
- * Design Direction: Luxury Authority
- * - Emerald greens for approval/acceptance
- * - Warm amber for warnings/authority
- * - Serif typography for prestige
- * - Elegant card-based layout
- * - Subtle animations
+ * Design Direction: Modern Soft UI matching login page style
+ * - Blue-900 primary color
+ * - Slate color palette for text
+ * - Rounded-lg corners
+ * - Font-serif for headings
+ * - Shadow-lg for depth
  */
 
 'use client';
@@ -52,16 +52,16 @@ interface SystemStatCardProps {
 
 function SystemStatCard({ label, value, icon: Icon, color }: SystemStatCardProps) {
   const colorClasses = {
-    emerald: 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white',
+    emerald: 'bg-gradient-to-br from-slate-700 to-slate-800 text-white',
     amber: 'bg-gradient-to-br from-amber-500 to-amber-600 text-white',
-    green: 'bg-gradient-to-br from-green-500 to-green-600 text-white',
+    green: 'bg-gradient-to-br from-slate-700 to-slate-800 text-white',
     red: 'bg-gradient-to-br from-red-500 to-red-600 text-white',
-    blue: 'bg-gradient-to-br from-blue-500 to-blue-600 text-white',
-    teal: 'bg-gradient-to-br from-teal-500 to-teal-600 text-white',
+    blue: 'bg-gradient-to-br from-blue-900 to-blue-800 text-white',
+    teal: 'bg-gradient-to-br from-blue-900 to-slate-800 text-white',
   };
 
   return (
-    <div className={`${colorClasses[color]} rounded-xl p-4 shadow-md`}>
+    <div className={`${colorClasses[color]} rounded-lg p-4 shadow-md`}>
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
           <Icon className="w-5 h-5" />
@@ -202,10 +202,10 @@ export default function BghDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-emerald-600 border-t-transparent mb-4"></div>
-          <p className="text-emerald-800 font-medium">Đang tải dữ liệu...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-900 border-t-transparent mb-4"></div>
+          <p className="text-slate-800 font-medium">Đang tải dữ liệu...</p>
         </div>
       </div>
     );
@@ -213,14 +213,14 @@ export default function BghDashboardPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full border border-red-200">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full border border-red-200">
           <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 text-center mb-2">Lỗi tải dữ liệu</h2>
-          <p className="text-gray-600 text-center mb-6">{error}</p>
+          <h2 className="text-xl font-bold text-slate-900 text-center mb-2">Lỗi tải dữ liệu</h2>
+          <p className="text-slate-600 text-center mb-6">{error}</p>
           <button
             onClick={loadDashboard}
-            className="w-full py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium"
+            className="w-full py-3 bg-blue-900 text-white rounded-lg hover:bg-blue-800 transition font-medium"
           >
             Thử lại
           </button>
@@ -233,9 +233,9 @@ export default function BghDashboardPage() {
   const proposals = getProposals();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50">
-      {/* Header with Prestige Styling */}
-      <header className="bg-gradient-to-r from-emerald-900 via-emerald-800 to-amber-900 text-white shadow-lg">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+      {/* Header with Modern Soft UI Styling */}
+      <header className="bg-gradient-to-r from-blue-900 via-blue-800 to-slate-800 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -243,14 +243,14 @@ export default function BghDashboardPage() {
                 <Crown className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight font-serif">
                   Dashboard Hiệu Trưởng
                 </h1>
-                <p className="text-emerald-200 text-sm mt-1">Ban Giám Học - Nghiệm thu cấp Trường</p>
+                <p className="text-blue-200 text-sm mt-1">Ban Giám Học - Nghiệm thu cấp Trường</p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-emerald-200 text-sm">Xin chào,</p>
+              <p className="text-blue-200 text-sm">Xin chào,</p>
               <p className="font-semibold text-lg">{user?.displayName}</p>
             </div>
           </div>
@@ -261,7 +261,7 @@ export default function BghDashboardPage() {
         {/* Action Result Notification */}
         {actionResult && (
           <div
-            className={`mb-6 p-4 rounded-xl border-l-4 shadow-md flex items-center gap-3 ${
+            className={`mb-6 p-4 rounded-lg border-l-4 shadow-md flex items-center gap-3 ${
               actionResult.type === 'success'
                 ? 'bg-emerald-50 border-emerald-500 text-emerald-800'
                 : 'bg-red-50 border-red-500 text-red-800'
@@ -286,10 +286,10 @@ export default function BghDashboardPage() {
         {kpi && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             {/* Pending Acceptance */}
-            <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group">
+            <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-6 text-white shadow-lg relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-150 transition-transform duration-500" />
               <div className="relative">
-                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-4">
+                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
                   <Scale className="w-6 h-6" />
                 </div>
                 <p className="text-amber-100 text-sm font-medium mb-1">Chờ nghiệm thu</p>
@@ -298,22 +298,22 @@ export default function BghDashboardPage() {
             </div>
 
             {/* Approved */}
-            <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group">
+            <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg p-6 text-white shadow-lg relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-150 transition-transform duration-500" />
               <div className="relative">
-                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-4">
+                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
-                <p className="text-emerald-100 text-sm font-medium mb-1">Đã nghiệm thu</p>
+                <p className="text-slate-200 text-sm font-medium mb-1">Đã nghiệm thu</p>
                 <p className="text-4xl font-bold">{kpi.approved}</p>
               </div>
             </div>
 
             {/* Returned */}
-            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group">
+            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-6 text-white shadow-lg relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-150 transition-transform duration-500" />
               <div className="relative">
-                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-4">
+                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
                   <RotateCcw className="w-6 h-6" />
                 </div>
                 <p className="text-orange-100 text-sm font-medium mb-1">Yêu cầu hoàn thiện</p>
@@ -322,14 +322,14 @@ export default function BghDashboardPage() {
             </div>
 
             {/* Total Pending */}
-            <div className="bg-white rounded-2xl p-6 shadow-lg border-2 border-amber-200 relative overflow-hidden">
+            <div className="bg-white rounded-lg p-6 shadow-lg border-2 border-amber-200 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-full -translate-y-16 translate-x-16" />
               <div className="relative">
-                <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-amber-500 rounded-xl flex items-center justify-center mb-4 shadow">
+                <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-amber-500 rounded-lg flex items-center justify-center mb-4 shadow">
                   <FileText className="w-6 h-6 text-white" />
                 </div>
-                <p className="text-gray-500 text-sm font-medium mb-1">Tổng cần xử lý</p>
-                <p className="text-4xl font-bold text-gray-900">{kpi.totalPending}</p>
+                <p className="text-slate-500 text-sm font-medium mb-1">Tổng cần xử lý</p>
+                <p className="text-4xl font-bold text-slate-900">{kpi.totalPending}</p>
               </div>
             </div>
           </div>
@@ -340,10 +340,10 @@ export default function BghDashboardPage() {
           <>
             {/* Section Title */}
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-900 to-blue-800 rounded-lg flex items-center justify-center shadow-lg">
                 <BarChart3 className="w-5 h-5 text-white" />
               </div>
-              <h2 className="text-xl font-bold text-gray-900" style={{ fontFamily: 'Georgia, serif' }}>
+              <h2 className="text-xl font-bold text-slate-900 font-serif">
                 Thống kê toàn hệ thống
               </h2>
             </div>
@@ -361,7 +361,7 @@ export default function BghDashboardPage() {
             {/* Charts Row - State Distribution & Faculty Performance */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               {/* Proposal State Distribution Donut Chart */}
-              <div className="bg-white rounded-2xl shadow-lg p-6">
+              <div className="bg-white rounded-lg shadow-lg p-6">
                 <ProposalStateDonutChart
                   data={[
                     { state: 'DRAFT', stateName: 'Nháp', count: dashboardData.systemKpi.draft },
@@ -382,7 +382,7 @@ export default function BghDashboardPage() {
               </div>
 
               {/* Faculty Performance Bar Chart */}
-              <div className="bg-white rounded-2xl shadow-lg p-6">
+              <div className="bg-white rounded-lg shadow-lg p-6">
                 <FacultyPerformanceBarChart
                   data={dashboardData.facultyStats}
                   title="Hiệu suất theo Khoa"
@@ -394,7 +394,7 @@ export default function BghDashboardPage() {
             {/* Detailed Stats Row */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
               {/* Faculty Statistics */}
-              <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+              <div className="bg-white rounded-lg shadow-lg overflow-hidden">
                 <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
                   <div className="flex items-center gap-3">
                     <Building className="w-5 h-5 text-white" />
@@ -403,13 +403,13 @@ export default function BghDashboardPage() {
                 </div>
                 <div className="p-4 max-h-64 overflow-y-auto">
                   {dashboardData.facultyStats.map((faculty) => (
-                    <div key={faculty.facultyId} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                    <div key={faculty.facultyId} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
                       <div>
-                        <p className="font-medium text-gray-900 text-sm">{faculty.facultyName}</p>
-                        <p className="text-xs text-gray-500">{faculty.facultyCode}</p>
+                        <p className="font-medium text-slate-900 text-sm">{faculty.facultyName}</p>
+                        <p className="text-xs text-slate-500">{faculty.facultyCode}</p>
                       </div>
                       <div className="flex gap-3 text-sm">
-                        <span className="text-gray-600">{faculty.totalProposals}</span>
+                        <span className="text-slate-600">{faculty.totalProposals}</span>
                         <span className="text-emerald-600">{faculty.approved}</span>
                         <span className="text-red-500">{faculty.rejected}</span>
                       </div>
@@ -419,7 +419,7 @@ export default function BghDashboardPage() {
               </div>
 
               {/* User Statistics */}
-              <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+              <div className="bg-white rounded-lg shadow-lg overflow-hidden">
                 <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4">
                   <div className="flex items-center gap-3">
                     <Users className="w-5 h-5 text-white" />
@@ -428,8 +428,8 @@ export default function BghDashboardPage() {
                 </div>
                 <div className="p-4">
                   <div className="text-center mb-4">
-                    <p className="text-4xl font-bold text-gray-900">{dashboardData.userStats.totalUsers}</p>
-                    <p className="text-sm text-gray-500">Tổng số người dùng</p>
+                    <p className="text-4xl font-bold text-slate-900">{dashboardData.userStats.totalUsers}</p>
+                    <p className="text-sm text-slate-500">Tổng số người dùng</p>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <UserStatRow label="Giảng viên" value={dashboardData.userStats.giangVien} color="blue" />
@@ -443,7 +443,7 @@ export default function BghDashboardPage() {
               </div>
 
               {/* Council Statistics */}
-              <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+              <div className="bg-white rounded-lg shadow-lg overflow-hidden">
                 <div className="bg-gradient-to-r from-teal-600 to-teal-700 px-6 py-4">
                   <div className="flex items-center gap-3">
                     <Scale className="w-5 h-5 text-white" />
@@ -452,19 +452,19 @@ export default function BghDashboardPage() {
                 </div>
                 <div className="p-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center p-3 bg-teal-50 rounded-xl">
+                    <div className="text-center p-3 bg-teal-50 rounded-lg">
                       <p className="text-2xl font-bold text-teal-700">{dashboardData.councilStats.totalCouncils}</p>
                       <p className="text-xs text-teal-600">Tổng hội đồng</p>
                     </div>
-                    <div className="text-center p-3 bg-emerald-50 rounded-xl">
+                    <div className="text-center p-3 bg-emerald-50 rounded-lg">
                       <p className="text-2xl font-bold text-emerald-700">{dashboardData.councilStats.activeCouncils}</p>
                       <p className="text-xs text-emerald-600">Đang hoạt động</p>
                     </div>
-                    <div className="text-center p-3 bg-amber-50 rounded-xl">
+                    <div className="text-center p-3 bg-amber-50 rounded-lg">
                       <p className="text-2xl font-bold text-amber-700">{dashboardData.councilStats.pendingProposals}</p>
                       <p className="text-xs text-amber-600">Đang chờ duyệt</p>
                     </div>
-                    <div className="text-center p-3 bg-blue-50 rounded-xl">
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
                       <p className="text-2xl font-bold text-blue-700">{dashboardData.councilStats.totalMembers}</p>
                       <p className="text-xs text-blue-600">Thành viên</p>
                     </div>
@@ -474,7 +474,7 @@ export default function BghDashboardPage() {
             </div>
 
             {/* Monthly Trends */}
-            <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
+            <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
               <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-4">
                 <div className="flex items-center gap-3">
                   <TrendingUp className="w-5 h-5 text-white" />
@@ -484,7 +484,7 @@ export default function BghDashboardPage() {
               <div className="p-4 overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <tr className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                       <th className="pb-3">Tháng</th>
                       <th className="pb-3 text-center">Mới</th>
                       <th className="pb-3 text-center">Duyệt</th>
@@ -492,12 +492,12 @@ export default function BghDashboardPage() {
                       <th className="pb-3 text-center">Hoàn thành</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-slate-100">
                     {dashboardData.monthlyTrends.map((trend) => {
                       const monthName = new Date(trend.month + '-01').toLocaleDateString('vi-VN', { month: 'short', year: '2-digit' });
                       return (
-                        <tr key={trend.month} className="hover:bg-gray-50">
-                          <td className="py-3 font-medium text-gray-900">{monthName}</td>
+                        <tr key={trend.month} className="hover:bg-slate-50">
+                          <td className="py-3 font-medium text-slate-900">{monthName}</td>
                           <td className="py-3 text-center">
                             <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
                               {trend.newProposals}
@@ -527,7 +527,7 @@ export default function BghDashboardPage() {
             </div>
 
             {/* SLA Compliance */}
-            <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-lg mb-8">
+            <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-lg p-6 text-white shadow-lg mb-8">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold mb-1">Tuân thủ SLA</h3>
@@ -545,15 +545,15 @@ export default function BghDashboardPage() {
         )}
 
         {/* Tabs */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           {/* Tab Headers */}
-          <div className="flex border-b border-gray-200">
+          <div className="flex border-b border-slate-200">
             <button
               onClick={() => setActiveTab('pending')}
               className={`flex-1 py-4 px-6 font-medium text-sm transition flex items-center justify-center gap-2 ${
                 activeTab === 'pending'
                   ? 'bg-amber-50 text-amber-900 border-b-2 border-amber-500'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
               }`}
             >
               <AlertTriangle className="w-4 h-4" />
@@ -564,7 +564,7 @@ export default function BghDashboardPage() {
               className={`flex-1 py-4 px-6 font-medium text-sm transition flex items-center justify-center gap-2 ${
                 activeTab === 'approved'
                   ? 'bg-emerald-50 text-emerald-900 border-b-2 border-emerald-500'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
               }`}
             >
               <CheckCircle2 className="w-4 h-4" />
@@ -575,7 +575,7 @@ export default function BghDashboardPage() {
               className={`flex-1 py-4 px-6 font-medium text-sm transition flex items-center justify-center gap-2 ${
                 activeTab === 'returned'
                   ? 'bg-orange-50 text-orange-900 border-b-2 border-orange-500'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
               }`}
             >
               <RotateCcw className="w-4 h-4" />
@@ -587,16 +587,16 @@ export default function BghDashboardPage() {
           <div className="p-6">
             {proposals.length === 0 ? (
               <div className="text-center py-12">
-                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FileText className="w-10 h-10 text-gray-400" />
+                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FileText className="w-10 h-10 text-slate-400" />
                 </div>
-                <p className="text-gray-500 text-lg">Không có đề tài nào</p>
+                <p className="text-slate-500 text-lg">Không có đề tài nào</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <tr className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                       <th className="pb-4">Mã đề tài</th>
                       <th className="pb-4">Tiêu đề</th>
                       <th className="pb-4">Chủ nhiệm</th>
@@ -606,7 +606,7 @@ export default function BghDashboardPage() {
                       <th className="pb-4 text-right">Thao tác</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-slate-100">
                     {proposals.map((proposal, index) => (
                       <tr
                         key={proposal.id}
@@ -621,7 +621,7 @@ export default function BghDashboardPage() {
                         <td className="py-4">
                           <button
                             onClick={() => navigate(`/proposals/${proposal.id}`)}
-                            className="text-gray-900 font-medium hover:text-emerald-600 transition flex items-center gap-1 group-hover:gap-2"
+                            className="text-slate-900 font-medium hover:text-emerald-600 transition flex items-center gap-1 group-hover:gap-2"
                           >
                             {proposal.title}
                             <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-all" />
@@ -629,11 +629,11 @@ export default function BghDashboardPage() {
                         </td>
                         <td className="py-4">
                           <div className="text-sm">
-                            <p className="text-gray-900">{proposal.ownerName}</p>
-                            <p className="text-gray-500 text-xs">{proposal.ownerEmail}</p>
+                            <p className="text-slate-900">{proposal.ownerName}</p>
+                            <p className="text-slate-500 text-xs">{proposal.ownerEmail}</p>
                           </div>
                         </td>
-                        <td className="py-4 text-sm text-gray-600">{proposal.facultyName}</td>
+                        <td className="py-4 text-sm text-slate-600">{proposal.facultyName}</td>
                         <td className="py-4">
                           {proposal.facultyDecision === 'DAT' ? (
                             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-800">
@@ -645,12 +645,12 @@ export default function BghDashboardPage() {
                               Không đạt
                             </span>
                           ) : (
-                            <span className="text-gray-400 text-xs">-</span>
+                            <span className="text-slate-400 text-xs">-</span>
                           )}
                         </td>
                         <td className="py-4">
                           <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-gray-400" />
+                            <Clock className="w-4 h-4 text-slate-400" />
                             <span
                               className={`text-sm font-medium ${
                                 proposal.isOverdue
@@ -668,7 +668,7 @@ export default function BghDashboardPage() {
                             </span>
                           </div>
                           {proposal.slaDeadline && (
-                            <p className="text-xs text-gray-400 mt-1">
+                            <p className="text-xs text-slate-400 mt-1">
                               {formatDate(proposal.slaDeadline)}
                             </p>
                           )}
@@ -728,7 +728,7 @@ export default function BghDashboardPage() {
 
         {/* Last Updated */}
         {dashboardData?.lastUpdated && (
-          <p className="text-center text-gray-400 text-sm mt-6">
+          <p className="text-center text-slate-400 text-sm mt-6">
             Cập nhật lần cuối: {formatDate(dashboardData.lastUpdated)}
           </p>
         )}

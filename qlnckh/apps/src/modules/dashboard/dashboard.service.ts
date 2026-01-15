@@ -9,6 +9,7 @@ import {
   DashboardKpiDto,
   DashboardDataDto,
   OverdueProposalDto,
+  StatusDistributionDto,
   REVIEW_STATES,
 } from './dto/dashboard.dto';
 import {
@@ -215,7 +216,7 @@ export class DashboardService {
    * Get complete dashboard data
    * Story 8.4: AC1 - Dashboard Access
    *
-   * @returns Complete dashboard data with KPI and overdue list
+   * @returns Complete dashboard data with KPI, overdue list, and chart data
    */
   async getDashboardData(): Promise<DashboardDataDto> {
     const [kpi, overdueList] = await Promise.all([
@@ -223,10 +224,106 @@ export class DashboardService {
       this.getOverdueList(),
     ]);
 
+    // ==================== BUILD STATUS DISTRIBUTION ====================
+    // Count proposals by state for system-wide pie chart
+    const now = new Date();
+    const [
+      totalProposals,
+      draft,
+      facultyReview,
+      schoolSelectionReview,
+      councilReview,
+      schoolAcceptanceReview,
+      approved,
+      rejected,
+      changesRequested,
+      inProgress,
+      handover,
+      completed,
+    ] = await Promise.all([
+      this.prisma.proposal.count({ where: { deletedAt: null } }),
+      this.prisma.proposal.count({ where: { state: ProjectState.DRAFT, deletedAt: null } }),
+      this.prisma.proposal.count({ where: { state: ProjectState.FACULTY_REVIEW, deletedAt: null } }),
+      this.prisma.proposal.count({ where: { state: ProjectState.SCHOOL_SELECTION_REVIEW, deletedAt: null } }),
+      this.prisma.proposal.count({ where: { state: ProjectState.OUTLINE_COUNCIL_REVIEW, deletedAt: null } }),
+      this.prisma.proposal.count({ where: { state: ProjectState.SCHOOL_ACCEPTANCE_REVIEW, deletedAt: null } }),
+      this.prisma.proposal.count({ where: { state: ProjectState.APPROVED, deletedAt: null } }),
+      this.prisma.proposal.count({ where: { state: ProjectState.REJECTED, deletedAt: null } }),
+      this.prisma.proposal.count({ where: { state: ProjectState.CHANGES_REQUESTED, deletedAt: null } }),
+      this.prisma.proposal.count({ where: { state: ProjectState.IN_PROGRESS, deletedAt: null } }),
+      this.prisma.proposal.count({ where: { state: ProjectState.HANDOVER, deletedAt: null } }),
+      this.prisma.proposal.count({ where: { state: ProjectState.COMPLETED, deletedAt: null } }),
+    ]);
+
+    // Build status distribution for pie chart
+    const statusDistribution = [
+      { state: 'DRAFT', stateName: 'Nháp', count: draft, percentage: totalProposals > 0 ? Math.round((draft / totalProposals) * 100) : 0 },
+      { state: 'FACULTY_REVIEW', stateName: 'Đang xét (Khoa)', count: facultyReview, percentage: totalProposals > 0 ? Math.round((facultyReview / totalProposals) * 100) : 0 },
+      { state: 'SCHOOL_REVIEW', stateName: 'Đang xét (Trường)', count: schoolSelectionReview, percentage: totalProposals > 0 ? Math.round((schoolSelectionReview / totalProposals) * 100) : 0 },
+      { state: 'COUNCIL_REVIEW', stateName: 'Đang xét (HĐ)', count: councilReview, percentage: totalProposals > 0 ? Math.round((councilReview / totalProposals) * 100) : 0 },
+      { state: 'APPROVED', stateName: 'Đã duyệt', count: approved, percentage: totalProposals > 0 ? Math.round((approved / totalProposals) * 100) : 0 },
+      { state: 'REJECTED', stateName: 'Từ chối', count: rejected, percentage: totalProposals > 0 ? Math.round((rejected / totalProposals) * 100) : 0 },
+      { state: 'CHANGES_REQUESTED', stateName: 'Yêu cầu sửa', count: changesRequested, percentage: totalProposals > 0 ? Math.round((changesRequested / totalProposals) * 100) : 0 },
+      { state: 'IN_PROGRESS', stateName: 'Đang thực hiện', count: inProgress, percentage: totalProposals > 0 ? Math.round((inProgress / totalProposals) * 100) : 0 },
+      { state: 'ACCEPTANCE_REVIEW', stateName: 'Nghiệm thu', count: schoolAcceptanceReview, percentage: totalProposals > 0 ? Math.round((schoolAcceptanceReview / totalProposals) * 100) : 0 },
+      { state: 'COMPLETED', stateName: 'Hoàn thành', count: completed, percentage: totalProposals > 0 ? Math.round((completed / totalProposals) * 100) : 0 },
+      { state: 'HANDOVER', stateName: 'Bàn giao', count: handover, percentage: totalProposals > 0 ? Math.round((handover / totalProposals) * 100) : 0 },
+    ].filter((item) => item.count > 0); // Only show states with data
+
+    // ==================== BUILD MONTHLY TRENDS ====================
+    // Get monthly trends for the last 6 months
+    const monthlyTrends = [];
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+      const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59);
+
+      const [newProposals, approvedCount, rejectedCount, completedCount] = await Promise.all([
+        this.prisma.proposal.count({
+          where: {
+            createdAt: { gte: startOfMonth, lte: endOfMonth },
+            deletedAt: null,
+          },
+        }),
+        this.prisma.proposal.count({
+          where: {
+            state: ProjectState.APPROVED,
+            updatedAt: { gte: startOfMonth, lte: endOfMonth },
+            deletedAt: null,
+          },
+        }),
+        this.prisma.proposal.count({
+          where: {
+            state: ProjectState.REJECTED,
+            updatedAt: { gte: startOfMonth, lte: endOfMonth },
+            deletedAt: null,
+          },
+        }),
+        this.prisma.proposal.count({
+          where: {
+            state: { in: [ProjectState.COMPLETED, ProjectState.HANDOVER] },
+            updatedAt: { gte: startOfMonth, lte: endOfMonth },
+            deletedAt: null,
+          },
+        }),
+      ]);
+
+      monthlyTrends.push({
+        month: monthStr,
+        newProposals,
+        approved: approvedCount,
+        rejected: rejectedCount,
+        completed: completedCount,
+      });
+    }
+
     return {
       kpi,
       overdueList,
-      lastUpdated: new Date(),
+      lastUpdated: now,
+      statusDistribution,
+      monthlyTrends,
     };
   }
 

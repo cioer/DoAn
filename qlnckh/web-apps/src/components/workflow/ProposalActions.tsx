@@ -789,7 +789,7 @@ export function ProposalActions({
             setError(null);
           }}
           title="Xác nhận bắt đầu thực hiện"
-          description="Bạn có chắc chắn muốn bắt đầu thực hiện đề tài này? Sau khi bắt đầu, đề tài sẽ được chuyển sang trạng thái Đang thực hiện (IN_PROGRESS)."
+          description="Bạn có chắc chắn muốn bắt đầu thực hiện đề tài này? Sau khi bắt đầu, đề tài sẽ được chuyển sang trạng thái Đang thực hiện."
           showCloseButton={!isStarting}
           footer={
             <DialogFooter>
