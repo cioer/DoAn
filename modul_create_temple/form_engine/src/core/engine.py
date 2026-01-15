@@ -5,14 +5,6 @@ import subprocess
 import datetime
 from typing import Dict, Any, Optional
 
-# Cố gắng import docxtpl, nếu không có thì dùng mock (chỉ để demo environment)
-try:
-    from docxtpl import DocxTemplate
-    HAS_DOCXTPL = True
-except ImportError:
-    HAS_DOCXTPL = False
-    from docx import Document # Fallback basic
-
 # Setup Logging
 logging.basicConfig(
     filename='form_engine/logs/engine.log',
@@ -25,8 +17,6 @@ class FormEngine:
     def __init__(self, template_dir="form_engine/templates", output_dir="form_engine/output"):
         self.template_dir = template_dir
         self.output_dir = output_dir
-        
-        # Tạo output dir theo ngày
         self.today_dir = os.path.join(self.output_dir, datetime.datetime.now().strftime("%Y-%m-%d"))
         os.makedirs(self.today_dir, exist_ok=True)
 
@@ -34,72 +24,100 @@ class FormEngine:
         timestamp = datetime.datetime.now().strftime("%H%M%S")
         return os.path.join(self.today_dir, f"{base_name}_{timestamp}.{ext}")
 
+    def replace_text_in_element(self, element, context):
+        """Helper to replace text in paragraph or cell"""
+        if not element.text:
+            return
+
+        for key, val in context.items():
+            # Check for multiple patterns: {{key}}, {{ key }}, {{key }}
+            patterns = [
+                f"{{{{ {key} }}}}",
+                f"{{{{{key}}}}}",
+                f"{{{{ {key}}}}}",
+                f"{{{{{key} }}}}"
+            ]
+            
+            val_str = str(val) if val is not None else ""
+            
+            for pat in patterns:
+                if pat in element.text:
+                    # SMART REPLACE STRATEGY:
+                    # If the pattern is split across runs, simple replace won't work on individual runs.
+                    # We modify the whole paragraph text.
+                    # Warning: This resets formatting of the whole paragraph to the style of the first run.
+                    # But ensures data is filled.
+                    
+                    # Support Newline \n by adding breaks
+                    if '\n' in val_str:
+                        parts = val_str.split('\n')
+                        # Clear old runs
+                        for run in element.runs:
+                            run.text = ""
+                        
+                        # Add parts with breaks
+                        if element.runs:
+                            r = element.runs[0]
+                            r.text = parts[0]
+                            for part in parts[1:]:
+                                r.add_break()
+                                r.add_text(part)
+                        else:
+                            r = element.add_run(parts[0])
+                            for part in parts[1:]:
+                                r.add_break()
+                                r.add_text(part)
+                    else:
+                        # Normal replace
+                        new_text = element.text.replace(pat, val_str)
+                        for run in element.runs:
+                            run.text = ""
+                        if element.runs:
+                            element.runs[0].text = new_text
+                        else:
+                            element.add_run(new_text)
+
     def render(self, template_name: str, context: Dict[str, Any], user_id: str = "system") -> Dict[str, str]:
-        """
-        Quy trình chuẩn:
-        1. Load Template
-        2. Merge Context
-        3. Save DOCX
-        4. Convert PDF (nếu có LibreOffice)
-        5. Return paths
-        """
+        from docx import Document
+        
         template_path = os.path.join(self.template_dir, template_name)
         if not os.path.exists(template_path):
-            error_msg = f"Template {template_name} not found at {template_path}"
-            logger.error(error_msg)
-            raise FileNotFoundError(error_msg)
+            raise FileNotFoundError(f"Template {template_name} not found")
 
-        logger.info(f"Start processing {template_name} for user {user_id}")
-        
-        # 1. & 2. Render
         docx_output_path = self._get_output_path(template_name.replace(".docx", ""), "docx")
         
-        try:
-            if HAS_DOCXTPL:
-                doc = DocxTemplate(template_path)
-                doc.render(context)
-                doc.save(docx_output_path)
-            else:
-                # Fallback thô sơ cho môi trường không có docxtpl (chỉ replace text)
-                doc = Document(template_path)
-                for p in doc.paragraphs:
-                    for key, val in context.items():
-                        if isinstance(val, str) and f"{{{{ {key} }}}}" in p.text:
-                            p.text = p.text.replace(f"{{{{ {key} }}}}", val)
-                doc.save(docx_output_path)
-                logger.warning("Using basic fallback renderer (no rich features)")
-
-        except Exception as e:
-            logger.error(f"Render failed: {str(e)}")
-            raise e
-
-        # 3. Convert PDF (LibreOffice)
-        pdf_output_path = self._get_output_path(template_name.replace(".docx", ""), "pdf")
+        # Load Document
+        doc = Document(template_path)
         
+        # 1. Replace in Paragraphs (Body)
+        for p in doc.paragraphs:
+            self.replace_text_in_element(p, context)
+
+        # 2. Replace in Tables
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for p in cell.paragraphs:
+                        self.replace_text_in_element(p, context)
+        
+        # Save DOCX
+        doc.save(docx_output_path)
+        
+        # Convert PDF
+        pdf_output_path = None
         try:
-            # Kiểm tra xem soffice có tồn tại không
             cmd_check = ["soffice", "--version"]
             subprocess.run(cmd_check, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             
-            # Convert
-            cmd = [
-                "soffice", "--headless", "--convert-to", "pdf",
-                "--outdir", self.today_dir,
-                docx_output_path
-            ]
+            cmd = ["soffice", "--headless", "--convert-to", "pdf", "--outdir", self.today_dir, docx_output_path]
             subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             
-            # LibreOffice lưu file với tên gốc, ta cần đảm bảo đúng path
-            # (Thường nó sẽ tự đặt tên giống docx nhưng đuôi pdf trong outdir)
+            # LibreOffice output name logic
             expected_pdf = docx_output_path.replace(".docx", ".pdf")
             if os.path.exists(expected_pdf):
                 pdf_output_path = expected_pdf
-            else:
-                pdf_output_path = None
-                
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            logger.warning("LibreOffice not found or failed. Skipping PDF generation.")
-            pdf_output_path = None
+        except:
+            logger.warning("PDF Conversion failed or LibreOffice not present")
 
         result = {
             "docx": docx_output_path,
@@ -108,8 +126,8 @@ class FormEngine:
             "user": user_id
         }
         
-        # 4. Audit Log
+        # Audit Log
         with open("form_engine/logs/audit.jsonl", "a", encoding='utf-8') as f:
             f.write(json.dumps(result, ensure_ascii=False) + "\n")
-            
+
         return result
