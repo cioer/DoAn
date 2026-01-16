@@ -66,3 +66,25 @@ qlnckh/web-apps-e2e/screenshots/
 # Documents and templates (root level only)
 /Cac bieu mau quy dinh NCKH 2024.docx
 /E2E-TEST-RESULTS.md
+
+# Form Engine Service (Python)
+form-engine-service/venv/
+form-engine-service/output/
+form-engine-service/logs/
+form-engine-service/__pycache__/
+form-engine-service/**/__pycache__/
+
+# Modul Create Temple
+modul_create_temple/form_engine/output/
+modul_create_temple/form_engine/logs/
+modul_create_temple/**/__pycache__/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
