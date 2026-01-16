@@ -15,7 +15,7 @@ import {
   DefaultValuePipe,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { CreateUserDto, UpdateUserDto } from './dto';
+import { CreateUserDto, UpdateUserDto, ChangePasswordDto, ResetPasswordDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AnyPermissionsGuard } from '../rbac/guards/any-permissions.guard';
 import { RequireAnyPermissions } from '../../common/decorators/permissions.decorator';
@@ -213,6 +213,77 @@ export class UsersController {
         message: 'Đã xóa người dùng thành công',
         user,
       },
+    };
+  }
+
+  /**
+   * POST /api/users/:id/reset-password
+   * Reset user password to random 8-character string (Admin only)
+   *
+   * Returns the new temporary password ONCE
+   * Admin must securely share it with the user
+   */
+  @Post(':id/reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(
+    @Param('id') id: string,
+    @Body() resetPasswordDto: ResetPasswordDto,
+    @CurrentUser() currentUser: CurrentUserData,
+    @Req() req: Request,
+  ) {
+    const result = await this.usersService.resetPassword(
+      id,
+      currentUser.id,
+      currentUser.role,
+      currentUser.facultyId,
+      req.ip,
+      req.headers['user-agent'],
+    );
+
+    return {
+      success: true,
+      data: result,
+    };
+  }
+}
+
+/**
+ * My Account Controller
+ *
+ * Handles self-service endpoints for authenticated users:
+ * - POST /api/me/change-password - Change own password
+ *
+ * No special permissions required - any authenticated user can access
+ */
+@Controller('me')
+@UseGuards(JwtAuthGuard)
+export class MyAccountController {
+  constructor(private readonly usersService: UsersService) {}
+
+  /**
+   * POST /api/me/change-password
+   * Change own password
+   *
+   * Requires current password verification
+   * New password must meet complexity requirements
+   */
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @Body() changePasswordDto: ChangePasswordDto,
+    @CurrentUser() currentUser: CurrentUserData,
+    @Req() req: Request,
+  ) {
+    const result = await this.usersService.changePassword(
+      currentUser.id,
+      changePasswordDto,
+      req.ip,
+      req.headers['user-agent'],
+    );
+
+    return {
+      success: true,
+      data: result,
     };
   }
 }

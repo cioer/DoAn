@@ -22,3 +22,6 @@ export type { PauseConfirmDialogProps } from './PauseConfirmDialog';
 
 export { ResumeConfirmDialog } from './ResumeConfirmDialog';
 export type { ResumeConfirmDialogProps, PauseInfo } from './ResumeConfirmDialog';
+
+export { ReturnChangesDialog } from './ReturnChangesDialog';
+export type { ReturnChangesDialogProps, RevisionSection } from './ReturnChangesDialog';

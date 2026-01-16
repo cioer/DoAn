@@ -25,10 +25,10 @@ import {
 import {
   workflowApi,
   generateIdempotencyKey,
-  RETURN_REASON_LABELS,
-  CANONICAL_SECTIONS,
+  type ReturnReasonCode,
 } from '../../lib/api/workflow';
-import { Button, Dialog, DialogFooter, Alert, Select, Textarea } from '../ui';
+import { Button, Dialog, DialogFooter, Alert, Textarea } from '../ui';
+import { ReturnChangesDialog } from './exception-actions';
 
 /**
  * User role from JWT token
@@ -131,175 +131,6 @@ function canReturnFacultyAcceptance(proposalState: string, userRole: string): bo
   );
 }
 
-/**
- * Return Dialog Component (Story 4.2: AC3, AC4)
- *
- * Displays a dialog with:
- * - Reason code dropdown (required)
- * - Section checkboxes (required, min 1)
- * - Comment textarea (optional)
- * - Uses UI components (Button, Select, Textarea)
- */
-interface ReturnDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (data: {
-    reason: string;
-    reasonCode: string;
-    reasonSections: string[];
-  }) => Promise<void>;
-  isSubmitting?: boolean;
-}
-
-function ReturnDialog({ isOpen, onClose, onSubmit, isSubmitting }: ReturnDialogProps) {
-  const [reasonCode, setReasonCode] = useState<string>('');
-  const [revisionSections, setRevisionSections] = useState<string[]>([]);
-  const [comment, setComment] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
-
-  // AC4: Validation - reasonCode required and at least 1 section selected
-  const isValid = reasonCode && revisionSections.length > 0;
-
-  const handleSubmit = async () => {
-    if (!isValid) {
-      setError('Vui lòng chọn lý do và ít nhất một phần cần sửa');
-      return;
-    }
-
-    setError(null);
-
-    // Combine reason code with comment for the reason field
-    const reasonText = comment || RETURN_REASON_LABELS[reasonCode as keyof typeof RETURN_REASON_LABELS];
-
-    await onSubmit({
-      reason: reasonText,
-      reasonCode,
-      reasonSections: revisionSections,
-    });
-
-    // Reset form after successful submit
-    setReasonCode('');
-    setRevisionSections([]);
-    setComment('');
-  };
-
-  const toggleSection = (sectionId: string) => {
-    setRevisionSections((prev) =>
-      prev.includes(sectionId)
-        ? prev.filter((id) => id !== sectionId)
-        : [...prev, sectionId],
-    );
-  };
-
-  // Build select options for reason codes
-  const reasonCodeOptions = [
-    { value: '', label: '-- Chọn lý do --' },
-    ...Object.entries(RETURN_REASON_LABELS).map(([code, label]) => ({ value: code, label })),
-  ];
-
-  return (
-    <Dialog
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Yêu cầu sửa hồ sơ"
-      description="Chọn lý do và các phần cần sửa để gửi về cho giảng viên"
-      size="lg"
-      showCloseButton={!isSubmitting}
-      footer={
-        <DialogFooter>
-          <Button
-            variant="secondary"
-            onClick={onClose}
-            disabled={isSubmitting}
-          >
-            Hủy
-          </Button>
-          <Button
-            variant="error"
-            onClick={handleSubmit}
-            isLoading={isSubmitting}
-            disabled={!isValid}
-            leftIcon={<XCircle className="w-4 h-4" />}
-          >
-            {isSubmitting ? 'Đang gửi...' : 'Gửi yêu cầu'}
-          </Button>
-        </DialogFooter>
-      }
-    >
-      {/* Error message */}
-      {error && (
-        <Alert variant="error" className="mb-4">
-          {error}
-        </Alert>
-      )}
-
-      {/* AC3: Reason code dropdown (required) */}
-      <Select
-        label="Lý do trả về"
-        required
-        placeholder="-- Chọn lý do --"
-        options={reasonCodeOptions}
-        value={reasonCode}
-        onChange={(e) => setReasonCode(e.target.value)}
-        disabled={isSubmitting}
-      />
-
-      {/* AC3: Section checkboxes (required, min 1) */}
-      <fieldset className="mt-4">
-        <legend className="block text-sm font-semibold text-gray-700 mb-2">
-          Phần cần sửa <span className="text-error-500 ml-1">*</span>
-          <span className="text-xs text-gray-500 ml-1 font-normal">(ít nhất một phần)</span>
-        </legend>
-        <div className="space-y-2 border border-gray-200 rounded-xl p-3 max-h-48 overflow-y-auto shadow-inner" role="group" aria-label="Các phần cần sửa">
-          {CANONICAL_SECTIONS.map((section) => {
-            const checkboxId = `section-${section.id}`;
-            const isChecked = revisionSections.includes(section.id);
-            return (
-              <label
-                key={section.id}
-                htmlFor={checkboxId}
-                className={`flex items-center gap-2 p-2.5 rounded-lg cursor-pointer transition-all ${isChecked ? 'bg-primary-50' : 'hover:bg-gray-50'}`}
-              >
-                <input
-                  id={checkboxId}
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={() => toggleSection(section.id)}
-                  className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:ring-offset-1"
-                  aria-describedby="selection-count"
-                />
-                <span className="text-sm font-medium text-gray-700 flex-1">
-                  {section.label}
-                </span>
-              </label>
-            );
-          })}
-        </div>
-        {revisionSections.length > 0 && (
-          <p id="selection-count" className="text-xs text-gray-500 mt-2 flex items-center gap-1.5">
-            <span className="bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full font-semibold">
-              {revisionSections.length} phần
-            </span>
-            đã chọn
-          </p>
-        )}
-      </fieldset>
-
-      {/* AC3: Comment textarea (optional) */}
-      <div className="mt-4">
-        <Textarea
-          label="Ghi chú thêm"
-          placeholder="Nhập ghi chú chi tiết về các vấn đề cần sửa..."
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          rows={3}
-          disabled={isSubmitting}
-          helperText="Tùy chọn"
-        />
-      </div>
-    </Dialog>
-  );
-}
 
 /**
  * Proposal Actions Component
@@ -396,9 +227,9 @@ export function ProposalActions({
    * Transitions FACULTY_REVIEW → CHANGES_REQUESTED
    */
   const handleReturn = async (data: {
-    reason: string;
-    reasonCode: string;
+    reasonCode: ReturnReasonCode;
     reasonSections: string[];
+    comment: string;
   }) => {
     setIsReturning(true);
     setError(null);
@@ -406,10 +237,13 @@ export function ProposalActions({
     try {
       const idempotencyKey = generateIdempotencyKey();
 
+      // Use comment as reason text, or fallback to empty string
+      const reasonText = data.comment || '';
+
       await workflowApi.returnFacultyReview(
         proposalId,
         idempotencyKey,
-        data.reason,
+        reasonText,
         data.reasonCode,
         data.reasonSections,
       );
@@ -1032,15 +866,17 @@ export function ProposalActions({
         </Dialog>
       )}
 
-      {/* Return Dialog (Story 4.2) */}
-      <ReturnDialog
+      {/* Return Changes Dialog (Story 4.2) */}
+      <ReturnChangesDialog
         isOpen={showReturnDialog}
         onClose={() => {
           setShowReturnDialog(false);
           setError(null);
         }}
-        onSubmit={handleReturn}
+        onConfirm={handleReturn}
         isSubmitting={isReturning}
+        title="Yêu cầu chỉnh sửa hồ sơ"
+        description="Chọn lý do và các phần cần sửa để gửi về cho giảng viên"
       />
     </>
   );

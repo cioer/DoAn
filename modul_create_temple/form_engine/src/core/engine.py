@@ -3,7 +3,7 @@ import json
 import logging
 import subprocess
 import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 # Setup Logging
 logging.basicConfig(
@@ -12,6 +12,120 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# QUY TẮC CHUNG (GLOBAL RULES) - HELPER FUNCTIONS
+# =============================================================================
+
+# Checkbox constants - LUÔN dùng [x]/[ ] thay vì ☑/☐
+CHECKBOX_CHECKED = "[x]"
+CHECKBOX_UNCHECKED = "[ ]"
+
+
+def fill_cell_text(cell, text: str, align=None, bold=False):
+    """
+    QUY TẮC CHUNG: Điền text vào cell với format chuẩn.
+
+    Args:
+        cell: Word table cell object
+        text: Text để điền
+        align: Căn lề (None = giữ nguyên, hoặc dùng WD_ALIGN_PARAGRAPH.*)
+        bold: True = in đậm, False = bình thường (mặc định: False)
+
+    Note:
+        - Mặc định bold=False để tránh kế thừa format in đậm từ template
+    """
+    try:
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+    except ImportError:
+        WD_ALIGN_PARAGRAPH = None
+
+    # Xóa tất cả runs cũ
+    for p in cell.paragraphs:
+        for run in p.runs:
+            run.text = ""
+
+    # Tạo run mới với text và format
+    if cell.paragraphs:
+        p = cell.paragraphs[0]
+        p.text = text
+        for run in p.runs:
+            run.bold = bold
+            run.font.name = 'Times New Roman'
+
+        if align and WD_ALIGN_PARAGRAPH:
+            p.alignment = align
+
+
+def set_left_align_for_lists(doc, var_names: List[str] = None):
+    """
+    QUY TẮC CHUNG: Căn trái các paragraph chứa danh sách gạch đầu dòng.
+
+    Args:
+        doc: Word Document object
+        var_names: List tên biến chứa danh sách (optional)
+                  Nếu không cung cấp, tự động nhận diện dòng bắt đầu bằng '-' hoặc '•'
+
+    Note:
+        Tự động nhận diện và căn trái các dòng:
+        - Chứa tên biến trong var_names
+        - Bắt đầu bằng '-' (gạch ngang)
+        - Bắt đầu bằng '•' (bullet point)
+    """
+    try:
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+    except ImportError:
+        return
+
+    def is_list_paragraph(text):
+        """Kiểm tra paragraph có phải là danh sách không"""
+        text = text.strip()
+        if var_names:
+            for var in var_names:
+                if var in text:
+                    return True
+        # Kiểm tra ký tự đặc biệt
+        if text.startswith('-') or text.startswith('•'):
+            return True
+        return False
+
+    # Xử lý paragraphs trong body
+    for p in doc.paragraphs:
+        if is_list_paragraph(p.text):
+            p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+    # Xử lý paragraphs trong tables
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for p in cell.paragraphs:
+                    if is_list_paragraph(p.text):
+                        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+
+def get_date_line(city: str = "Nam Định", day: str = None, month: str = None, year: str = None) -> str:
+    """
+    QUY TẮC CHUNG: Tạo dòng ngày tháng không bị ngắt dòng.
+
+    Args:
+        city: Tên thành phố
+        day, month, year: Giá trị ngày tháng (nếu None, dùng ngày hiện tại)
+
+    Returns:
+        Chuỗi dạng: "Nam Định, ngày 20 tháng 01 năm 2024" với non-breaking spaces
+
+    Note:
+        Dùng \u00A0 (non-breaking space) thay vì space thường
+        để tránh dòng ngày tháng bị ngắt đôi khi xuống trang.
+    """
+    if day is None or month is None or year is None:
+        now = datetime.datetime.now()
+        day = str(now.day)
+        month = str(now.month)
+        year = str(now.year)
+
+    return f"{city},\u00A0ngày\u00A0{day}\u00A0tháng\u00A0{month}\u00A0năm\u00A0{year}"
 
 class FormEngine:
     def __init__(self, template_dir="form_engine/templates", output_dir="form_engine/output"):

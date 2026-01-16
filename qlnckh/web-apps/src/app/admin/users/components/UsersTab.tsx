@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Search, Edit, Trash2, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react';
+import { Search, Edit, Trash2, ChevronLeft, ChevronRight, UserPlus, Key } from 'lucide-react';
 import { usersApi } from '../../../../lib/api/users';
 import type { UserListItem, CreateUserResponse } from '../../../../shared/types/users';
 import { UserRole } from '../../../../shared/types/auth';
 import { CreateUserModal } from './CreateUserModal';
 import { EditUserModal } from './EditUserModal';
 import { DeleteUserDialog } from './DeleteUserDialog';
+import { ResetPasswordDialog } from './ResetPasswordDialog';
 
 interface UsersTabProps {
   onCreateUser: () => void;
@@ -29,6 +30,7 @@ export function UsersTab({ onCreateUser }: UsersTabProps) {
   // Modal state
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserListItem | null>(null);
 
   // Load users
@@ -80,6 +82,12 @@ export function UsersTab({ onCreateUser }: UsersTabProps) {
   const handleDelete = (user: UserListItem) => {
     setSelectedUser(user);
     setShowDeleteDialog(true);
+  };
+
+  // Open reset password dialog
+  const handleResetPassword = (user: UserListItem) => {
+    setSelectedUser(user);
+    setShowResetPasswordDialog(true);
   };
 
   // Handle create success
@@ -212,6 +220,13 @@ export function UsersTab({ onCreateUser }: UsersTabProps) {
                             <Edit className="h-4 w-4" />
                           </button>
                           <button
+                            onClick={() => handleResetPassword(user)}
+                            className="p-1.5 text-orange-600 hover:bg-orange-50 rounded"
+                            title="Reset mật khẩu"
+                          >
+                            <Key className="h-4 w-4" />
+                          </button>
+                          <button
                             onClick={() => handleDelete(user)}
                             className="p-1.5 text-red-600 hover:bg-red-50 rounded"
                             title="Xóa"
@@ -267,6 +282,12 @@ export function UsersTab({ onCreateUser }: UsersTabProps) {
         user={selectedUser}
         onClose={() => setShowDeleteDialog(false)}
         onSuccess={handleDeleteSuccess}
+      />
+
+      <ResetPasswordDialog
+        isOpen={showResetPasswordDialog}
+        user={selectedUser}
+        onClose={() => setShowResetPasswordDialog(false)}
       />
     </>
   );

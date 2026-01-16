@@ -1,32 +1,30 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Save, X } from 'lucide-react';
+import { Save, X, FileText } from 'lucide-react';
 import { useAuthStore } from '../../../stores/authStore';
 import { Permission } from '../../../shared/types/permissions';
 import { proposalsApi, type CreateProposalRequest } from '../../../lib/api/proposals';
-import { formTemplatesApi, type FormTemplate } from '../../../lib/api/form-templates';
-import { TemplateSelector } from '../../../components/proposals/TemplateSelector';
-import { ProposalForm } from '../../../components/proposals/ProposalForm';
-import { AutoSaveIndicator } from '../../../components/proposals/AutoSaveIndicator';
-import { useAutoSave } from '../../../hooks/useAutoSave';
+import { Form1bFields } from '../../../components/proposals/Form1bFields';
+import {
+  Form1bData,
+  EMPTY_FORM_1B,
+  validateForm1b,
+} from '../../../shared/types/form-1b';
 
 /**
- * Create Proposal Page
+ * Create Proposal Page - Form Mẫu 1b (Phiếu đề xuất đề tài NCKH)
  *
- * Story 11.4: Create new proposal with template selection
+ * Fixed form with all required fields for Mẫu 1b template.
+ * No template selection - uses MAU_01B automatically.
  */
 export default function CreateProposalPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
   // State
-  const [templates, setTemplates] = useState<FormTemplate[]>([]);
-  const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
-  const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState<FormTemplate | null>(null);
   const [title, setTitle] = useState('');
   const [facultyId, setFacultyId] = useState('');
-  const [formData, setFormData] = useState<Record<string, unknown>>({});
+  const [formData, setFormData] = useState<Form1bData>(EMPTY_FORM_1B);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -41,50 +39,14 @@ export default function CreateProposalPage() {
       return;
     }
 
-    // Load templates
-    loadTemplates();
-
     // Set default faculty
     if (userFacultyId) {
       setFacultyId(userFacultyId);
     }
-  }, []);
-
-  const loadTemplates = async () => {
-    setIsLoadingTemplates(true);
-    try {
-      const data = await formTemplatesApi.getTemplates();
-      setTemplates(data);
-    } catch (err) {
-      console.error('Failed to load templates:', err);
-      setErrors((prev) => ({ ...prev, template: 'Không thể tải danh sách mẫu' }));
-    } finally {
-      setIsLoadingTemplates(false);
-    }
-  };
-
-  // Handle template selection
-  const handleTemplateSelect = useCallback((templateId: string) => {
-    setSelectedTemplateId(templateId);
-    const template = templates.find((t) => t.id === templateId);
-    setSelectedTemplate(template || null);
-
-    // Initialize form data with default values for each section
-    if (template) {
-      const initialData: Record<string, unknown> = {};
-      template.sections.forEach((section) => {
-        // Initialize each section with empty string
-        initialData[section.sectionId] = '';
-      });
-      setFormData(initialData);
-    }
-
-    // Clear template error
-    setErrors((prev) => ({ ...prev, template: undefined }));
-  }, [templates]);
+  }, [userFacultyId, navigate]);
 
   // Handle form field change
-  const handleFieldChange = (field: string, value: unknown) => {
+  const handleFieldChange = (field: keyof Form1bData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear field error
     setErrors((prev) => ({ ...prev, [field]: undefined }));
@@ -93,11 +55,6 @@ export default function CreateProposalPage() {
   // Validate form
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-
-    // Validate template
-    if (!selectedTemplateId) {
-      newErrors.template = 'Vui lòng chọn mẫu đề tài';
-    }
 
     // Validate title
     if (!title.trim()) {
@@ -111,14 +68,9 @@ export default function CreateProposalPage() {
       newErrors.faculty = 'Vui lòng chọn đơn vị';
     }
 
-    // Validate required sections from template
-    if (selectedTemplate) {
-      selectedTemplate.sections.forEach((section) => {
-        if (section.isRequired && !formData[section.sectionId]) {
-          newErrors[section.sectionId] = `${section.label} là bắt buộc`;
-        }
-      });
-    }
+    // Validate Form 1b fields
+    const form1bErrors = validateForm1b(formData);
+    Object.assign(newErrors, form1bErrors);
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -127,6 +79,12 @@ export default function CreateProposalPage() {
   // Handle submit
   const handleSubmit = async () => {
     if (!validateForm()) {
+      // Scroll to first error
+      const firstErrorKey = Object.keys(errors)[0];
+      const errorElement = document.getElementById(firstErrorKey);
+      if (errorElement) {
+        errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       return;
     }
 
@@ -134,21 +92,24 @@ export default function CreateProposalPage() {
 
     try {
       const data: CreateProposalRequest = {
-        templateId: selectedTemplateId,
+        templateId: 'MAU_01B', // Fixed template for Mẫu 1b
         title: title.trim(),
         facultyId,
-        formData,
+        formData: formData as unknown as Record<string, unknown>,
       };
 
       const proposal = await proposalsApi.createProposal(data);
 
       // Navigate to proposal detail page
       navigate(`/proposals/${proposal.id}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to create proposal:', err);
+      const errorMessage =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        'Không thể tạo đề tài. Vui lòng thử lại.';
       setErrors((prev) => ({
         ...prev,
-        submit: err.response?.data?.message || 'Không thể tạo đề tài. Vui lòng thử lại.',
+        submit: errorMessage,
       }));
     } finally {
       setIsSubmitting(false);
@@ -158,8 +119,10 @@ export default function CreateProposalPage() {
   // Handle cancel
   const handleCancel = () => {
     // Check for unsaved changes
-    const hasChanges = title || facultyId || Object.keys(formData).some((key) => formData[key]);
-    if (hasChanges && !window.confirm('Bạn có unsaved thay đổi. Bạn có chắc muốn hủy?')) {
+    const hasChanges =
+      title ||
+      Object.values(formData).some((value) => value);
+    if (hasChanges && !window.confirm('Bạn có thay đổi chưa lưu. Bạn có chắc muốn hủy?')) {
       return;
     }
     navigate('/proposals');
@@ -170,130 +133,156 @@ export default function CreateProposalPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Tạo đề tài mới</h1>
-            <p className="text-gray-600 mt-1">Điền thông tin để tạo đề tài nghiên cứu khoa học</p>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary-100 rounded-lg">
+              <FileText className="h-6 w-6 text-primary-600" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Tạo đề tài mới</h1>
+              <p className="text-gray-600 mt-1">
+                Phiếu đề xuất đề tài NCKH (Mẫu 1b)
+              </p>
+            </div>
           </div>
           <button
             onClick={handleCancel}
-            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-100"
           >
             <X className="h-6 w-6" />
           </button>
         </div>
 
         {/* Form */}
-        <div className="bg-white rounded-lg shadow p-6 space-y-6">
-          {/* Template Selection */}
-          <TemplateSelector
-            templates={templates}
-            selectedId={selectedTemplateId}
-            onSelect={handleTemplateSelect}
-            error={errors.template}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
+          {/* Basic Info Section */}
+          <div className="space-y-5">
+            <h3 className="text-base font-semibold text-gray-800 pb-2 border-b border-gray-200">
+              Thông tin chung
+            </h3>
+
+            {/* Title */}
+            <div>
+              <label htmlFor="title" className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
+                Tên đề tài <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="title"
+                type="text"
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  setErrors((prev) => ({ ...prev, title: undefined }));
+                }}
+                placeholder="Nhập tên đề tài nghiên cứu (ít nhất 10 ký tự)"
+                className={`
+                  w-full px-4 py-3 border rounded-xl transition-all duration-200
+                  focus:outline-none focus:ring-2 focus:ring-offset-0
+                  ${
+                    errors.title
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
+                      : 'border-gray-200 focus:border-primary-500 focus:ring-primary-500/20'
+                  }
+                `}
+              />
+              {errors.title && (
+                <p className="mt-2 text-sm text-red-600 ml-1 flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  {errors.title}
+                </p>
+              )}
+            </div>
+
+            {/* Faculty - Read-only (from user) */}
+            <div>
+              <label htmlFor="faculty" className="block text-sm font-semibold text-gray-700 mb-2 ml-1">
+                Đơn vị <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="faculty"
+                type="text"
+                value={user?.faculty?.name || ''}
+                disabled
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-600"
+              />
+              <p className="mt-2 text-sm text-gray-500 ml-1">
+                Đơn vị được lấy từ thông tin người dùng
+              </p>
+            </div>
+          </div>
+
+          {/* Form 1b Fields */}
+          <Form1bFields
+            formData={formData}
+            onChange={handleFieldChange}
+            errors={errors}
           />
 
-          {/* Basic Info */}
-          {selectedTemplate && (
-            <>
-              <div className="space-y-4">
-                <h2 className="text-lg font-semibold text-gray-900">Thông tin chung</h2>
-
-                {/* Title */}
-                <div>
-                  <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-                    Tên đề tài <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="title"
-                    type="text"
-                    value={title}
-                    onChange={(e) => {
-                      setTitle(e.target.value);
-                      setErrors((prev) => ({ ...prev, title: undefined }));
-                    }}
-                    placeholder="Nhập tên đề tài (ít nhất 10 ký tự)"
-                    className={`
-                      w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-offset-1
-                      ${errors.title ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'}
-                    `}
-                  />
-                  {errors.title && <p className="text-sm text-red-600 mt-1">{errors.title}</p>}
-                </div>
-
-                {/* Faculty - Read-only (from user) */}
-                <div>
-                  <label htmlFor="faculty" className="block text-sm font-medium text-gray-700 mb-1">
-                    Đơn vị <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="faculty"
-                    type="text"
-                    value={user?.faculty?.name || ''}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Đơn vị được lấy từ thông tin người dùng</p>
-                </div>
-              </div>
-
-              {/* Dynamic Form Sections */}
-              <h2 className="text-lg font-semibold text-gray-900">Nội dung chi tiết</h2>
-              <ProposalForm
-                template={selectedTemplate}
-                formData={formData}
-                onChange={handleFieldChange}
-                errors={errors}
-              />
-
-              {/* Error Message */}
-              {errors.submit && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                  {errors.submit}
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                <button
-                  onClick={handleCancel}
-                  className="px-4 py-2 text-gray-700 hover:text-gray-900 transition-colors"
-                >
-                  Hủy
-                </button>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={handleSubmit}
-                    disabled={isSubmitting}
-                    className="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                        Đang xử lý...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        Tạo đề tài
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Loading state */}
-          {isLoadingTemplates && (
-            <div className="text-center py-12">
-              <div className="inline-block w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
-              <p className="mt-2 text-sm text-gray-600">Đang tải danh sách mẫu...</p>
+          {/* Error Message */}
+          {errors.submit && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-start gap-2">
+              <svg className="w-5 h-5 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <span>{errors.submit}</span>
             </div>
           )}
+
+          {/* Actions */}
+          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+            <button
+              onClick={handleCancel}
+              className="px-4 py-2 text-gray-700 hover:text-gray-900 transition-colors rounded-lg hover:bg-gray-100"
+            >
+              Hủy
+            </button>
+
+            <button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="inline-flex items-center px-6 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors shadow-sm"
+            >
+              {isSubmitting ? (
+                <>
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  Đang xử lý...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Tạo đề tài
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

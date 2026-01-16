@@ -153,4 +153,35 @@ export const usersApi = {
   deleteUser: async (id: string): Promise<void> => {
     await apiClient.delete(`/users/${id}`);
   },
+
+  /**
+   * Reset user password (Admin only)
+   * Returns the new temporary 8-character password
+   */
+  resetPassword: async (id: string): Promise<{ userId: string; email: string; temporaryPassword: string; message: string }> => {
+    const response = await apiClient.post<{
+      success: true;
+      data: { userId: string; email: string; temporaryPassword: string; message: string };
+    }>(`/users/${id}/reset-password`, {});
+    return response.data.data;
+  },
+};
+
+/**
+ * My Account API
+ *
+ * Self-service endpoints for authenticated users
+ */
+export const myAccountApi = {
+  /**
+   * Change own password
+   * Requires current password verification
+   */
+  changePassword: async (data: { currentPassword: string; newPassword: string }): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ success: true; data: { message: string } }>(
+      '/me/change-password',
+      data,
+    );
+    return response.data.data;
+  },
 };

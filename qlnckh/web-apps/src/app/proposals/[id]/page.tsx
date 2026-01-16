@@ -15,7 +15,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertCircle, FileText, RotateCcw, RefreshCw } from 'lucide-react';
+import { ArrowLeft, AlertCircle, FileText, RotateCcw, RefreshCw, FileOutput } from 'lucide-react';
+import { DocumentGenerator } from '../../../components/document-generation';
 import { EvaluationForm, isCouncilSecretary, isCouncilMember, EvaluationResultsViewer } from '../../../components/evaluation/index';
 import { CouncilFinalizationSection } from '../../../components/evaluation/CouncilFinalizationSection';
 import { ProposalExportButton } from '../../../components/proposals/index';
@@ -603,6 +604,27 @@ export default function ProposalDetailPage() {
               Đang tải tài liệu...
             </div>
           )}
+        </section>
+
+        {/* Document Generation Section (FormEngine Integration) */}
+        <section className="border border-gray-200 rounded-xl p-6 bg-white/90 backdrop-blur-sm shadow-soft">
+          <div className="flex items-center gap-2 mb-4">
+            <FileOutput className="h-5 w-5 text-primary-600" />
+            <h2 className="text-lg font-bold text-gray-900">
+              Tạo biểu mẫu NCKH
+            </h2>
+          </div>
+          <DocumentGenerator
+            proposalId={proposal.id}
+            proposalCode={proposal.code}
+            onSuccess={(docId) => {
+              console.log('Document generated:', docId);
+              // Could show toast notification or refresh documents list
+            }}
+            onError={(error) => {
+              console.error('Document generation failed:', error);
+            }}
+          />
         </section>
 
         {/* Form Data (for reference) */}

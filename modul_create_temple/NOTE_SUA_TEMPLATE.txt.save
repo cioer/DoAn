@@ -1,0 +1,38 @@
+-------------------------------------------------------------------------
+DANH SÁCH CÁC MỤC CẦN TINH CHỈNH THỦ CÔNG TRONG TEMPLATE (WORD)
+-------------------------------------------------------------------------
+
+1. Mẫu 1b.docx (Phiếu đề xuất)
+   - [ ] Mục "Tính cấp thiết": Nên Enter xuống dòng trước thẻ {{tinh_cap_thiet}} để nội dung bắt đầu từ dòng mới.
+   - [ ] Mục "Mục tiêu của đề tài": 
+         Hiện tại đang để: "Mục tiêu của đề tài: {{muc_tieu_de_tai}}"
+         -> Nên sửa thành: "Mục tiêu của đề tài:" (xuống dòng) "{{muc_tieu_de_tai}}"
+         Lý do: Để khi nội dung dài, lề trái sẽ thẳng hàng đẹp hơn.
+   - [ ] Mục "Các nội dung chính": Cũng nên xuống dòng tương tự.
+   - [ ] Kiểm tra Font chữ: Đảm bảo toàn bộ thẻ {{...}} có cùng font (Times New Roman, size 13/14) với văn bản xung quanh.
+
+2b muc 8 thiếu 
+chuyển các box thành cỡ 13 hết 
+- phần chữ kỹ hãy cho đi cùng nhau tránh bị chia làm 2 trang 
+
+
+
+2. Mẫu 4b.docx (Danh mục tổng hợp - Bảng)
+   - [ ] Định dạng bảng: Bảng hiện tại đang có Header.
+         -> Hãy căn chỉnh độ rộng cột (Width) cho hợp lý. Ví dụ cột STT nhỏ lại, cột Tên đề tài rộng ra.
+   - [ ] Kiểm tra Header: Đảm bảo các tiêu đề cột (STT, Tên đề tài...) đã được in đậm và căn giữa.
+
+3. Mẫu 3b.docx (Danh sách thành viên)
+   - [ ] Biến {{ danh_sach_thanh_vien }}: Đảm bảo không nằm trong bảng (Table) nếu danh sách quá dài, tránh vỡ trang.
+
+4. Chung cho tất cả các mẫu
+   - [ ] Canh lề (Margins): Kiểm tra lề Trái/Phải đã đúng chuẩn hành chính (thường là Trái 3cm, Phải 2cm, Trên 2cm, Dưới 2cm).
+   - [ ] Khoảng cách dòng (Line Spacing): Nên để 1.2 hoặc 1.3 cho dễ đọc.
+   - [ ] Thẻ {{...}}: Hãy chắc chắn không có khoảng trắng thừa ở đầu/cuối thẻ (ví dụ {{  ten  }} nên sửa thành {{ten}} cho gọn, dù code vẫn hiểu).
+
+-------------------------------------------------------------------------
+SAU KHI SỬA XONG:
+1. Lưu đè lên file cũ trong thư mục "form_engine/templates/".
+2. Chạy lại lệnh: python3 generate_1b_only.py (để test mẫu 1b)
+   hoặc: python3 generate_all.py (để test tất cả)
+-------------------------------------------------------------------------

@@ -124,6 +124,16 @@ export class AuthService {
   }
 
   /**
+   * Verify password against hash
+   * @param password - Plain text password
+   * @param hashedPassword - Hashed password from database
+   * @returns true if password matches
+   */
+  async verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
+    return compare(password, hashedPassword);
+  }
+
+  /**
    * Generate login response for already validated user
    * Used by AuthController after LocalStrategy validation
    * @param user - Validated user without password

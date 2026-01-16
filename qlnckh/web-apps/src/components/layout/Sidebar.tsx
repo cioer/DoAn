@@ -14,10 +14,16 @@ import {
   GraduationCap,
   Shield,
   Briefcase,
-  Building2
+  Building2,
+  ClipboardList,
+  Layers,
+  FileUp,
+  Upload,
+  Key
 } from 'lucide-react';
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { useSidebar } from './SidebarContext';
+import { ChangePasswordModal } from '../account';
 
 /**
  * NavItem Component - Sidebar navigation item with Modern Soft UI
@@ -89,6 +95,7 @@ export function Sidebar() {
   const location = useLocation();
   const { user, actingAs, isAuthenticated, logout, getEffectiveUser, hasPermission } = useAuthStore();
   const { collapsed, toggleCollapsed } = useSidebar();
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   if (!isAuthenticated) {
     return null;
@@ -272,7 +279,55 @@ export function Sidebar() {
             color="orange"
             collapsed={collapsed}
           >
-            Quản trị
+            Quản lý người dùng
+          </NavItem>
+        )}
+
+        {canViewAuditLog && (
+          <NavItem
+            onClick={() => navigate('/audit')}
+            isActive={isActive('/audit')}
+            icon={ClipboardList}
+            color="purple"
+            collapsed={collapsed}
+          >
+            Nhật ký hệ thống
+          </NavItem>
+        )}
+
+        {canViewFormTemplates && (
+          <NavItem
+            onClick={() => navigate('/form-templates')}
+            isActive={isActive('/form-templates')}
+            icon={FileUp}
+            color="indigo"
+            collapsed={collapsed}
+          >
+            Biểu mẫu
+          </NavItem>
+        )}
+
+        {canViewBulkOps && (
+          <NavItem
+            onClick={() => navigate('/bulk-operations')}
+            isActive={isActive('/bulk-operations')}
+            icon={Layers}
+            color="emerald"
+            collapsed={collapsed}
+          >
+            Xử lý hàng loạt
+          </NavItem>
+        )}
+
+        {canViewImport && (
+          <NavItem
+            onClick={() => navigate('/admin/import')}
+            isActive={isActive('/admin/import')}
+            icon={Upload}
+            color="blue"
+            collapsed={collapsed}
+          >
+            Import dữ liệu
           </NavItem>
         )}
       </nav>
@@ -295,6 +350,13 @@ export function Sidebar() {
               )}
             </div>
             <button
+              onClick={() => setShowChangePassword(true)}
+              className="p-2 rounded-lg hover:bg-white transition-colors text-gray-500 hover:text-blue-500"
+              title="Đổi mật khẩu"
+            >
+              <Key className="w-4 h-4" />
+            </button>
+            <button
               onClick={handleLogout}
               className="p-2 rounded-lg hover:bg-white transition-colors text-gray-500 hover:text-red-500"
               title="Đăng xuất"
@@ -308,6 +370,13 @@ export function Sidebar() {
               {displayName.charAt(0).toUpperCase()}
             </div>
             <button
+              onClick={() => setShowChangePassword(true)}
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-blue-500"
+              title="Đổi mật khẩu"
+            >
+              <Key className="w-4 h-4" />
+            </button>
+            <button
               onClick={handleLogout}
               className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-red-500"
               title="Đăng xuất"
@@ -317,6 +386,12 @@ export function Sidebar() {
           </div>
         )}
       </div>
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+      />
     </aside>
   );
 }

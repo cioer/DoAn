@@ -1,0 +1,30 @@
+-------------------------------------------------------------------------
+DANH SÁCH CÁC MỤC CẦN TINH CHỈNH THỦ CÔNG TRONG TEMPLATE (WORD)
+*Cập nhật lần 2: Quy chuẩn hóa Date Line*
+-------------------------------------------------------------------------
+
+1. QUY CHUẨN NGÀY THÁNG (QUAN TRỌNG)
+   - [ ] Tìm tất cả các dòng ở cuối văn bản có dạng:
+         "Nam Định, ngày {{ngay}} tháng {{thang}} năm {{nam}}"
+         hoặc "......., ngày..... tháng..... năm....."
+   - [ ] XÓA HẾT và thay thế bằng duy nhất một thẻ:
+         {{diadiem_thoigian}}
+   - [ ] Căn lề phải (Right Align) và in nghiêng (Italic) cho thẻ này nếu cần.
+   
+   Lợi ích: Code sẽ tự động sinh chuỗi "Nam Định, ngày 20 tháng 10 năm 2024" và xử lý ngắt dòng thông minh, tránh bị rớt chữ "năm 2024" xuống dòng riêng lẻ.
+
+2. Mẫu 3b.docx (Biên bản họp)
+   - [ ] Mục 7 (Kết luận): Thay toàn bộ nội dung bằng thẻ {{ KHOI_KET_LUAN }}.
+   - [ ] Checkbox: Vẽ bảng 1x1 bao quanh {{box_de_nghi}}.
+
+3. Mẫu 6b.docx (Xét chọn đề cương)
+   - [ ] Lỗi in đậm: Bôi đen vùng nội dung -> Nhấn Ctrl+B hai lần để reset style.
+
+4. Mẫu 4b.docx (Bảng danh sách)
+   - [ ] Bảng dữ liệu: Đảm bảo là bảng thứ 2 (Index 1).
+   - [ ] Cột: Đảm bảo đủ 9 cột tiêu chuẩn.
+
+-------------------------------------------------------------------------
+SAU KHI SỬA TEMPLATE:
+Hệ thống sẽ tự động điền chuỗi: "Nam Định\u00A0ngày\u00A0DD\u00A0tháng\u00A0MM\u00A0năm\u00A0YYYY" (Dính liền không ngắt dòng).
+-------------------------------------------------------------------------

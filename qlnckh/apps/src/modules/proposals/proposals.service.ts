@@ -75,7 +75,7 @@ export class ProposalsService {
     // Generate proposal code
     const code = await this.crud.generateProposalCode();
 
-    // Get template info
+    // Get template info (resolves code like 'MAU_01B' to actual template)
     const template = await this.validation.validateTemplateVersion(dto.templateId);
     if (!template) {
       throw new BadRequestException({
@@ -87,8 +87,12 @@ export class ProposalsService {
       });
     }
 
-    // Create proposal
-    const proposal = await this.crud.create(dto, ctx.userId, code);
+    // Create proposal with resolved template UUID (not the code)
+    const createData = {
+      ...dto,
+      templateId: template.id, // Use actual UUID, not code like 'MAU_01B'
+    };
+    const proposal = await this.crud.create(createData, ctx.userId, code);
 
     // Audit log
     this.auditService

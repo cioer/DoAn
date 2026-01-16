@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { UserRole, User } from '@prisma/client';
 import { PrismaService } from '../auth/prisma.service';
-import { CreateUserDto, UpdateUserDto } from './dto';
+import { CreateUserDto, UpdateUserDto, ChangePasswordDto, ResetPasswordResponse } from './dto';
 import { randomBytes } from 'crypto';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/audit-action.enum';
@@ -600,6 +600,245 @@ export class UsersService {
         error: {
           error_code: 'USER_DELETE_ERROR',
           message: 'Lỗi xóa người dùng',
+        },
+      });
+    }
+  }
+
+  /**
+   * Change user's own password
+   *
+   * @param userId - ID of user changing password
+   * @param changePasswordDto - Current and new password
+   * @param ip - Request IP address
+   * @param userAgent - Request user agent
+   * @returns Success message
+   * @throws BadRequestException if current password is incorrect
+   */
+  async changePassword(
+    userId: string,
+    changePasswordDto: ChangePasswordDto,
+    ip?: string,
+    userAgent?: string,
+  ): Promise<{ message: string }> {
+    try {
+      // Get user with password hash
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!user || user.deletedAt) {
+        throw new NotFoundException({
+          success: false,
+          error: {
+            error_code: 'USER_NOT_FOUND',
+            message: 'Không tìm thấy người dùng',
+          },
+        });
+      }
+
+      // Verify current password
+      const isPasswordValid = await this.authService.verifyPassword(
+        changePasswordDto.currentPassword,
+        user.passwordHash,
+      );
+
+      if (!isPasswordValid) {
+        throw new BadRequestException({
+          success: false,
+          error: {
+            error_code: 'INVALID_CURRENT_PASSWORD',
+            message: 'Mật khẩu hiện tại không đúng',
+          },
+        });
+      }
+
+      // Check new password is different from current
+      const isSamePassword = await this.authService.verifyPassword(
+        changePasswordDto.newPassword,
+        user.passwordHash,
+      );
+
+      if (isSamePassword) {
+        throw new BadRequestException({
+          success: false,
+          error: {
+            error_code: 'SAME_PASSWORD',
+            message: 'Mật khẩu mới phải khác mật khẩu hiện tại',
+          },
+        });
+      }
+
+      // Hash new password
+      const newPasswordHash = await this.authService.hashPassword(
+        changePasswordDto.newPassword,
+      );
+
+      // Update password
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash: newPasswordHash },
+      });
+
+      // Revoke all refresh tokens to force re-login on other devices
+      await this.prisma.refreshToken.updateMany({
+        where: { userId },
+        data: { revokedAt: new Date() },
+      });
+
+      // Create audit event
+      await this.createAuditEvent(
+        AuditAction.USER_UPDATE,
+        userId,
+        userId,
+        { action: 'PASSWORD_CHANGE' },
+        ip,
+        userAgent,
+      );
+
+      this.logger.log(`Password changed for user: ${user.email}`);
+
+      return { message: 'Đổi mật khẩu thành công' };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.error(`Error changing password: ${error.message}`, error.stack);
+      throw new BadRequestException({
+        success: false,
+        error: {
+          error_code: 'PASSWORD_CHANGE_ERROR',
+          message: 'Lỗi đổi mật khẩu',
+        },
+      });
+    }
+  }
+
+  /**
+   * Generate a random 8-character password for reset
+   * Contains uppercase, lowercase, and numbers
+   */
+  private generateResetPassword(): string {
+    const length = 8;
+    const charset = this.TEMP_PASSWORD_CHARSET;
+    const randomValues = randomBytes(length);
+    const passwordArray: string[] = [];
+
+    // Ensure at least one uppercase, one lowercase, and one number
+    passwordArray.push('ABCDEFGHIJKLMNOPQRSTUVWXYZ'[randomValues[0] % 26]);
+    passwordArray.push('abcdefghijklmnopqrstuvwxyz'[randomValues[1] % 26]);
+    passwordArray.push('0123456789'[randomValues[2] % 10]);
+
+    // Fill the rest with random characters
+    for (let i = 3; i < length; i++) {
+      passwordArray.push(charset[randomValues[i] % charset.length]);
+    }
+
+    // Shuffle
+    for (let i = passwordArray.length - 1; i > 0; i--) {
+      const j = randomValues[i] % (i + 1);
+      [passwordArray[i], passwordArray[j]] = [passwordArray[j], passwordArray[i]];
+    }
+
+    return passwordArray.join('');
+  }
+
+  /**
+   * Reset user password (Admin only)
+   * Generates a random 8-character password
+   *
+   * @param targetUserId - ID of user whose password to reset
+   * @param actorUserId - ID of admin performing reset
+   * @param actorRole - Role of admin
+   * @param actorFacultyId - Faculty ID of admin (for QUAN_LY_KHOA)
+   * @param ip - Request IP address
+   * @param userAgent - Request user agent
+   * @returns New temporary password
+   */
+  async resetPassword(
+    targetUserId: string,
+    actorUserId: string,
+    actorRole: string,
+    actorFacultyId: string | null = null,
+    ip?: string,
+    userAgent?: string,
+  ): Promise<ResetPasswordResponse> {
+    try {
+      // Get target user
+      const targetUser = await this.prisma.user.findUnique({
+        where: { id: targetUserId },
+      });
+
+      if (!targetUser || targetUser.deletedAt) {
+        throw new NotFoundException({
+          success: false,
+          error: {
+            error_code: 'USER_NOT_FOUND',
+            message: 'Không tìm thấy người dùng',
+          },
+        });
+      }
+
+      // Prevent resetting own password via this endpoint
+      if (targetUserId === actorUserId) {
+        throw new BadRequestException({
+          success: false,
+          error: {
+            error_code: 'CANNOT_RESET_OWN_PASSWORD',
+            message: 'Không thể reset mật khẩu của chính mình. Vui lòng sử dụng tính năng đổi mật khẩu.',
+          },
+        });
+      }
+
+      // Validate faculty ownership for QUAN_LY_KHOA
+      this.validateFacultyOwnership(actorRole, actorFacultyId, targetUser.facultyId);
+
+      // Generate new random password
+      const newPassword = this.generateResetPassword();
+
+      // Hash the new password
+      const passwordHash = await this.authService.hashPassword(newPassword);
+
+      // Update user password
+      await this.prisma.user.update({
+        where: { id: targetUserId },
+        data: { passwordHash },
+      });
+
+      // Revoke all refresh tokens to force re-login
+      await this.prisma.refreshToken.updateMany({
+        where: { userId: targetUserId },
+        data: { revokedAt: new Date() },
+      });
+
+      // Create audit event
+      await this.createAuditEvent(
+        AuditAction.USER_UPDATE,
+        actorUserId,
+        targetUserId,
+        { action: 'PASSWORD_RESET', resetBy: actorUserId },
+        ip,
+        userAgent,
+      );
+
+      this.logger.log(`Password reset for user: ${targetUser.email} by ${actorUserId}`);
+
+      return {
+        userId: targetUser.id,
+        email: targetUser.email,
+        temporaryPassword: newPassword,
+        message: 'Reset mật khẩu thành công',
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.error(`Error resetting password: ${error.message}`, error.stack);
+      throw new BadRequestException({
+        success: false,
+        error: {
+          error_code: 'PASSWORD_RESET_ERROR',
+          message: 'Lỗi reset mật khẩu',
         },
       });
     }
