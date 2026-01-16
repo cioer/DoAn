@@ -243,6 +243,7 @@ model Proposal {
   attachments     Attachment[]
   evaluations     Evaluation[]
   documents       Document[]
+  proposalDocs    ProposalDocument[]  // Biểu mẫu NCKH theo quy trình
 
   @@map("proposals")
   @@index([state])
@@ -597,3 +598,131 @@ model Attachment {
   @@index([deletedAt])
   @@index([type])  // Story 6.2: Index for attachment type filtering
 }
+
+// ============================================================
+// FORM ENGINE: Form Types & Proposal Documents
+// Theo quy trình NCKH cấp Trường - Phụ lục II
+// ============================================================
+
+// Loại biểu mẫu theo Phụ lục II - Quy định quản lý đề tài NCKH
+enum FormType {
+  // --- Giai đoạn Đề xuất (DRAFT) ---
+  FORM_1B     // Phiếu đề xuất
+  FORM_PL1    // Đề cương chi tiết
+
+  // --- Giai đoạn Xét Khoa (FACULTY_REVIEW) ---
+  FORM_2B     // Phiếu đánh giá cấp Khoa
+  FORM_3B     // Biên bản họp cấp Khoa
+  FORM_4B     // Danh mục tổng hợp kết quả xét chọn
+
+  // --- Giai đoạn Xét Trường (SCHOOL_SELECTION_REVIEW) ---
+  FORM_5B     // Biên bản xét chọn sơ bộ cấp Trường
+
+  // --- Giai đoạn Hội đồng tư vấn (OUTLINE_COUNCIL_REVIEW) ---
+  FORM_6B     // Biên bản Hội đồng tư vấn xét chọn đề cương
+  FORM_7B     // Báo cáo hoàn thiện đề cương
+
+  // --- Giai đoạn Nghiệm thu Khoa (FACULTY_ACCEPTANCE_REVIEW) ---
+  FORM_8B     // Đề nghị lập HĐ nghiệm thu cấp Khoa
+  FORM_9B     // Phiếu đánh giá nghiệm thu cấp Khoa
+  FORM_10B    // Biên bản họp nghiệm thu cấp Khoa
+  FORM_11B    // Báo cáo hoàn thiện hồ sơ nghiệm thu cấp Khoa
+  FORM_PL2    // Báo cáo tổng kết đề tài
+
+  // --- Giai đoạn Nghiệm thu Trường (SCHOOL_ACCEPTANCE_REVIEW) ---
+  FORM_12B    // Nhận xét phản biện
+  FORM_13B    // Đề nghị lập HĐ nghiệm thu cấp Trường
+  FORM_14B    // Phiếu đánh giá nghiệm thu cấp Trường
+  FORM_15B    // Biên bản họp nghiệm thu cấp Trường
+  FORM_16B    // Báo cáo hoàn thiện hồ sơ nghiệm thu cấp Trường
+  FORM_PL3    // Nhận xét phản biện chi tiết
+
+  // --- Giai đoạn Hoàn thành (COMPLETED/HANDOVER) ---
+  FORM_17B    // Biên bản giao nhận sản phẩm
+
+  // --- Đặc biệt (IN_PROGRESS) ---
+  FORM_18B    // Đơn xin gia hạn
+}
+
+// Trạng thái của biểu mẫu trong quy trình
+enum FormDocumentStatus {
+  DRAFT       // Bản nháp
+  PENDING     // Chờ duyệt
+  APPROVED    // Đã duyệt
+  REJECTED    // Bị từ chối
+  FINALIZED   // Đã hoàn tất (không thể sửa)
+}
+
+// Biểu mẫu được tạo cho mỗi đề tài - theo dõi trạng thái hoàn thiện
+model ProposalDocument {
+  id              String              @id @default(uuid())
+  proposalId      String              @map("proposal_id")
+  formType        FormType            @map("form_type")
+  status          FormDocumentStatus  @default(DRAFT)
+  version         Int                 @default(1)           // Phiên bản (khi sửa đổi)
+
+  // File info
+  filePath        String?             @map("file_path")     // Đường dẫn file đã tạo
+  fileName        String?             @map("file_name")     // Tên file
+  fileSize        Int?                @map("file_size")     // Kích thước (bytes)
+  sha256Hash      String?             @map("sha256_hash")   // Hash để verify
+
+  // Form data snapshot
+  formData        Json?               @map("form_data")     // Dữ liệu form tại thời điểm tạo
+
+  // Workflow tracking
+  createdBy       String              @map("created_by")    // User ID người tạo
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  approvedBy      String?             @map("approved_by")   // User ID người duyệt
+  approvedAt      DateTime?           @map("approved_at")
+  rejectedBy      String?             @map("rejected_by")   // User ID người từ chối
+  rejectedAt      DateTime?           @map("rejected_at")
+  rejectionReason String?             @map("rejection_reason") @db.Text
+
+  // Soft delete
+  deletedAt       DateTime?           @map("deleted_at")
+
+  proposal        Proposal            @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@unique([proposalId, formType, version])
+  @@index([proposalId])
+  @@index([formType])
+  @@index([status])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("proposal_documents")
+}
+
+// ============================================================
+// STATUS -> FORM MAPPING (Reference Comments)
+// Mapping trạng thái ProjectState với các biểu mẫu cần thiết
+// ============================================================
+//
+// DRAFT:
+//   Required: FORM_1B
+//   Optional: FORM_PL1
+//
+// FACULTY_REVIEW:
+//   Required: FORM_1B, FORM_PL1, FORM_2B, FORM_3B
+//   Optional: FORM_4B
+//
+// SCHOOL_SELECTION_REVIEW:
+//   Required: FORM_5B
+//
+// OUTLINE_COUNCIL_REVIEW:
+//   Required: FORM_6B, FORM_7B
+//
+// IN_PROGRESS:
+//   Optional: FORM_18B (khi cần gia hạn)
+//
+// FACULTY_ACCEPTANCE_REVIEW:
+//   Required: FORM_8B, FORM_9B, FORM_10B, FORM_11B, FORM_PL2
+//
+// SCHOOL_ACCEPTANCE_REVIEW:
+//   Required: FORM_12B, FORM_13B, FORM_14B, FORM_15B, FORM_16B
+//   Optional: FORM_PL3
+//
+// COMPLETED/HANDOVER:
+//   Required: FORM_17B
+// ============================================================

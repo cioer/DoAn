@@ -22,6 +22,9 @@ import { ImportModule } from '../modules/import/import.module';
 import { HolidaysModule } from '../modules/holidays/holidays.module';
 import { BackupModule } from '../modules/backup/backup.module';
 import { DocumentTemplatesModule } from '../modules/document-templates/document-templates.module';
+import { DocumentsModule } from '../modules/documents/documents.module';
+import { FormEngineModule } from '../modules/form-engine/form-engine.module';
+import { ProposalDocumentsModule } from '../modules/proposal-documents/proposal-documents.module';
 
 /**
  * Application Module
@@ -64,6 +67,9 @@ import { DocumentTemplatesModule } from '../modules/document-templates/document-
     HolidaysModule,
     BackupModule,
     DocumentTemplatesModule,
+    DocumentsModule,
+    FormEngineModule,
+    ProposalDocumentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

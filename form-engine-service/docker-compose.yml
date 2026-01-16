@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  form-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: form-engine-service
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./templates:/app/templates:ro
+      - ./output:/app/output
+      - ./logs:/app/logs
+    environment:
+      - FORM_ENGINE_DEBUG=false
+      - FORM_ENGINE_TEMPLATE_DIR=/app/templates
+      - FORM_ENGINE_OUTPUT_DIR=/app/output
+      - FORM_ENGINE_LOG_DIR=/app/logs
+      - FORM_ENGINE_BASE_URL=http://localhost:8080
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+# Network for integration with qlNCKH
+networks:
+  default:
+    name: qlnckh-network
+    external: true

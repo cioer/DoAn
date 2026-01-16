@@ -45,4 +45,4 @@ export class VerificationResultDto {
   documentId: string;
 }
 
-export * from './generate-doc.dto';
+export * from './generate-form.dto';
