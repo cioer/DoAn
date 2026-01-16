@@ -82,6 +82,26 @@ export class ProposalDocumentsController {
   }
 
   /**
+   * Lấy danh sách forms mà user có thể tạo cho proposal
+   * Dựa trên: role của user + state hiện tại của proposal
+   */
+  @Get('proposal/:proposalId/available-forms')
+  async getAvailableForms(
+    @Param('proposalId') proposalId: string,
+    @CurrentUser() user: any,
+  ) {
+    const result = await this.proposalDocumentsService.getAvailableFormsForUser(
+      proposalId,
+      user.id,
+      user.role,
+    );
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  /**
    * Lấy documents của một proposal cụ thể
    */
   @Get('proposal/:proposalId')

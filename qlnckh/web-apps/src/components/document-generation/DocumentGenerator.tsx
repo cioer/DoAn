@@ -2,16 +2,17 @@
  * Document Generator Component
  *
  * Main UI for FormEngine document generation.
- * Supports all 18 form templates with customization options.
+ * Shows only forms available for current user based on role and proposal state.
  */
 
-import React, { useState, useCallback } from 'react';
-import { FormTemplateSelector } from './FormTemplateSelector';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useFormEngine } from '../../hooks/useFormEngine';
+import { formEngineApi } from '../../lib/api/form-engine';
 import type {
   FormTemplateType,
   GenerateFormRequest,
   CouncilMember,
+  AvailableForm,
 } from '../../shared/types/form-engine';
 import { TEMPLATE_DESCRIPTIONS } from '../../shared/types/form-engine';
 
@@ -52,8 +53,6 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({
   onError,
 }) => {
   const {
-    templates,
-    templatesLoading,
     generationStatus,
     generationResult,
     generationError,
@@ -63,7 +62,14 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({
     downloadPdf,
   } = useFormEngine();
 
+  // Available forms state (filtered by role + state)
+  const [availableForms, setAvailableForms] = useState<AvailableForm[]>([]);
+  const [availableLoading, setAvailableLoading] = useState(true);
+  const [availableError, setAvailableError] = useState<string | null>(null);
+  const [proposalState, setProposalState] = useState<string>('');
+
   // Form state
+  const [selectedFormType, setSelectedFormType] = useState<string>('');
   const [templateType, setTemplateType] = useState<FormTemplateType | ''>('');
   const [generatePdf, setGeneratePdf] = useState(true);
   const [isPass, setIsPass] = useState(true);
@@ -77,6 +83,36 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({
 
   // Validation
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Fetch available forms on mount
+  useEffect(() => {
+    const fetchAvailableForms = async () => {
+      try {
+        setAvailableLoading(true);
+        setAvailableError(null);
+        const response = await formEngineApi.getAvailableForms(proposalId);
+        setAvailableForms(response.available);
+        setProposalState(response.proposalState);
+      } catch (err) {
+        console.error('Failed to fetch available forms:', err);
+        setAvailableError('Không thể tải danh sách biểu mẫu');
+      } finally {
+        setAvailableLoading(false);
+      }
+    };
+
+    fetchAvailableForms();
+  }, [proposalId]);
+
+  // Update templateType when form selection changes
+  useEffect(() => {
+    if (selectedFormType) {
+      const mapped = formEngineApi.formTypeToTemplateType(selectedFormType);
+      setTemplateType(mapped || '');
+    } else {
+      setTemplateType('');
+    }
+  }, [selectedFormType]);
 
   const needsCouncil = templateType && COUNCIL_TEMPLATES.includes(templateType);
   const needsEvaluation =
@@ -118,7 +154,7 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({
   const validate = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!templateType) {
+    if (!selectedFormType) {
       newErrors.templateType = 'Vui lòng chọn loại biểu mẫu';
     }
 
@@ -137,7 +173,7 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [templateType, needsEvaluation, evaluatorName, needsCouncil, hoiDong]);
+  }, [selectedFormType, needsEvaluation, evaluatorName, needsCouncil, hoiDong]);
 
   /**
    * Handle form submit
@@ -146,7 +182,7 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({
     async (e: React.FormEvent) => {
       e.preventDefault();
 
-      if (!validate() || !templateType) return;
+      if (!validate() || !templateType || !selectedFormType) return;
 
       const request: GenerateFormRequest = {
         templateType,
@@ -179,6 +215,7 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({
     [
       validate,
       templateType,
+      selectedFormType,
       generatePdf,
       needsEvaluation,
       isPass,
@@ -219,11 +256,47 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({
     [generationResult, proposalCode, templateType, downloadDocx, downloadPdf]
   );
 
+  // Get selected form info
+  const selectedForm = availableForms.find(f => f.formType === selectedFormType);
+
   return (
     <div className="bg-white rounded-lg shadow-soft p-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">
         Tạo biểu mẫu NCKH
       </h3>
+
+      {/* Loading State */}
+      {availableLoading && (
+        <div className="flex items-center justify-center py-8">
+          <svg className="animate-spin w-6 h-6 text-blue-600 mr-2" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <span className="text-gray-600">Đang tải danh sách biểu mẫu...</span>
+        </div>
+      )}
+
+      {/* Available Forms Error */}
+      {availableError && (
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
+          <p className="text-yellow-700">{availableError}</p>
+        </div>
+      )}
+
+      {/* No Forms Available */}
+      {!availableLoading && !availableError && availableForms.length === 0 && (
+        <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+          <div className="flex items-center gap-2 text-gray-600 mb-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="font-medium">Không có biểu mẫu nào có thể tạo</span>
+          </div>
+          <p className="text-sm text-gray-500">
+            Với vai trò hiện tại và trạng thái đề tài ({proposalState}), bạn không có quyền tạo biểu mẫu nào.
+          </p>
+        </div>
+      )}
 
       {/* Success State */}
       {generationStatus === 'success' && generationResult?.document && (
@@ -321,16 +394,40 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({
       )}
 
       {/* Form */}
-      {generationStatus !== 'success' && (
+      {generationStatus !== 'success' && !availableLoading && availableForms.length > 0 && (
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Template Selection */}
-          <FormTemplateSelector
-            value={templateType}
-            onChange={setTemplateType}
-            templates={templates}
-            disabled={templatesLoading || generationStatus === 'generating'}
-            error={errors.templateType}
-          />
+          {/* Available Forms Selection */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Loại biểu mẫu <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={selectedFormType}
+              onChange={(e) => setSelectedFormType(e.target.value)}
+              disabled={generationStatus === 'generating'}
+              className={`
+                w-full px-3 py-2 border rounded-lg text-sm
+                focus:outline-none focus:ring-2 focus:ring-blue-500
+                disabled:bg-gray-100 disabled:cursor-not-allowed
+                ${errors.templateType ? 'border-red-500' : 'border-gray-300'}
+              `}
+            >
+              <option value="">-- Chọn loại biểu mẫu --</option>
+              {availableForms.map((form) => (
+                <option key={form.formType} value={form.formType}>
+                  {form.name}
+                  {form.isRequired && ' (Bắt buộc)'}
+                  {form.isGenerated && ' ✓ Đã tạo'}
+                </option>
+              ))}
+            </select>
+            {errors.templateType && (
+              <p className="text-sm text-red-500">{errors.templateType}</p>
+            )}
+            {selectedForm && (
+              <p className="text-sm text-gray-500 mt-1">{selectedForm.description}</p>
+            )}
+          </div>
 
           {/* PDF Option */}
           <div className="flex items-center gap-2">
@@ -535,8 +632,7 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({
           <button
             type="submit"
             disabled={
-              !templateType ||
-              templatesLoading ||
+              !selectedFormType ||
               generationStatus === 'generating'
             }
             className={`
@@ -544,8 +640,7 @@ export const DocumentGenerator: React.FC<DocumentGeneratorProps> = ({
               flex items-center justify-center gap-2
               transition-colors
               ${
-                !templateType ||
-                templatesLoading ||
+                !selectedFormType ||
                 generationStatus === 'generating'
                   ? 'bg-gray-400 cursor-not-allowed'
                   : 'bg-blue-600 hover:bg-blue-700'

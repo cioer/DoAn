@@ -15,6 +15,7 @@ import type {
   FormEngineTemplate,
   FormEngineHealth,
   FormTemplateType,
+  AvailableFormsResponse,
 } from '../../shared/types/form-engine';
 
 /**
@@ -39,6 +40,33 @@ const TEMPLATE_TO_FORM_TYPE: Record<FormTemplateType, string> = {
   PRODUCT_APPENDIX: 'FORM_16B',
   HANDOVER_CHECKLIST: 'FORM_17B',
   EXTENSION_REQUEST: 'FORM_18B',
+};
+
+/**
+ * Reverse mapping from backend FormType to frontend FormTemplateType
+ */
+const FORM_TYPE_TO_TEMPLATE: Record<string, FormTemplateType> = {
+  FORM_1B: 'PROPOSAL_OUTLINE',
+  FORM_PL1: 'PROPOSAL_OUTLINE', // PL1 maps to same frontend type
+  FORM_2B: 'EVALUATION_FORM',
+  FORM_3B: 'FACULTY_MEETING_MINUTES',
+  FORM_4B: 'SUMMARY_CATALOG',
+  FORM_5B: 'SCHOOL_EVALUATION',
+  FORM_6B: 'COUNCIL_MEETING_MINUTES',
+  FORM_7B: 'REVISION_REQUEST',
+  FORM_8B: 'FACULTY_ACCEPTANCE_EVAL',
+  FORM_9B: 'FACULTY_ACCEPTANCE_MINUTES',
+  FORM_10B: 'FINAL_REPORT',
+  FORM_11B: 'FACULTY_ACCEPTANCE_DECISION',
+  FORM_PL2: 'FINAL_REPORT', // PL2 maps to similar type
+  FORM_12B: 'SCHOOL_ACCEPTANCE_EVAL',
+  FORM_13B: 'SCHOOL_ACCEPTANCE_MINUTES',
+  FORM_14B: 'SCHOOL_ACCEPTANCE_DECISION',
+  FORM_15B: 'PRODUCT_LIST',
+  FORM_16B: 'PRODUCT_APPENDIX',
+  FORM_PL3: 'SCHOOL_ACCEPTANCE_EVAL', // PL3 maps to similar type
+  FORM_17B: 'HANDOVER_CHECKLIST',
+  FORM_18B: 'EXTENSION_REQUEST',
 };
 
 /**
@@ -128,6 +156,29 @@ export const formEngineApi = {
   },
 
   /**
+   * Get available forms for current user based on role and proposal state
+   *
+   * @param proposalId - Proposal ID
+   * @returns Available forms list
+   */
+  getAvailableForms: async (proposalId: string): Promise<AvailableFormsResponse> => {
+    const response = await apiClient.get<ApiResponse<AvailableFormsResponse>>(
+      `/proposal-documents/proposal/${proposalId}/available-forms`
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Convert backend FormType to frontend FormTemplateType
+   *
+   * @param formType - Backend form type (e.g., 'FORM_1B')
+   * @returns Frontend template type (e.g., 'PROPOSAL_OUTLINE')
+   */
+  formTypeToTemplateType: (formType: string): FormTemplateType | undefined => {
+    return FORM_TYPE_TO_TEMPLATE[formType];
+  },
+
+  /**
    * Download generated DOCX file
    *
    * @param documentId - Document ID
@@ -190,4 +241,4 @@ export const downloadFile = (blob: Blob, fileName: string): void => {
   window.URL.revokeObjectURL(url);
 };
 
-export type { GenerateFormRequest, FormGenerationResult, FormEngineTemplate, FormEngineHealth };
+export type { GenerateFormRequest, FormGenerationResult, FormEngineTemplate, FormEngineHealth, AvailableFormsResponse };

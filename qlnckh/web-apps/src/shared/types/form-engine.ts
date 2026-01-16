@@ -143,6 +143,28 @@ export const TEMPLATE_DESCRIPTIONS: Record<FormTemplateType, string> = {
 /**
  * Template groups for UI organization
  */
+/**
+ * Available form for current user (from role + state filtering)
+ */
+export interface AvailableForm {
+  formType: string;
+  name: string;
+  description: string;
+  phase: string;
+  isRequired: boolean;
+  isGenerated: boolean;
+  documentId?: string;
+}
+
+/**
+ * Response from getAvailableForms API
+ */
+export interface AvailableFormsResponse {
+  available: AvailableForm[];
+  proposalState: string;
+  canCreateForms: boolean;
+}
+
 export const TEMPLATE_GROUPS = {
   proposal: {
     label: 'Đề xuất & Đánh giá',

@@ -10,6 +10,7 @@ import {
   FormType,
   FormDocumentStatus,
   ProjectState,
+  UserRole,
   Prisma,
 } from '@prisma/client';
 import { FormEngineService } from '../form-engine/form-engine.service';
@@ -170,6 +171,94 @@ const STATUS_FORM_MAPPING: Record<ProjectState, { required: FormType[]; optional
     required: [],
     optional: [],
   },
+};
+
+/**
+ * Mapping Role -> Forms that role can create
+ * Defines who can create which forms based on their role
+ */
+const ROLE_FORM_PERMISSIONS: Record<UserRole, FormType[]> = {
+  // Giảng viên (Chủ nhiệm đề tài) - tạo forms liên quan đến đề xuất và báo cáo
+  GIANG_VIEN: [
+    FormType.FORM_1B,   // Phiếu đề xuất
+    FormType.FORM_PL1,  // Đề cương chi tiết
+    FormType.FORM_7B,   // Báo cáo hoàn thiện đề cương
+    FormType.FORM_PL2,  // Báo cáo tổng kết
+    FormType.FORM_18B,  // Đơn xin gia hạn
+  ],
+
+  // Quản lý Khoa - tạo forms đánh giá và nghiệm thu cấp Khoa
+  QUAN_LY_KHOA: [
+    FormType.FORM_2B,   // Phiếu đánh giá cấp Khoa
+    FormType.FORM_3B,   // Biên bản họp cấp Khoa
+    FormType.FORM_4B,   // Danh mục tổng hợp
+    FormType.FORM_8B,   // Đề nghị lập HĐ NT Khoa
+    FormType.FORM_9B,   // Phiếu đánh giá NT Khoa
+    FormType.FORM_10B,  // Biên bản họp NT Khoa
+    FormType.FORM_11B,  // Báo cáo hoàn thiện NT Khoa
+  ],
+
+  // Thư ký Khoa - tạo biên bản họp và danh mục
+  THU_KY_KHOA: [
+    FormType.FORM_2B,   // Phiếu đánh giá cấp Khoa
+    FormType.FORM_3B,   // Biên bản họp cấp Khoa
+    FormType.FORM_4B,   // Danh mục tổng hợp
+    FormType.FORM_9B,   // Phiếu đánh giá NT Khoa
+    FormType.FORM_10B,  // Biên bản họp NT Khoa
+    FormType.FORM_11B,  // Báo cáo hoàn thiện NT Khoa
+  ],
+
+  // Phòng KH&CN - tạo forms cấp Trường
+  PHONG_KHCN: [
+    FormType.FORM_5B,   // Biên bản xét chọn sơ bộ
+    FormType.FORM_12B,  // Nhận xét phản biện
+    FormType.FORM_13B,  // Đề nghị lập HĐ NT Trường
+    FormType.FORM_14B,  // Phiếu đánh giá NT Trường
+    FormType.FORM_15B,  // Biên bản họp NT Trường
+    FormType.FORM_16B,  // Báo cáo hoàn thiện NT Trường
+    FormType.FORM_PL3,  // Nhận xét phản biện chi tiết
+    FormType.FORM_17B,  // Biên bản giao nhận sản phẩm
+  ],
+
+  // Thư ký Hội đồng - tạo biên bản hội đồng
+  THU_KY_HOI_DONG: [
+    FormType.FORM_6B,   // Biên bản Hội đồng tư vấn
+    FormType.FORM_12B,  // Nhận xét phản biện
+    FormType.FORM_14B,  // Phiếu đánh giá NT Trường
+    FormType.FORM_15B,  // Biên bản họp NT Trường
+    FormType.FORM_16B,  // Báo cáo hoàn thiện NT Trường
+  ],
+
+  // Thành viên Hội đồng - chỉ xem, không tạo forms
+  THANH_TRUNG: [],
+
+  // Ban Giám học - có thể tạo forms cấp Trường và nghiệm thu
+  BAN_GIAM_HOC: [
+    FormType.FORM_5B,   // Biên bản xét chọn sơ bộ
+    FormType.FORM_6B,   // Biên bản Hội đồng tư vấn
+    FormType.FORM_12B,  // Nhận xét phản biện
+    FormType.FORM_13B,  // Đề nghị lập HĐ NT Trường
+    FormType.FORM_14B,  // Phiếu đánh giá NT Trường
+    FormType.FORM_15B,  // Biên bản họp NT Trường
+    FormType.FORM_16B,  // Báo cáo hoàn thiện NT Trường
+  ],
+
+  // Legacy roles
+  HOI_DONG: [],
+  BGH: [
+    FormType.FORM_5B,
+    FormType.FORM_6B,
+  ],
+
+  // Admin - có thể tạo tất cả forms
+  ADMIN: Object.values(FormType),
+};
+
+/**
+ * Check if user is owner of proposal
+ */
+const isProposalOwner = (proposal: { ownerId: string }, userId: string): boolean => {
+  return proposal.ownerId === userId;
 };
 
 @Injectable()
@@ -602,5 +691,113 @@ export class ProposalDocumentsService {
    */
   async checkFormEngineHealth(): Promise<boolean> {
     return this.formEngine.isAvailable();
+  }
+
+  /**
+   * Lấy danh sách forms mà user có thể tạo cho proposal
+   * Dựa trên: role của user + state của proposal + ownership
+   */
+  async getAvailableFormsForUser(
+    proposalId: string,
+    userId: string,
+    userRole: UserRole,
+  ): Promise<{
+    available: Array<{
+      formType: FormType;
+      name: string;
+      description: string;
+      phase: string;
+      isRequired: boolean;
+      isGenerated: boolean;
+      documentId?: string;
+    }>;
+    proposalState: ProjectState;
+    canCreateForms: boolean;
+  }> {
+    // Get proposal with current state
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: {
+        id: true,
+        state: true,
+        ownerId: true,
+        code: true,
+      },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException(`Đề tài không tồn tại: ${proposalId}`);
+    }
+
+    // Get existing documents for this proposal
+    const existingDocs = await this.prisma.proposalDocument.findMany({
+      where: {
+        proposalId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        formType: true,
+      },
+    });
+
+    const existingFormTypes = new Map(
+      existingDocs.map(doc => [doc.formType, doc.id])
+    );
+
+    // Get forms allowed by state
+    const stateMapping = STATUS_FORM_MAPPING[proposal.state] || { required: [], optional: [] };
+    const formsAllowedByState = [...stateMapping.required, ...stateMapping.optional];
+
+    // Get forms allowed by role
+    let formsAllowedByRole = ROLE_FORM_PERMISSIONS[userRole] || [];
+
+    // Special case: If user is proposal owner (GIANG_VIEN), they can create owner-specific forms
+    const isOwner = isProposalOwner(proposal, userId);
+    if (isOwner && userRole !== UserRole.ADMIN) {
+      // Owner can always create their own forms regardless of role
+      formsAllowedByRole = [
+        ...new Set([
+          ...formsAllowedByRole,
+          ...ROLE_FORM_PERMISSIONS[UserRole.GIANG_VIEN],
+        ]),
+      ];
+    }
+
+    // Intersection: forms that are both allowed by state AND allowed by role
+    const availableForms = formsAllowedByState.filter(formType =>
+      formsAllowedByRole.includes(formType)
+    );
+
+    // Build response with form details
+    const available = availableForms.map(formType => {
+      const info = FORM_INFO[formType];
+      const isRequired = stateMapping.required.includes(formType);
+      const existingDocId = existingFormTypes.get(formType);
+
+      return {
+        formType,
+        name: info?.name || formType,
+        description: info?.description || '',
+        phase: info?.phase || '',
+        isRequired,
+        isGenerated: !!existingDocId,
+        documentId: existingDocId,
+      };
+    });
+
+    // Sort: required first, then by form type
+    available.sort((a, b) => {
+      if (a.isRequired !== b.isRequired) {
+        return a.isRequired ? -1 : 1;
+      }
+      return a.formType.localeCompare(b.formType);
+    });
+
+    return {
+      available,
+      proposalState: proposal.state,
+      canCreateForms: available.length > 0,
+    };
   }
 }
