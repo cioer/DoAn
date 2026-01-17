@@ -54,6 +54,7 @@ qlnckh/test-results/
 *.png
 *.jpg
 *.jpeg
+!baocao2/screenshots/*.png
 qlnckh/web-apps-e2e/screenshots/
 .playwright-mcp/
 .playwright/
