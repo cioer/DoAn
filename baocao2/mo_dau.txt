@@ -1,0 +1,19 @@
+MỞ ĐẦU
+1. Lý do chọn đề tài
+Nghiên cứu khoa học là một hoạt động quan trọng tại các trường đại học. Theo quy định của Bộ Giáo dục và Đào tạo, các trường cần quản lý chặt chẽ toàn bộ quy trình từ khi tiếp nhận đề xuất, thẩm định, phê duyệt, theo dõi thực hiện cho đến khi nghiệm thu và bàn giao kết quả.
+Tuy nhiên, qua quá trình tìm hiểu thực tế, em nhận thấy tại nhiều trường đại học, việc quản lý nghiên cứu khoa học vẫn đang được thực hiện thủ công. Các phương thức truyền thống như hồ sơ giấy, email và bảng tính Excel vẫn là công cụ chính. Điều này dẫn đến nhiều khó khăn bao gồm: thiếu minh bạch trong theo dõi tiến độ, khó khăn trong quản lý thời hạn xử lý, thiếu hệ thống lưu vết và kiểm toán, phức tạp trong phân quyền và kiểm soát truy cập, và khó khăn trong tạo và quản lý 18 loại biểu mẫu.
+Trong bối cảnh chuyển đổi số và yêu cầu nâng cao hiệu quả quản trị tại các trường đại học, em nhận thấy việc xây dựng một hệ thống quản lý nghiên cứu khoa học tự động hóa, minh bạch và tuân thủ quy định là rất cần thiết.
+2. Mục tiêu nghiên cứu
+Mục tiêu tổng quát của đồ án là xây dựng hệ thống quản lý nghiên cứu khoa học cho phép số hóa toàn bộ quy trình từ giai đoạn nộp hồ sơ, thẩm định, phê duyệt, thực hiện, nghiệm thu đến bàn giao kết quả, nhằm nâng cao hiệu quả quản lý, đảm bảo minh bạch và tuân thủ các quy định về thời hạn xử lý.
+Các mục tiêu cụ thể bao gồm: số hóa quy trình workflow với 13 trạng thái chuẩn cho 5 giai đoạn của đề tài; xây dựng hệ thống quản lý thời hạn thông minh tính theo giờ làm việc; xây dựng hệ thống phân quyền RBAC ba chiều theo vai trò, trạng thái và hành động; xây dựng cơ chế ghi log kiểm toán đầy đủ; phát triển dịch vụ tạo tài liệu tự động 18 loại biểu mẫu; và phát triển giao diện người dùng thân thiện với dashboard và queue công việc.
+3. Phương pháp nghiên cứu
+Phương pháp nghiên cứu lý thuyết: Nghiên cứu tài liệu về State Machine, mô hình phân quyền RBAC, kiến trúc Microservices, và các công nghệ web hiện đại.
+Phương pháp phân tích thiết kế: Khảo sát quy trình nghiệp vụ thực tế, phân tích yêu cầu chức năng và phi chức năng, thiết kế kiến trúc hệ thống và cơ sở dữ liệu.
+Phương pháp thực nghiệm: Cài đặt hệ thống bằng NestJS, React, PostgreSQL và FastAPI. Kiểm thử các chức năng và đánh giá hiệu năng.
+4. Cấu trúc đồ án
+Đồ án được tổ chức thành 5 chương:
+Chương 1 - Tổng quan về đề tài: Trình bày đối tượng, phạm vi nghiên cứu và ý nghĩa khoa học, thực tiễn của đề tài.
+Chương 2 - Cơ sở lý thuyết và công nghệ: Giới thiệu các khái niệm nền tảng về State Machine, phân quyền theo vai trò, kiến trúc Microservices, và các công nghệ sử dụng.
+Chương 3 - Phân tích và thiết kế hệ thống: Phân tích yêu cầu nghiệp vụ, thiết kế kiến trúc hệ thống, cơ sở dữ liệu và giao diện người dùng.
+Chương 4 - Cài đặt và triển khai: Trình bày chi tiết quá trình cài đặt các module chính và triển khai dịch vụ tạo tài liệu.
+Chương 5 - Kết quả và đánh giá: Đánh giá kết quả đạt được, phân tích ưu điểm, hạn chế và đề xuất hướng phát triển.
