@@ -1,0 +1,166 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "thesis-diagrams",
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 280,
+      "y": 20,
+      "text": "RBAC 3 chiều: Role × State × Action",
+      "fontSize": 28,
+      "fontFamily": 2
+    },
+    {
+      "id": "role_box",
+      "type": "rectangle",
+      "x": 50,
+      "y": 80,
+      "width": 200,
+      "height": 120,
+      "backgroundColor": "#e3fafc",
+      "strokeColor": "#1971c2",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "role_title",
+      "type": "text",
+      "x": 110,
+      "y": 90,
+      "text": "ROLE (8)",
+      "fontSize": 18,
+      "fontFamily": 2,
+      "strokeColor": "#1971c2"
+    },
+    {
+      "id": "role_items",
+      "type": "text",
+      "x": 70,
+      "y": 120,
+      "text": "• ADMIN\n• LECTURER\n• DEPARTMENT_HEAD\n• COUNCIL_MEMBER",
+      "fontSize": 12,
+      "fontFamily": 2
+    },
+    {
+      "id": "state_box",
+      "type": "rectangle",
+      "x": 300,
+      "y": 80,
+      "width": 200,
+      "height": 120,
+      "backgroundColor": "#fff3bf",
+      "strokeColor": "#e67700",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "state_title",
+      "type": "text",
+      "x": 360,
+      "y": 90,
+      "text": "STATE (13)",
+      "fontSize": 18,
+      "fontFamily": 2,
+      "strokeColor": "#e67700"
+    },
+    {
+      "id": "state_items",
+      "type": "text",
+      "x": 320,
+      "y": 120,
+      "text": "• DRAFT\n• SUBMITTED\n• DEPT_APPROVED\n• SCHOOL_APPROVED",
+      "fontSize": 12,
+      "fontFamily": 2
+    },
+    {
+      "id": "action_box",
+      "type": "rectangle",
+      "x": 550,
+      "y": 80,
+      "width": 200,
+      "height": 120,
+      "backgroundColor": "#d3f9d8",
+      "strokeColor": "#2f9e44",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "action_title",
+      "type": "text",
+      "x": 600,
+      "y": 90,
+      "text": "ACTION (26)",
+      "fontSize": 18,
+      "fontFamily": 2,
+      "strokeColor": "#2f9e44"
+    },
+    {
+      "id": "action_items",
+      "type": "text",
+      "x": 570,
+      "y": 120,
+      "text": "• SUBMIT\n• APPROVE\n• REJECT\n• ASSIGN_COUNCIL",
+      "fontSize": 12,
+      "fontFamily": 2
+    },
+    {
+      "id": "result_box",
+      "type": "rectangle",
+      "x": 250,
+      "y": 240,
+      "width": 300,
+      "height": 60,
+      "backgroundColor": "#d0bfff",
+      "strokeColor": "#7048e8",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "result_text",
+      "type": "text",
+      "x": 280,
+      "y": 260,
+      "text": "canPerform(role, state, action) → boolean",
+      "fontSize": 16,
+      "fontFamily": 2
+    },
+    {
+      "id": "arrow1",
+      "type": "line",
+      "x": 150,
+      "y": 200,
+      "width": 200,
+      "height": 50,
+      "strokeColor": "#495057",
+      "strokeWidth": 1,
+      "points": [[0, 0], [200, 50]]
+    },
+    {
+      "id": "arrow2",
+      "type": "line",
+      "x": 400,
+      "y": 200,
+      "width": 0,
+      "height": 40,
+      "strokeColor": "#495057",
+      "strokeWidth": 1,
+      "points": [[0, 0], [0, 40]]
+    },
+    {
+      "id": "arrow3",
+      "type": "line",
+      "x": 650,
+      "y": 200,
+      "width": -200,
+      "height": 50,
+      "strokeColor": "#495057",
+      "strokeWidth": 1,
+      "points": [[0, 0], [-200, 50]]
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff"
+  }
+}

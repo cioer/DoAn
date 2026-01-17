@@ -1,0 +1,40 @@
+4.2. CÀI ĐẶT BACKEND
+4.2.1. Cài đặt module xác thực
+Module auth sử dụng Passport phiên bản 0.7.0 với hai chiến lược xác thực là local và jwt. Chiến lược local xử lý đăng nhập bằng email và mật khẩu, chiến lược jwt xác thực token ở các request tiếp theo.
+Mật khẩu được mã hóa bằng bcrypt phiên bản 6.0.0 với cost factor 10. Khi đăng nhập, hệ thống so sánh hash của mật khẩu nhập vào với hash đã lưu trong database.
+JWT access token có thời hạn 15 phút, chứa thông tin user id, email, và danh sách vai trò. Refresh token có thời hạn 7 ngày, được lưu trong bảng refresh_tokens và xoay vòng mỗi lần sử dụng.
+Lý do tách riêng access token và refresh token là access token ngắn hạn giảm rủi ro khi bị đánh cắp, trong khi refresh token dài hạn giúp người dùng không phải đăng nhập lại thường xuyên.
+4.2.2. Cài đặt module RBAC
+Module rbac triển khai phân quyền ba chiều với 8 vai trò người dùng định nghĩa trong enum UserRole bao gồm GIANG_VIEN, QUAN_LY_KHOA, THU_KY_KHOA, PHONG_KHCN, THU_KY_HOI_DONG, THANH_VIEN_HOI_DONG, BAN_GIAM_HIEU, và ADMIN.
+8 nhóm quyền được định nghĩa trong enum Permission bao gồm CREATE_PROPOSAL, VIEW_PROPOSAL, EDIT_PROPOSAL, DELETE_PROPOSAL, APPROVE_PROPOSAL, MANAGE_COUNCIL, MANAGE_USERS, và SYSTEM_ADMIN.
+Bảng role_permissions ánh xạ vai trò với quyền. Guard RbacGuard kiểm tra quyền trước mỗi request bằng cách kết hợp vai trò người dùng, trạng thái hiện tại của đề tài, và hành động cần thực hiện.
+Lý do dùng Guard thay vì kiểm tra trong controller là tập trung logic phân quyền vào một nơi. Khi cần thay đổi quy tắc, chỉ sửa một chỗ thay vì rà soát toàn bộ controller.
+4.2.3. Cài đặt module Workflow
+Module workflow triển khai máy trạng thái với 13 trạng thái định nghĩa trong enum ProjectState bao gồm DRAFT, SUBMITTED, FACULTY_REVIEW, FACULTY_REVISION, FACULTY_APPROVED, SCHOOL_REVIEW, SCHOOL_APPROVED, OUTLINE_REVIEW, OUTLINE_APPROVED, ACCEPTANCE_REVIEW, ACCEPTANCE_APPROVED, COMPLETED, và CANCELLED.
+26 loại hành động được định nghĩa trong enum WorkflowAction bao gồm các hành động như SUBMIT, APPROVE, REJECT, REQUEST_REVISION, ASSIGN_COUNCIL, SUBMIT_EVALUATION, và nhiều hành động khác cho từng giai đoạn.
+Mỗi chuyển đổi trạng thái được ghi vào bảng workflow_logs với thông tin đề tài, hành động, trạng thái trước và sau, người thực hiện, và thời gian. Đây là dữ liệu append-only không bao giờ sửa hoặc xóa.
+Service WorkflowService chứa logic kiểm tra điều kiện chuyển đổi và thực hiện các side effect như cập nhật người đang xử lý, tính toán SLA deadline, và gửi thông báo.
+4.2.4. Cài đặt module Proposals
+Module proposals quản lý toàn bộ thông tin đề tài nghiên cứu. Entity Proposal chứa các trường quan trọng như id dạng UUID, title tiêu đề, state trạng thái hiện tại, facultyId đơn vị sở hữu, ownerId người tạo, và formData lưu dữ liệu biểu mẫu dạng JSON.
+Service ProposalService cung cấp các phương thức tạo đề tài mới, cập nhật thông tin, lấy danh sách với phân trang và lọc, và lấy chi tiết một đề tài. Mỗi phương thức đều kiểm tra quyền trước khi thực hiện.
+Controller ProposalController định nghĩa các endpoint RESTful như POST /proposals để tạo mới, GET /proposals để lấy danh sách, GET /proposals/:id để lấy chi tiết, và PATCH /proposals/:id để cập nhật.
+Lý do lưu formData dạng JSON là linh hoạt khi biểu mẫu thay đổi. Không cần migration database mỗi khi thêm trường mới vào biểu mẫu.
+4.2.5. Cài đặt module Council
+Module council quản lý 3 loại Hội đồng định nghĩa trong enum CouncilType bao gồm OUTLINE cho Hội đồng xét duyệt đề cương, ACCEPTANCE cho Hội đồng nghiệm thu, và EXTENSION cho Hội đồng xét gia hạn.
+Bảng councils lưu thông tin Hội đồng với các trường id, type loại Hội đồng, name tên, và các trường liên kết với đề tài.
+Bảng council_members lưu thành viên Hội đồng với vai trò định nghĩa trong enum CouncilMemberRole bao gồm CHAIR cho Chủ tịch, SECRETARY cho Thư ký, và MEMBER cho Thành viên.
+Service CouncilService cung cấp các phương thức tạo Hội đồng, thêm thành viên, và gán đề tài cho Hội đồng. Khi Hội đồng được tạo, hệ thống tự động tạo các phiếu đánh giá trống cho mỗi thành viên.
+4.2.6. Cài đặt module Documents
+Module documents và document-templates xử lý việc tạo tài liệu tự động. Bảng document_templates lưu 6 loại mẫu Word với các trường id, name tên mẫu, type loại tài liệu, và filePath đường dẫn file mẫu.
+Bảng documents lưu tài liệu đã tạo với các trường quan trọng như proposalId đề tài liên quan, templateId mẫu sử dụng, filePath đường dẫn file kết quả, và sha256Hash mã hash để xác minh tính toàn vẹn.
+Bảng document_manifests lưu metadata của mỗi tài liệu bao gồm ngày tạo, người tạo, và các tham số được sử dụng. Thông tin này phục vụ kiểm toán và truy vết.
+Bảng proposal_documents theo dõi 18 loại biểu mẫu cho mỗi đề tài với enum FormType từ FORM_1B đến FORM_18B. Mỗi biểu mẫu có trạng thái riêng như DRAFT, PENDING, APPROVED, hoặc FINALIZED.
+4.2.7. Cài đặt module tích hợp Form Engine
+Module form-engine trong backend NestJS chịu trách nhiệm giao tiếp với microservice Python qua HTTP. Service FormEngineService sử dụng Axios gọi đến endpoint của Form Engine tại cổng 8080.
+Quy trình tạo tài liệu bắt đầu khi người dùng yêu cầu, backend thu thập dữ liệu đề tài và gửi đến Form Engine kèm theo loại biểu mẫu cần tạo. Form Engine xử lý và trả về file Word hoặc PDF. Backend lưu file, tạo bản ghi document, tính hash SHA256, và trả kết quả cho người dùng.
+Lý do gọi qua HTTP thay vì gọi trực tiếp là Form Engine chạy trong container Docker riêng. Giao tiếp qua mạng nội bộ Docker đảm bảo hai service độc lập và có thể mở rộng riêng.
+4.2.8. Cài đặt các module hỗ trợ
+Module audit ghi log mọi hành động quan trọng vào bảng audit_events với các trường action loại hành động, actorId người thực hiện, targetType loại đối tượng, targetId id đối tượng, và metadata thông tin bổ sung dạng JSON.
+Module notifications sử dụng Nodemailer phiên bản 7.0.12 để gửi email thông báo khi có sự kiện quan trọng như đề tài được duyệt hoặc cần chỉnh sửa.
+Module exports sử dụng ExcelJS phiên bản 4.4.0 để xuất danh sách đề tài ra file Excel với đầy đủ thông tin và định dạng phù hợp.
+Module bulk-operations cho phép xử lý hàng loạt như gán người xử lý cho nhiều đề tài, gửi nhắc nhở hàng loạt, và xuất báo cáo tổng hợp. Mỗi thao tác hàng loạt được thực hiện trong một transaction để đảm bảo tính nhất quán.

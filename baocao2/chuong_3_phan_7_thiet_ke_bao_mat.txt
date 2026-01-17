@@ -1,0 +1,45 @@
+3.7. THIẾT KẾ BẢO MẬT
+3.7.1. Tổng quan về bảo mật hệ thống
+Bảo mật được thiết kế theo nguyên tắc phòng thủ nhiều lớp. Mỗi lớp bảo vệ một khía cạnh khác nhau và bổ sung cho nhau. Nếu một lớp bị vượt qua, các lớp khác vẫn bảo vệ hệ thống.
+Các lớp bảo mật bao gồm xác thực để biết người dùng là ai, phân quyền để biết người dùng được làm gì, mã hóa để bảo vệ dữ liệu khi truyền và lưu trữ, kiểm tra đầu vào để ngăn chặn tấn công, và ghi log để phát hiện và điều tra sự cố.
+Lý do cần nhiều lớp bảo mật là không có biện pháp nào hoàn hảo. Kẻ tấn công có thể tìm cách vượt qua một lớp, nhưng rất khó vượt qua tất cả các lớp.
+3.7.2. Xác thực với JWT
+Hệ thống sử dụng JWT với cặp access token và refresh token. Access token có thời hạn 15 phút, chứa thông tin user id, email, và danh sách vai trò. Refresh token có thời hạn 7 ngày và được lưu trong database.
+Khi access token hết hạn, frontend gọi API refresh để lấy access token mới. Khi refresh token được sử dụng, hệ thống tạo refresh token mới và vô hiệu hóa token cũ.
+Lý do access token ngắn hạn là nếu bị đánh cắp, kẻ tấn công chỉ có tối đa 15 phút để sử dụng. Sau đó token hết hạn và vô dụng.
+Lý do xoay vòng refresh token là ngăn chặn việc sử dụng lại token bị đánh cắp. Nếu kẻ tấn công dùng token cũ, yêu cầu sẽ bị từ chối vì token đã được thay thế.
+Nếu không có cơ chế này, token bị đánh cắp có thể được sử dụng vĩnh viễn hoặc trong thời gian rất dài.
+3.7.3. Mã hóa mật khẩu với bcrypt
+Mật khẩu người dùng được mã hóa bằng bcrypt với cost factor 10 trước khi lưu vào database. Bcrypt là thuật toán mã hóa một chiều, nghĩa là không thể giải mã ngược lại.
+Khi người dùng đăng nhập, hệ thống mã hóa mật khẩu nhập vào và so sánh với giá trị đã lưu. Nếu khớp thì đăng nhập thành công.
+Lý do dùng bcrypt thay vì SHA256 là bcrypt được thiết kế chậm có chủ đích. Với SHA256, kẻ tấn công có thể thử hàng tỷ mật khẩu mỗi giây. Với bcrypt và cost factor 10, mỗi lần thử mất khoảng 100 mili giây, khiến việc dò mật khẩu trở nên không khả thi.
+Nếu lưu mật khẩu dạng plain text hoặc mã hóa yếu, khi database bị xâm nhập, kẻ tấn công sẽ có được mật khẩu của tất cả người dùng và có thể đăng nhập bất kỳ tài khoản nào.
+3.7.4. Phòng chống SQL Injection
+Prisma ORM được sử dụng để ngăn chặn SQL injection. Tất cả truy vấn đều sử dụng parameterized query, nghĩa là dữ liệu người dùng nhập vào không bao giờ được ghép trực tiếp vào câu lệnh SQL.
+Ví dụ khi tìm đề tài theo tiêu đề, Prisma tạo câu truy vấn có dạng SELECT * FROM proposals WHERE title = $1 với $1 là tham số. Dữ liệu người dùng được truyền riêng biệt và database hiểu đó là dữ liệu, không phải lệnh SQL.
+Lý do SQL injection nguy hiểm là kẻ tấn công có thể chèn lệnh SQL độc hại để đọc toàn bộ dữ liệu, xóa bảng, hoặc thậm chí chiếm quyền điều khiển server database.
+Nếu không phòng chống đúng cách, một form tìm kiếm đơn giản cũng có thể trở thành cửa ngõ để tấn công toàn bộ hệ thống.
+3.7.5. Phòng chống XSS
+XSS viết đầy đủ là Cross-Site Scripting, là kiểu tấn công chèn mã JavaScript độc hại vào trang web.
+Hệ thống phòng chống bằng cách mã hóa tất cả dữ liệu trước khi hiển thị trên giao diện. React tự động thực hiện việc này cho hầu hết trường hợp. Với các trường hợp cần hiển thị HTML, hệ thống sử dụng thư viện DOMPurify để làm sạch.
+Header Content-Security-Policy được cấu hình để chỉ cho phép chạy script từ nguồn tin cậy, ngăn chặn inline script độc hại.
+Lý do XSS nguy hiểm là kẻ tấn công có thể đánh cắp cookie phiên đăng nhập, thay đổi nội dung trang web người dùng thấy, hoặc thực hiện các thao tác thay mặt người dùng mà họ không biết.
+3.7.6. Bảo mật API
+Tất cả API endpoint đều yêu cầu xác thực bằng JWT token, ngoại trừ endpoint đăng nhập và đăng ký. Token được gửi trong header Authorization với format Bearer token.
+Mỗi endpoint kiểm tra quyền trước khi thực hiện. Guard trong NestJS thực hiện kiểm tra RBAC ba chiều để đảm bảo người dùng có quyền với đề tài ở trạng thái hiện tại.
+Rate limiting được áp dụng để ngăn chặn tấn công brute force. Mỗi IP chỉ được gọi tối đa 100 request mỗi phút cho API thông thường và 5 request mỗi phút cho API đăng nhập.
+Lý do cần rate limiting ở API đăng nhập là ngăn kẻ tấn công thử hàng nghìn mật khẩu để dò tài khoản. Với giới hạn 5 lần mỗi phút, việc dò mật khẩu gần như không thể.
+3.7.7. Bảo mật dữ liệu truyền tải
+Tất cả kết nối sử dụng HTTPS để mã hóa dữ liệu khi truyền giữa client và server. Chứng chỉ SSL được cấu hình ở Nginx reverse proxy.
+Cookie chứa refresh token được đặt các flag HttpOnly để JavaScript không thể truy cập, Secure để chỉ gửi qua HTTPS, và SameSite Strict để ngăn chặn tấn công CSRF.
+Lý do cần HTTPS là nếu dùng HTTP, dữ liệu truyền đi ở dạng plain text. Bất kỳ ai trong cùng mạng đều có thể đọc được mật khẩu, token, và thông tin nhạy cảm.
+3.7.8. Ghi log bảo mật
+Hệ thống ghi log tất cả các sự kiện liên quan đến bảo mật bao gồm đăng nhập thành công và thất bại, thay đổi mật khẩu, truy cập bị từ chối, và các hành động quan trọng như phê duyệt đề tài.
+Log chứa thông tin thời gian, user id, IP address, hành động, và kết quả. Log được lưu riêng biệt và không thể sửa đổi.
+Lý do cần log bảo mật là phát hiện và điều tra khi có sự cố. Nếu có ai đó thử đăng nhập thất bại nhiều lần vào một tài khoản, log sẽ ghi nhận và có thể cảnh báo.
+Nếu không có log, khi xảy ra sự cố bảo mật, không có cách nào biết chuyện gì đã xảy ra, ai đã làm gì, và phạm vi ảnh hưởng.
+3.7.9. Bảo mật file upload
+File upload được giới hạn kích thước tối đa 10MB và chỉ cho phép các định dạng an toàn như pdf, doc, docx, xls, xlsx, png, jpg.
+File được lưu với tên ngẫu nhiên UUID thay vì tên gốc để tránh lộ thông tin và ngăn tấn công path traversal. Thư mục lưu file không cho phép thực thi script.
+Lý do kiểm tra định dạng file là ngăn người dùng upload file thực thi độc hại như exe, php, hoặc js. Nếu file này được lưu và có thể truy cập, kẻ tấn công có thể chạy mã độc trên server.
+Nếu không kiểm soát file upload đúng cách, đây là một trong những lỗ hổng phổ biến và nguy hiểm nhất trong ứng dụng web.

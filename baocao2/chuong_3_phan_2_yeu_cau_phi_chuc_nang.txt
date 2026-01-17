@@ -1,0 +1,24 @@
+3.2. PHÂN TÍCH YÊU CẦU PHI CHỨC NĂNG
+3.2.1. Yêu cầu về hiệu năng
+Hệ thống đặt mục tiêu thời gian phản hồi API dưới 500ms cho 95% yêu cầu, tạo file Word dưới 5 giây, và chuyển đổi PDF dưới 15 giây.
+Lý do đặt ngưỡng 500ms là dựa trên nghiên cứu về trải nghiệm người dùng. Thời gian phản hồi dưới 100ms được cảm nhận là tức thì, dưới 1 giây là chấp nhận được, và trên 3 giây gây cảm giác chậm và khó chịu. Mức 500ms là cân bằng hợp lý giữa yêu cầu kỹ thuật và trải nghiệm người dùng.
+Lý do cho phép tạo PDF đến 15 giây là do LibreOffice cần thời gian để khởi động và xử lý. Đây là tác vụ nặng và người dùng có thể chấp nhận chờ đợi khi biết hệ thống đang tạo tài liệu.
+Nếu không đặt mục tiêu hiệu năng, hệ thống có thể bị chậm dần theo thời gian khi dữ liệu tăng lên mà không ai để ý. Khi phát hiện thì đã quá muộn để sửa chữa.
+3.2.2. Yêu cầu về khả năng mở rộng
+Hệ thống được thiết kế theo kiến trúc Modular Monolith để có thể tách module thành microservice khi cần. Form Engine được tách riêng và có thể mở rộng độc lập.
+Lý do cần khả năng mở rộng là dự phòng cho tương lai. Hiện tại hệ thống phục vụ một trường, nhưng sau này có thể mở rộng cho nhiều trường hoặc số lượng đề tài tăng đột biến.
+Lý do tách Form Engine là dịch vụ này tiêu tốn nhiều CPU. Nếu để chung với ứng dụng chính, khi có nhiều yêu cầu tạo tài liệu cùng lúc, toàn bộ hệ thống sẽ bị chậm. Tách riêng cho phép mở rộng Form Engine mà không ảnh hưởng đến phần còn lại.
+Nếu không thiết kế cho khả năng mở rộng, khi tải tăng cao hệ thống sẽ bị quá tải và không có cách nào khắc phục nhanh ngoài việc viết lại toàn bộ.
+3.2.3. Yêu cầu về bảo mật
+Hệ thống sử dụng JWT với access token có thời hạn ngắn 15 phút, refresh token 7 ngày với cơ chế xoay vòng, mật khẩu được mã hóa bằng bcrypt, và dữ liệu đầu vào được kiểm tra để ngăn SQL injection và XSS.
+Lý do access token có thời hạn ngắn là giảm thiểu thiệt hại nếu token bị đánh cắp. Kẻ tấn công chỉ có tối đa 15 phút để sử dụng token đánh cắp được.
+Lý do cần xoay vòng refresh token là nếu refresh token bị đánh cắp, nó chỉ có thể dùng một lần. Lần sử dụng tiếp theo sẽ bị từ chối vì token cũ đã bị vô hiệu hóa.
+Lý do mã hóa mật khẩu bằng bcrypt là ngay cả khi database bị xâm nhập, kẻ tấn công cũng không thể biết mật khẩu gốc. Bcrypt được thiết kế để tốn nhiều thời gian tính toán, khiến việc dò mật khẩu trở nên không khả thi.
+Lý do kiểm tra đầu vào là ngăn chặn các cuộc tấn công phổ biến. SQL injection có thể cho phép kẻ tấn công đọc hoặc xóa toàn bộ database. XSS có thể cho phép chèn mã độc vào trang web để đánh cắp thông tin người dùng khác.
+Nếu không có các biện pháp bảo mật này, hệ thống có thể bị xâm nhập, dữ liệu bị đánh cắp hoặc phá hủy, gây thiệt hại lớn về uy tín và có thể vi phạm pháp luật về bảo vệ dữ liệu.
+3.2.4. Yêu cầu về khả năng bảo trì
+Hệ thống sử dụng TypeScript để đảm bảo an toàn kiểu, Prisma ORM để quản lý migration cơ sở dữ liệu, ESLint và Prettier để đảm bảo code nhất quán, và mục tiêu độ phủ test trên 70%.
+Lý do dùng TypeScript là phát hiện lỗi sớm khi viết code thay vì khi chạy. Trong dự án lớn, việc thay đổi một hàm có thể ảnh hưởng đến nhiều nơi. TypeScript giúp phát hiện tất cả các vị trí cần sửa.
+Lý do dùng Prisma migration là theo dõi và quản lý thay đổi cấu trúc database an toàn. Mỗi thay đổi được ghi lại và có thể hoàn tác nếu cần.
+Lý do cần độ phủ test cao là đảm bảo code hoạt động đúng và tránh regression khi thêm tính năng mới. Khi refactor code, test giúp xác nhận không có gì bị hỏng.
+Nếu không có các biện pháp đảm bảo khả năng bảo trì, theo thời gian code sẽ trở nên khó hiểu, khó sửa, và đầy lỗi. Việc thêm tính năng mới mất nhiều thời gian hơn và có nguy cơ cao gây ra lỗi mới.

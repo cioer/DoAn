@@ -1,0 +1,213 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "thesis-diagrams",
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 300,
+      "y": 30,
+      "text": "Luồng tạo tài liệu (Form Engine)",
+      "fontSize": 28,
+      "fontFamily": 2
+    },
+    {
+      "id": "step1",
+      "type": "rectangle",
+      "x": 50,
+      "y": 100,
+      "width": 140,
+      "height": 80,
+      "backgroundColor": "#e3fafc",
+      "strokeColor": "#1971c2",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "step1_text",
+      "type": "text",
+      "x": 75,
+      "y": 125,
+      "text": "Backend\ngửi data",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "textAlign": "center"
+    },
+    {
+      "id": "arrow1",
+      "type": "arrow",
+      "x": 195,
+      "y": 140,
+      "width": 30,
+      "height": 0,
+      "strokeColor": "#495057",
+      "strokeWidth": 2,
+      "points": [[0, 0], [30, 0]]
+    },
+    {
+      "id": "step2",
+      "type": "rectangle",
+      "x": 230,
+      "y": 100,
+      "width": 140,
+      "height": 80,
+      "backgroundColor": "#fff3bf",
+      "strokeColor": "#e67700",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "step2_text",
+      "type": "text",
+      "x": 260,
+      "y": 125,
+      "text": "Đọc mẫu\nWord",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "textAlign": "center"
+    },
+    {
+      "id": "arrow2",
+      "type": "arrow",
+      "x": 375,
+      "y": 140,
+      "width": 30,
+      "height": 0,
+      "strokeColor": "#495057",
+      "strokeWidth": 2,
+      "points": [[0, 0], [30, 0]]
+    },
+    {
+      "id": "step3",
+      "type": "rectangle",
+      "x": 410,
+      "y": 100,
+      "width": 140,
+      "height": 80,
+      "backgroundColor": "#d3f9d8",
+      "strokeColor": "#2f9e44",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "step3_text",
+      "type": "text",
+      "x": 445,
+      "y": 125,
+      "text": "Điền\nplaceholder",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "textAlign": "center"
+    },
+    {
+      "id": "arrow3",
+      "type": "arrow",
+      "x": 555,
+      "y": 140,
+      "width": 30,
+      "height": 0,
+      "strokeColor": "#495057",
+      "strokeWidth": 2,
+      "points": [[0, 0], [30, 0]]
+    },
+    {
+      "id": "step4",
+      "type": "rectangle",
+      "x": 590,
+      "y": 100,
+      "width": 140,
+      "height": 80,
+      "backgroundColor": "#d0bfff",
+      "strokeColor": "#7048e8",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "step4_text",
+      "type": "text",
+      "x": 620,
+      "y": 125,
+      "text": "LibreOffice\n→ PDF",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "textAlign": "center"
+    },
+    {
+      "id": "arrow4",
+      "type": "arrow",
+      "x": 735,
+      "y": 140,
+      "width": 30,
+      "height": 0,
+      "strokeColor": "#495057",
+      "strokeWidth": 2,
+      "points": [[0, 0], [30, 0]]
+    },
+    {
+      "id": "step5",
+      "type": "rectangle",
+      "x": 770,
+      "y": 100,
+      "width": 140,
+      "height": 80,
+      "backgroundColor": "#ffe3e3",
+      "strokeColor": "#e03131",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "step5_text",
+      "type": "text",
+      "x": 805,
+      "y": 125,
+      "text": "Trả file\n+ hash",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "textAlign": "center"
+    },
+    {
+      "id": "time1",
+      "type": "text",
+      "x": 280,
+      "y": 190,
+      "text": "~1s",
+      "fontSize": 14,
+      "fontFamily": 2,
+      "strokeColor": "#868e96"
+    },
+    {
+      "id": "time2",
+      "type": "text",
+      "x": 460,
+      "y": 190,
+      "text": "~2s",
+      "fontSize": 14,
+      "fontFamily": 2,
+      "strokeColor": "#868e96"
+    },
+    {
+      "id": "time3",
+      "type": "text",
+      "x": 640,
+      "y": 190,
+      "text": "~10s",
+      "fontSize": 14,
+      "fontFamily": 2,
+      "strokeColor": "#868e96"
+    },
+    {
+      "id": "tech",
+      "type": "text",
+      "x": 320,
+      "y": 230,
+      "text": "python-docx 1.1.0 + LibreOffice 7",
+      "fontSize": 14,
+      "fontFamily": 2,
+      "strokeColor": "#868e96"
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff"
+  }
+}

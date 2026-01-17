@@ -1,0 +1,29 @@
+5.4. HẠN CHẾ VÀ HƯỚNG PHÁT TRIỂN
+5.4.1. Hạn chế hiện tại
+Hạn chế thứ nhất là Form Engine xử lý tuần tự. Khi có nhiều yêu cầu tạo tài liệu đồng thời, các yêu cầu phải chờ nhau. Điều này có thể gây chậm trong giờ cao điểm.
+Hạn chế thứ hai là chưa có cơ chế thông báo realtime. Người dùng phải refresh trang để thấy thông báo mới. Điều này không ảnh hưởng lớn đến nghiệp vụ nhưng giảm trải nghiệm người dùng.
+Hạn chế thứ ba là chưa có ứng dụng mobile native. Giao diện web responsive hoạt động trên điện thoại nhưng trải nghiệm không tốt bằng ứng dụng native.
+Hạn chế thứ tư là chưa tích hợp với hệ thống khác trong trường như hệ thống quản lý nhân sự hoặc tài chính. Dữ liệu giảng viên phải nhập thủ công.
+5.4.2. Hướng phát triển ngắn hạn
+Cải thiện Form Engine bằng cách thêm queue xử lý bất đồng bộ. Yêu cầu tạo tài liệu được đưa vào queue và xử lý theo thứ tự. Người dùng nhận thông báo khi hoàn thành thay vì chờ đợi.
+Thêm WebSocket cho thông báo realtime. Khi có sự kiện quan trọng như đề tài được duyệt, thông báo hiển thị ngay lập tức mà không cần refresh.
+Cải thiện giao diện mobile với Progressive Web App. PWA cho phép cài đặt shortcut trên màn hình chính và hoạt động offline với dữ liệu đã cache.
+Thêm tính năng báo cáo và thống kê nâng cao. Dashboard cho Ban Giám hiệu với các chỉ số KPI, biểu đồ so sánh theo năm, và xuất báo cáo tổng hợp.
+5.4.3. Hướng phát triển dài hạn
+Tích hợp với hệ thống quản lý nhân sự để đồng bộ thông tin giảng viên tự động. Giảm nhập liệu thủ công và đảm bảo dữ liệu nhất quán.
+Tích hợp với hệ thống tài chính để theo dõi ngân sách và quyết toán đề tài. Cảnh báo khi chi tiêu vượt dự toán.
+Phát triển ứng dụng mobile native cho iOS và Android. Giảng viên có thể theo dõi và cập nhật đề tài mọi lúc mọi nơi.
+Áp dụng machine learning để phân tích và gợi ý. Ví dụ gợi ý phản biện phù hợp dựa trên lĩnh vực nghiên cứu, hoặc dự đoán thời gian hoàn thành đề tài.
+Mở rộng hệ thống cho nhiều trường đại học. Chuyển sang kiến trúc multi-tenant với dữ liệu tách biệt cho mỗi trường.
+5.4.4. Bài học kinh nghiệm
+Kinh nghiệm thứ nhất là tầm quan trọng của việc phân tích kỹ quy trình nghiệp vụ trước khi thiết kế. Việc hiểu rõ 15 trạng thái và 67 quy tắc chuyển đổi giúp thiết kế máy trạng thái chính xác từ đầu.
+Kinh nghiệm thứ hai là lợi ích của việc tách Form Engine thành microservice. Khi gặp vấn đề với LibreOffice, chỉ cần sửa và deploy lại Form Engine mà không ảnh hưởng đến hệ thống chính.
+Kinh nghiệm thứ ba là giá trị của TypeScript trong dự án lớn. Nhiều lỗi được phát hiện sớm khi compile thay vì khi chạy, tiết kiệm thời gian debug.
+Kinh nghiệm thứ tư là tầm quan trọng của Docker trong việc đảm bảo môi trường nhất quán. Không còn lỗi do khác biệt môi trường giữa máy phát triển và server.
+5.5. KẾT LUẬN CHƯƠNG
+Chương này đã trình bày kết quả đạt được sau khi triển khai hệ thống quản lý nghiên cứu khoa học.
+Về giao diện người dùng, hệ thống cung cấp đầy đủ các trang cho từng vai trò bao gồm trang đăng nhập, Dashboard theo vai trò, danh sách và chi tiết đề tài, form tạo sửa đề tài 4 bước với tự động lưu, quản lý Hội đồng và đánh giá, và tạo tài liệu tự động.
+Về đánh giá chức năng, tất cả 6 nhóm chức năng chính đều hoạt động đúng theo yêu cầu đã đề ra. Xác thực bảo mật với JWT, phân quyền RBAC ba chiều chính xác, workflow 13 trạng thái tuân thủ quy trình, Hội đồng đánh giá minh bạch, và Form Engine tạo tài liệu chất lượng cao.
+Về đánh giá phi chức năng, hiệu năng API đạt 98% request dưới 500ms. Tạo tài liệu đạt 100% dưới ngưỡng thời gian. Bảo mật đầy đủ với JWT, bcrypt, SQL injection prevention, XSS prevention, và HTTPS. Khả năng mở rộng được chứng minh với kiến trúc Hybrid.
+Về hạn chế, hệ thống chưa có queue xử lý bất đồng bộ cho Form Engine, chưa có thông báo realtime, chưa có ứng dụng mobile native, và chưa tích hợp với các hệ thống khác trong trường.
+Các hướng phát triển được đề xuất bao gồm cải thiện Form Engine với queue, thêm WebSocket cho thông báo realtime, phát triển PWA và ứng dụng mobile, tích hợp với hệ thống nhân sự và tài chính, và mở rộng cho nhiều trường đại học.

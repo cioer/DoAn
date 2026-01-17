@@ -1,0 +1,37 @@
+CHƯƠNG 5: KẾT QUẢ VÀ ĐÁNH GIÁ
+Chương này trình bày kết quả đạt được sau khi triển khai hệ thống và đánh giá mức độ đáp ứng các yêu cầu đã đề ra.
+5.1. KẾT QUẢ GIAO DIỆN NGƯỜI DÙNG
+5.1.1. Trang đăng nhập
+Trang đăng nhập hiển thị form với hai trường email và mật khẩu. Validation kiểm tra định dạng email và độ dài mật khẩu tối thiểu 6 ký tự ngay khi nhập.
+Nút đăng nhập chuyển sang trạng thái loading với spinner khi đang xử lý, ngăn người dùng bấm nhiều lần. Thông báo lỗi hiển thị rõ ràng nếu sai thông tin đăng nhập.
+Sau khi đăng nhập thành công, người dùng được chuyển đến trang Dashboard phù hợp với vai trò của mình.
+5.1.2. Trang Dashboard
+Dashboard hiển thị thông tin tổng quan khác nhau tùy vai trò người dùng.
+Với Giảng viên, Dashboard hiển thị 4 card thống kê gồm tổng số đề tài đang thực hiện, số đề tài chờ xét duyệt, số đề tài cần chỉnh sửa theo yêu cầu, và số đề tài đã hoàn thành. Phía dưới là danh sách 5 đề tài mới nhất với trạng thái hiện tại.
+Với Quản lý Khoa, Dashboard hiển thị số đề tài chờ duyệt Khoa, số đề tài quá hạn SLA cần xử lý gấp, biểu đồ phân bố đề tài theo trạng thái, và danh sách đề tài cần hành động sắp xếp theo độ ưu tiên.
+Với Admin, Dashboard hiển thị thống kê toàn hệ thống bao gồm tổng số người dùng, tổng số đề tài, biểu đồ xu hướng theo thời gian, và các cảnh báo hệ thống nếu có.
+5.1.3. Trang danh sách đề tài
+Danh sách đề tài hiển thị dạng bảng với các cột tiêu đề, trạng thái, Khoa, người tạo, ngày tạo, và cột hành động. Mỗi cột hỗ trợ sắp xếp tăng giảm khi click vào header.
+Thanh tìm kiếm phía trên cho phép lọc theo từ khóa trong tiêu đề. Các dropdown filter cho phép lọc theo trạng thái, Khoa, và khoảng thời gian. Bộ lọc được lưu vào URL để có thể bookmark hoặc chia sẻ.
+Phân trang hiển thị 20 đề tài mỗi trang với nút chuyển trang và hiển thị tổng số kết quả. Loading skeleton hiển thị khi đang fetch dữ liệu.
+Trạng thái được hiển thị bằng badge màu sắc tương ứng. Màu xám cho nháp, xanh dương cho đang xử lý, vàng cho cần sửa, xanh lá cho đã duyệt, và đỏ cho từ chối.
+5.1.4. Trang chi tiết đề tài
+Trang chi tiết chia thành nhiều tab bao gồm Thông tin chung hiển thị tiêu đề, mô tả, thành viên, thời gian, tab Lịch sử hiển thị timeline các thay đổi trạng thái, tab Tài liệu hiển thị danh sách file đính kèm và tài liệu đã tạo, và tab Đánh giá hiển thị kết quả từ Hội đồng nếu có.
+Phía trên là card hiển thị trạng thái hiện tại với badge màu, thời hạn SLA còn lại, và người đang xử lý.
+Các nút hành động hiển thị dựa trên trạng thái và quyền của người dùng. Giảng viên thấy nút Sửa và Nộp khi đề tài ở trạng thái nháp. Quản lý Khoa thấy nút Duyệt, Yêu cầu sửa, và Từ chối khi đề tài chờ duyệt Khoa.
+5.1.5. Form tạo và sửa đề tài
+Form được chia thành 4 bước với thanh tiến trình phía trên. Bước 1 Thông tin cơ bản gồm tiêu đề, loại đề tài, lĩnh vực nghiên cứu. Bước 2 Nội dung nghiên cứu gồm mục tiêu, phạm vi, phương pháp. Bước 3 Kinh phí gồm dự toán và nguồn kinh phí. Bước 4 Thành viên gồm danh sách người tham gia với vai trò.
+Mỗi bước có nút Quay lại và Tiếp theo. Validation chạy khi chuyển bước và hiển thị lỗi ngay tại trường sai. Nút Lưu nháp cho phép lưu bất kỳ lúc nào mà không cần hoàn thành hết.
+Tự động lưu nháp mỗi 5 giây khi có thay đổi. Thông báo nhỏ hiển thị Đã lưu lúc HH:MM để người dùng yên tâm.
+5.1.6. Giao diện quản lý Hội đồng
+Trang danh sách Hội đồng hiển thị các Hội đồng đã tạo với thông tin loại Hội đồng, số thành viên, số đề tài được gán, và trạng thái hoạt động.
+Trang tạo Hội đồng cho phép chọn loại Hội đồng từ 3 loại OUTLINE, ACCEPTANCE, EXTENSION. Form thêm thành viên với autocomplete tìm kiếm người dùng và chọn vai trò Chủ tịch, Thư ký, hoặc Thành viên.
+Trang chi tiết Hội đồng hiển thị danh sách thành viên, danh sách đề tài được gán, và kết quả đánh giá tổng hợp. Nút Phân công đề tài mở modal chọn đề tài từ danh sách phù hợp.
+5.1.7. Giao diện đánh giá
+Thành viên Hội đồng truy cập trang đánh giá với form điền điểm và nhận xét. Form gồm các tiêu chí đánh giá với thang điểm, ô nhập nhận xét cho từng tiêu chí, và ô nhận xét tổng hợp.
+Nút Lưu nháp cho phép lưu đánh giá chưa hoàn chỉnh. Nút Hoàn thành gửi đánh giá và khóa không cho sửa. Điểm trung bình được tính tự động khi nhập.
+Thư ký Hội đồng xem trang tổng hợp với bảng so sánh điểm của các thành viên, điểm trung bình, và kết luận đề xuất. Nút Xuất Excel tạo file báo cáo tổng hợp.
+5.1.8. Giao diện tạo tài liệu
+Trang tạo tài liệu hiển thị danh sách các loại biểu mẫu có thể tạo dựa trên trạng thái đề tài hiện tại. Mỗi biểu mẫu có nút Tạo Word và Tạo PDF.
+Khi bấm tạo, modal hiển thị tiến trình với các bước Thu thập dữ liệu, Điền mẫu, Chuyển đổi PDF nếu cần, và Hoàn thành. Mỗi bước có icon loading hoặc checkmark.
+Sau khi hoàn thành, nút Tải về xuất hiện để download file. File cũng được lưu vào danh sách tài liệu của đề tài và có thể tải lại sau.

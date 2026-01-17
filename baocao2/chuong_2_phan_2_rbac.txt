@@ -1,0 +1,20 @@
+2.2. RBAC - PHÂN QUYỀN THEO VAI TRÒ
+2.2.1. Khái niệm và định nghĩa
+RBAC viết đầy đủ là Role-Based Access Control, tức là mô hình phân quyền dựa trên vai trò. Trong mô hình này, quyền truy cập được gán cho vai trò chứ không phải cho từng người dùng cụ thể. Người dùng được gán vai trò, và thông qua vai trò đó họ có được các quyền tương ứng.
+Mô hình RBAC truyền thống có cấu trúc đơn giản: Người dùng được gán Vai trò, Vai trò được gán Quyền, và Quyền cho phép thực hiện Hành động trên Tài nguyên.
+2.2.2. RBAC ba chiều trong hệ thống workflow
+Trong hệ thống workflow phức tạp như quản lý nghiên cứu khoa học, RBAC truyền thống không đủ đáp ứng yêu cầu. Lý do là quyền hạn của một người không chỉ phụ thuộc vào vai trò của họ, mà còn phụ thuộc vào trạng thái hiện tại của đề tài.
+Ví dụ cụ thể, Ban Chủ nhiệm Khoa có quyền phê duyệt đề tài, nhưng chỉ khi đề tài đang ở trạng thái chờ duyệt Khoa. Nếu đề tài đang ở trạng thái nháp hoặc đã được phê duyệt rồi, Ban Chủ nhiệm Khoa không thể thực hiện hành động phê duyệt.
+Vì vậy, em áp dụng mô hình RBAC ba chiều, trong đó quyền được xác định bởi ba yếu tố: vai trò của người dùng, trạng thái hiện tại của đề tài, và hành động cần thực hiện. Công thức có thể viết là: Được phép = kiểm tra(Vai trò, Trạng thái, Hành động).
+2.2.3. Lý do áp dụng RBAC ba chiều
+Lý do thứ nhất là đảm bảo tuân thủ quy trình nghiệp vụ. Quy trình xét duyệt đề tài nghiên cứu khoa học có nhiều bước với nhiều người tham gia. Mỗi bước chỉ cho phép một số vai trò nhất định thực hiện. RBAC ba chiều đảm bảo rằng chỉ đúng người, đúng thời điểm mới có thể thực hiện hành động.
+Lý do thứ hai là ngăn chặn thao tác sai. Trong thực tế, người dùng có thể vô tình hoặc cố ý thực hiện các thao tác không đúng quy trình. Ví dụ, một giảng viên có thể cố gắng tự phê duyệt đề tài của mình bằng cách gọi trực tiếp API. RBAC ba chiều sẽ từ chối yêu cầu này ngay tại tầng backend.
+Lý do thứ ba là đơn giản hóa giao diện người dùng. Khi biết chính xác người dùng được phép làm gì ở trạng thái nào, frontend chỉ hiển thị các nút và tùy chọn phù hợp. Điều này giúp giao diện gọn gàng và giảm nhầm lẫn cho người dùng.
+2.2.4. Hậu quả nếu không sử dụng RBAC ba chiều
+Nếu chỉ sử dụng RBAC truyền thống hai chiều với vai trò và quyền, hệ thống sẽ gặp các vấn đề sau.
+Vấn đề thứ nhất là không thể phân biệt ngữ cảnh. Nếu Ban Chủ nhiệm Khoa có quyền phê duyệt, họ sẽ có thể phê duyệt bất kỳ đề tài nào, kể cả đề tài đang ở trạng thái nháp chưa được nộp. Điều này vi phạm nghiêm trọng quy trình nghiệp vụ.
+Vấn đề thứ hai là phải viết logic kiểm tra thủ công ở nhiều nơi. Lập trình viên sẽ phải viết các câu lệnh điều kiện kiểu như nếu vai trò là X và trạng thái là Y thì cho phép ở khắp nơi trong code. Điều này dẫn đến code dài dòng, khó bảo trì, và dễ sai sót.
+Vấn đề thứ ba là khó mở rộng. Khi cần thêm vai trò mới hoặc trạng thái mới, phải rà soát và cập nhật tất cả các vị trí có logic kiểm tra. Với RBAC ba chiều tập trung, việc mở rộng chỉ cần cập nhật bảng ánh xạ quyền.
+Vấn đề thứ tư là khó kiểm toán. Khi có sự cố hoặc tranh chấp, việc xác định ai có quyền làm gì tại thời điểm nào trở nên rất khó khăn nếu logic phân quyền bị phân tán.
+2.2.5. Các vai trò trong hệ thống
+Hệ thống định nghĩa 9 vai trò chính bao gồm Giảng viên là người tạo và quản lý đề tài của mình, Quản lý Khoa là người xét duyệt cấp Khoa, Thư ký Khoa hỗ trợ công tác hành chính, Phòng Khoa học Công nghệ xét duyệt cấp Trường, Thư ký Hội đồng quản lý các Hội đồng đánh giá, Thành viên Hội đồng tham gia đánh giá đề tài, Ban Giám hiệu phê duyệt cuối cùng, và Admin quản trị hệ thống.

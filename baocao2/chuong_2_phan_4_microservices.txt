@@ -1,0 +1,37 @@
+2.5. KIẾN TRÚC MICROSERVICES VÀ HYBRID
+2.5.1. Khái niệm Microservices
+Microservices là kiến trúc phần mềm trong đó ứng dụng được xây dựng từ các dịch vụ nhỏ, độc lập, có thể triển khai riêng biệt. Mỗi dịch vụ tập trung vào một chức năng nghiệp vụ cụ thể và giao tiếp với nhau qua giao thức mạng như HTTP hoặc message queue.
+Ngược lại với Microservices là kiến trúc Monolithic, trong đó toàn bộ ứng dụng được xây dựng và triển khai như một khối duy nhất.
+2.5.2. Lựa chọn kiến trúc Hybrid
+Sau khi phân tích yêu cầu dự án, em quyết định sử dụng kiến trúc Hybrid, kết hợp Modular Monolith cho ứng dụng chính và tách riêng một Microservice cho việc tạo tài liệu.
+Ứng dụng chính sử dụng Modular Monolith vì toàn bộ logic workflow cần truy cập chung một cơ sở dữ liệu để đảm bảo tính nhất quán giao dịch, quy mô dự án phù hợp với team nhỏ và thời gian phát triển hạn chế của đồ án, việc triển khai và vận hành đơn giản hơn nhiều so với quản lý nhiều dịch vụ độc lập, và các module vẫn được tổ chức riêng biệt nên có thể tách ra thành microservice sau nếu cần.
+Form Engine được tách riêng thành Microservice vì việc chuyển đổi file Word sang PDF bằng LibreOffice tiêu tốn nhiều CPU và có thể mất 10 đến 15 giây, ngôn ngữ Python có thư viện xử lý file Word tốt hơn Node.js, nếu quá trình tạo PDF bị lỗi hoặc treo thì không ảnh hưởng đến toàn bộ hệ thống chính, và khi số lượng yêu cầu tạo tài liệu tăng cao có thể mở rộng riêng Form Engine mà không cần mở rộng toàn bộ hệ thống.
+2.5.3. Lý do không dùng kiến trúc thuần Microservices
+Kiến trúc thuần Microservices không phù hợp với dự án này vì một số lý do.
+Lý do thứ nhất là độ phức tạp vận hành cao. Với mỗi microservice, cần quản lý riêng việc triển khai, giám sát, log, và cơ sở dữ liệu. Đối với đồ án tốt nghiệp với nguồn lực hạn chế, điều này không khả thi.
+Lý do thứ hai là khó đảm bảo tính nhất quán dữ liệu. Khi dữ liệu phân tán ở nhiều service, việc đảm bảo tất cả service có dữ liệu đồng bộ trở nên phức tạp. Ví dụ, khi chuyển trạng thái đề tài, cần cập nhật đồng thời bảng proposals và bảng workflow_logs. Với một database chung, điều này được xử lý bằng một transaction đơn giản.
+Lý do thứ ba là tăng độ trễ mạng. Mỗi lần gọi giữa các service là một round-trip qua mạng, làm tăng thời gian xử lý tổng thể.
+2.5.4. Hậu quả nếu chọn sai kiến trúc
+Nếu chọn kiến trúc thuần Monolithic không có module hóa, hệ thống sẽ khó bảo trì khi code lớn dần. Các thay đổi ở một phần có thể ảnh hưởng không mong muốn đến phần khác. Việc phân chia công việc cho nhiều người cũng khó khăn hơn vì code bị ràng buộc chặt chẽ.
+Nếu chọn kiến trúc thuần Microservices, thời gian phát triển sẽ kéo dài do phải xây dựng cơ sở hạ tầng phức tạp. Chi phí vận hành tăng cao. Nguy cơ thất bại dự án cao vì quá nhiều thứ phải quản lý cùng lúc.
+Kiến trúc Hybrid là sự cân bằng hợp lý, tận dụng ưu điểm của cả hai cách tiếp cận mà hạn chế nhược điểm.
+2.6. CÔNG NGHỆ SỬ DỤNG
+2.6.1. Backend với NestJS
+NestJS là framework Node.js để xây dựng ứng dụng server-side với TypeScript.
+Lý do chọn NestJS là TypeScript giúp phát hiện lỗi sớm khi viết code thay vì khi chạy, kiến trúc module hóa sẵn có giúp tổ chức code rõ ràng, Dependency Injection tích hợp sẵn giúp viết unit test dễ dàng, Decorators cho phép viết code ngắn gọn cho việc khai báo route và phân quyền, và cộng đồng lớn với nhiều plugin hỗ trợ.
+Nếu không dùng TypeScript mà dùng JavaScript thuần, lỗi về kiểu dữ liệu sẽ chỉ phát hiện khi chạy chương trình. Trong dự án lớn với nhiều người tham gia, điều này dẫn đến nhiều lỗi khó tìm và mất thời gian gỡ lỗi.
+2.6.2. ORM với Prisma
+Prisma là thư viện ORM thế hệ mới giúp truy cập cơ sở dữ liệu an toàn kiểu.
+Lý do chọn Prisma là tự động sinh ra các kiểu TypeScript từ schema cơ sở dữ liệu, hỗ trợ chuyển đổi tự động giữa snake_case ở database và camelCase trong JavaScript, công cụ migration giúp quản lý thay đổi cấu trúc database an toàn, và hiệu năng tốt với connection pooling tích hợp sẵn.
+Nếu viết SQL thủ công thay vì dùng ORM, code sẽ dài hơn, dễ mắc lỗi SQL injection nếu không cẩn thận, và khó bảo trì khi cấu trúc database thay đổi.
+2.6.3. Frontend với React và TypeScript
+React là thư viện xây dựng giao diện người dùng phổ biến nhất hiện nay.
+Lý do chọn React là hệ sinh thái lớn với nhiều thư viện hỗ trợ, nhiều tài liệu và cộng đồng để học hỏi, component-based giúp tái sử dụng code, và kết hợp với TypeScript để có type safety ở cả frontend.
+TanStack Query được sử dụng để quản lý trạng thái server vì nó tự động cache dữ liệu để giảm gọi API, tự động fetch lại khi cần thiết, và hỗ trợ cập nhật giao diện ngay lập tức trước khi server xác nhận.
+2.6.4. Form Engine với Python và FastAPI
+Form Engine sử dụng Python 3.10 và FastAPI thay vì Node.js.
+Lý do chọn Python là thư viện python-docx xử lý file Word tốt hơn các thư viện tương đương trong Node.js, FastAPI có hiệu năng cao và tự động tạo tài liệu API, và Python phù hợp với các tác vụ xử lý file và tích hợp LibreOffice.
+LibreOffice được sử dụng để chuyển đổi Word sang PDF vì đây là phần mềm mã nguồn mở miễn phí, hỗ trợ chạy ở chế độ headless không cần giao diện, và cho kết quả chuyển đổi chính xác, giữ nguyên định dạng.
+2.7. KẾT LUẬN CHƯƠNG
+Chương này đã trình bày các khái niệm nền tảng và lý do lựa chọn từng công nghệ cho hệ thống. State Machine được sử dụng để quản lý workflow với 15 trạng thái và đảm bảo tính xác định của quy trình. RBAC ba chiều đảm bảo phân quyền chính xác theo ngữ cảnh. Audit Trail lưu vết mọi thay đổi để phục vụ kiểm toán. SLA theo giờ làm việc đảm bảo công bằng cho người xử lý. Kiến trúc Hybrid cân bằng giữa đơn giản và linh hoạt. Mỗi lựa chọn công nghệ đều có lý do rõ ràng và được phân tích về hậu quả nếu không áp dụng.
+Chương tiếp theo sẽ trình bày chi tiết về phân tích yêu cầu và thiết kế hệ thống dựa trên các nền tảng lý thuyết đã giới thiệu.

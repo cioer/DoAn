@@ -1,0 +1,30 @@
+2.3. AUDIT TRAIL - LƯU VẾT KIỂM TOÁN
+2.3.1. Khái niệm và định nghĩa
+Audit Trail là cơ chế lưu trữ tất cả các thay đổi của hệ thống dưới dạng chuỗi sự kiện. Đặc điểm quan trọng nhất là sự kiện chỉ được thêm vào mà không bao giờ sửa hoặc xóa, gọi là append-only log.
+Trong hệ thống này, em sử dụng bảng workflow_logs để ghi lại mọi thay đổi trạng thái của đề tài. Mỗi bản ghi bao gồm mã đề tài, hành động thực hiện, trạng thái trước và sau, người thực hiện, thời gian, và lý do nếu có.
+2.3.2. Lý do cần Audit Trail
+Lý do thứ nhất là yêu cầu kiểm toán và tuân thủ quy định. Theo quy định của Bộ Giáo dục và Đào tạo, các trường đại học phải lưu trữ hồ sơ quản lý nghiên cứu khoa học để phục vụ thanh tra, kiểm tra. Audit Trail cung cấp bằng chứng đầy đủ về toàn bộ quá trình xử lý đề tài.
+Lý do thứ hai là giải quyết tranh chấp. Trong thực tế, có thể xảy ra các tình huống như giảng viên cho rằng mình đã nộp đề tài nhưng hệ thống không ghi nhận, hoặc Ban Chủ nhiệm Khoa cho rằng mình đã phê duyệt nhưng đề tài vẫn ở trạng thái chờ. Audit Trail cho phép truy vết chính xác ai đã làm gì, khi nào, để làm rõ sự việc.
+Lý do thứ ba là phân tích và cải tiến quy trình. Từ dữ liệu Audit Trail, ban quản lý có thể phân tích thời gian xử lý trung bình ở mỗi bước, tìm ra các điểm nghẽn trong quy trình, và đề xuất cải tiến.
+Lý do thứ tư là hỗ trợ gỡ lỗi khi có sự cố. Khi hệ thống gặp lỗi, lập trình viên có thể xem lại chuỗi sự kiện để hiểu chuyện gì đã xảy ra và tìm nguyên nhân.
+2.3.3. Hậu quả nếu không có Audit Trail
+Nếu không lưu vết kiểm toán, hệ thống sẽ chỉ lưu trạng thái hiện tại của đề tài mà không biết nó đã trải qua các bước nào.
+Hậu quả thứ nhất là không thể chứng minh tính hợp lệ của quyết định. Khi thanh tra hỏi đề tài này đã được ai duyệt và khi nào, hệ thống không có dữ liệu để trả lời.
+Hậu quả thứ hai là không thể khôi phục khi có lỗi. Nếu một đề tài bị chuyển sai trạng thái do lỗi phần mềm hoặc thao tác nhầm, không có cách nào biết trạng thái đúng trước đó là gì.
+Hậu quả thứ ba là mất niềm tin của người dùng. Khi xảy ra tranh chấp mà không có bằng chứng, cả hai bên đều không hài lòng và mất niềm tin vào hệ thống.
+2.4. SLA - QUẢN LÝ THỜI HẠN XỬ LÝ
+2.4.1. Khái niệm và định nghĩa
+SLA viết đầy đủ là Service Level Agreement, tức là thời hạn cam kết để hoàn thành một nhiệm vụ. Trong quy trình nghiên cứu khoa học, mỗi bước xét duyệt có thời hạn quy định, thường là 3 đến 7 ngày làm việc tùy loại công việc.
+2.4.2. Tính toán SLA theo giờ làm việc
+Điểm đặc biệt trong hệ thống này là SLA được tính theo giờ làm việc thay vì giờ lịch thông thường. Ngày làm việc là từ thứ Hai đến thứ Sáu. Giờ làm việc là từ 8 giờ sáng đến 5 giờ chiều, tức 9 giờ mỗi ngày. Múi giờ áp dụng là UTC+7 theo giờ Việt Nam. Các ngày nghỉ lễ được cấu hình riêng và bị loại trừ khỏi tính toán.
+2.4.3. Lý do tính SLA theo giờ làm việc
+Lý do là đảm bảo công bằng cho người xử lý. Nếu một đề tài được nộp lúc 5 giờ chiều thứ Sáu và thời hạn là 24 giờ, việc tính theo giờ lịch sẽ cho deadline là 5 giờ chiều thứ Bảy. Điều này không hợp lý vì thứ Bảy là ngày nghỉ và người xử lý không có mặt tại cơ quan.
+Với cách tính theo giờ làm việc, 24 giờ làm việc tương đương khoảng 3 ngày làm việc. Đề tài nộp lúc 5 giờ chiều thứ Sáu sẽ có deadline là 5 giờ chiều thứ Tư tuần sau, sau khi trừ thứ Bảy và Chủ nhật.
+2.4.4. Hậu quả nếu không quản lý SLA đúng cách
+Nếu không có hệ thống quản lý SLA, các vấn đề sau sẽ xảy ra.
+Vấn đề thứ nhất là đề tài bị treo không ai xử lý. Khi không có deadline và cảnh báo, người xử lý dễ quên hoặc trì hoãn. Đề tài có thể nằm chờ hàng tuần, hàng tháng mà không ai biết.
+Vấn đề thứ hai là không công bằng khi đánh giá hiệu suất. Nếu tính thời gian theo lịch, người xử lý nhận việc vào thứ Sáu chiều sẽ bị bất lợi so với người nhận việc vào thứ Hai sáng.
+Vấn đề thứ ba là không có cơ sở để cải tiến quy trình. Không có dữ liệu SLA, ban quản lý không biết bước nào thường xuyên trễ hạn để có biện pháp cải thiện.
+2.4.5. Cơ chế tạm dừng và tiếp tục SLA
+Hệ thống còn hỗ trợ tạm dừng SLA khi đề tài chuyển sang trạng thái yêu cầu sửa đổi. Khi Khoa yêu cầu giảng viên sửa hồ sơ, đồng hồ SLA của Khoa tạm dừng. Thời gian giảng viên sửa hồ sơ không được tính vào SLA của người xét duyệt. Khi giảng viên nộp lại, SLA tiếp tục tính từ thời điểm trước khi tạm dừng.
+Điều này đảm bảo công bằng cho cả hai bên và phản ánh đúng thực tế công việc.

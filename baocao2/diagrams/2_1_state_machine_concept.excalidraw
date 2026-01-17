@@ -1,0 +1,162 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "thesis-diagrams",
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 280,
+      "y": 20,
+      "text": "Khái niệm State Machine",
+      "fontSize": 28,
+      "fontFamily": 2
+    },
+    {
+      "id": "state1",
+      "type": "ellipse",
+      "x": 50,
+      "y": 100,
+      "width": 120,
+      "height": 60,
+      "backgroundColor": "#e3fafc",
+      "strokeColor": "#1971c2",
+      "strokeWidth": 2
+    },
+    {
+      "id": "state1_text",
+      "type": "text",
+      "x": 80,
+      "y": 120,
+      "text": "DRAFT",
+      "fontSize": 16,
+      "fontFamily": 2
+    },
+    {
+      "id": "arrow1",
+      "type": "arrow",
+      "x": 175,
+      "y": 130,
+      "width": 60,
+      "height": 0,
+      "strokeColor": "#495057",
+      "strokeWidth": 2,
+      "points": [[0, 0], [60, 0]]
+    },
+    {
+      "id": "action1",
+      "type": "text",
+      "x": 180,
+      "y": 105,
+      "text": "submit",
+      "fontSize": 12,
+      "fontFamily": 2,
+      "strokeColor": "#868e96"
+    },
+    {
+      "id": "state2",
+      "type": "ellipse",
+      "x": 240,
+      "y": 100,
+      "width": 160,
+      "height": 60,
+      "backgroundColor": "#fff3bf",
+      "strokeColor": "#e67700",
+      "strokeWidth": 2
+    },
+    {
+      "id": "state2_text",
+      "type": "text",
+      "x": 260,
+      "y": 120,
+      "text": "SUBMITTED",
+      "fontSize": 16,
+      "fontFamily": 2
+    },
+    {
+      "id": "arrow2",
+      "type": "arrow",
+      "x": 405,
+      "y": 130,
+      "width": 60,
+      "height": 0,
+      "strokeColor": "#495057",
+      "strokeWidth": 2,
+      "points": [[0, 0], [60, 0]]
+    },
+    {
+      "id": "action2",
+      "type": "text",
+      "x": 410,
+      "y": 105,
+      "text": "approve",
+      "fontSize": 12,
+      "fontFamily": 2,
+      "strokeColor": "#868e96"
+    },
+    {
+      "id": "state3",
+      "type": "ellipse",
+      "x": 470,
+      "y": 100,
+      "width": 160,
+      "height": 60,
+      "backgroundColor": "#d3f9d8",
+      "strokeColor": "#2f9e44",
+      "strokeWidth": 2
+    },
+    {
+      "id": "state3_text",
+      "type": "text",
+      "x": 495,
+      "y": 120,
+      "text": "APPROVED",
+      "fontSize": 16,
+      "fontFamily": 2
+    },
+    {
+      "id": "arrow3",
+      "type": "arrow",
+      "x": 635,
+      "y": 130,
+      "width": 60,
+      "height": 0,
+      "strokeColor": "#495057",
+      "strokeWidth": 2,
+      "points": [[0, 0], [60, 0]]
+    },
+    {
+      "id": "state4",
+      "type": "ellipse",
+      "x": 700,
+      "y": 100,
+      "width": 160,
+      "height": 60,
+      "backgroundColor": "#d0bfff",
+      "strokeColor": "#7048e8",
+      "strokeWidth": 2
+    },
+    {
+      "id": "state4_text",
+      "type": "text",
+      "x": 720,
+      "y": 120,
+      "text": "COMPLETED",
+      "fontSize": 16,
+      "fontFamily": 2
+    },
+    {
+      "id": "note",
+      "type": "text",
+      "x": 250,
+      "y": 200,
+      "text": "Mỗi trạng thái chỉ có thể chuyển sang trạng thái tiếp theo qua action hợp lệ",
+      "fontSize": 14,
+      "fontFamily": 2,
+      "strokeColor": "#868e96"
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff"
+  }
+}

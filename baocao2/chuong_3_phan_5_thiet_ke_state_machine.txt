@@ -1,0 +1,36 @@
+3.5. THIẾT KẾ MÁY TRẠNG THÁI
+3.5.1. Tổng quan máy trạng thái workflow
+Máy trạng thái quản lý vòng đời đề tài với 15 trạng thái và 67 quy tắc chuyển đổi. Mỗi đề tài tại một thời điểm chỉ ở một trạng thái duy nhất, và chỉ có thể chuyển sang các trạng thái được phép theo quy tắc định sẵn.
+Lý do dùng máy trạng thái là đảm bảo quy trình xét duyệt diễn ra đúng trình tự. Không thể bỏ qua bước, không thể quay lại bước không hợp lệ, và luôn biết rõ đề tài đang ở đâu trong quy trình.
+Nếu không có máy trạng thái mà chỉ dùng cờ boolean như isApproved hoặc isSubmitted, code sẽ đầy những câu điều kiện phức tạp và khó đảm bảo mọi trường hợp được xử lý đúng.
+3.5.2. Các trạng thái trong hệ thống
+Hệ thống định nghĩa 15 trạng thái chia thành 5 giai đoạn.
+Giai đoạn 1 là Đề xuất gồm trạng thái draft cho đề tài đang soạn thảo chưa nộp và trạng thái submitted cho đề tài đã nộp chờ xét duyệt.
+Giai đoạn 2 là Xét duyệt Khoa gồm trạng thái faculty_review cho đề tài đang được Khoa xem xét, trạng thái faculty_revision cho đề tài cần chỉnh sửa theo yêu cầu Khoa, và trạng thái faculty_rejected cho đề tài bị Khoa từ chối.
+Giai đoạn 3 là Xét duyệt cấp Trường gồm trạng thái university_review cho đề tài đang được Phòng Khoa học xem xét, trạng thái university_revision cho đề tài cần chỉnh sửa theo yêu cầu Phòng, và trạng thái university_rejected cho đề tài bị Phòng từ chối.
+Giai đoạn 4 là Đánh giá Hội đồng gồm trạng thái council_review cho đề tài đang được Hội đồng đánh giá, trạng thái evaluation_in_progress cho đề tài đang thu thập phiếu đánh giá, và trạng thái council_completed cho đề tài đã có kết quả đánh giá.
+Giai đoạn 5 là Phê duyệt cuối gồm trạng thái final_approval cho đề tài chờ Ban Giám hiệu duyệt, trạng thái approved cho đề tài đã được duyệt hoàn tất, trạng thái completed cho đề tài đã hoàn thành toàn bộ quy trình, và trạng thái cancelled cho đề tài bị hủy.
+Lý do có 15 trạng thái là phản ánh đúng quy trình thực tế tại trường đại học. Mỗi trạng thái đại diện cho một bước trong quy trình và cho biết ai đang chịu trách nhiệm.
+3.5.3. Quy tắc chuyển đổi trạng thái
+Mỗi quy tắc chuyển đổi định nghĩa trạng thái nguồn, trạng thái đích, hành động kích hoạt, vai trò được phép, và điều kiện bổ sung nếu có.
+Ví dụ quy tắc nộp đề tài: từ draft đến submitted, hành động là submit, vai trò cho phép là lecturer, điều kiện là form phải đầy đủ thông tin bắt buộc.
+Ví dụ quy tắc duyệt Khoa: từ faculty_review đến university_review, hành động là approve, vai trò cho phép là faculty_manager, điều kiện là phải có ghi chú phê duyệt.
+Ví dụ quy tắc yêu cầu sửa: từ faculty_review đến faculty_revision, hành động là request_revision, vai trò cho phép là faculty_manager, điều kiện là phải nêu lý do yêu cầu sửa.
+Lý do định nghĩa quy tắc rõ ràng là ngăn chặn các chuyển đổi không hợp lệ. Hệ thống sẽ từ chối nếu ai đó cố gắng duyệt đề tài đang ở trạng thái draft.
+Nếu không có quy tắc, bất kỳ ai cũng có thể chuyển đề tài sang bất kỳ trạng thái nào, phá vỡ hoàn toàn quy trình nghiệp vụ.
+3.5.4. Xử lý chuyển đổi trạng thái
+Khi có yêu cầu chuyển đổi trạng thái, hệ thống thực hiện các bước theo thứ tự. Bước một là kiểm tra đề tài đang ở trạng thái nào. Bước hai là kiểm tra hành động có được phép từ trạng thái hiện tại không. Bước ba là kiểm tra người yêu cầu có vai trò được phép không. Bước bốn là kiểm tra các điều kiện bổ sung. Bước năm là cập nhật trạng thái và người đang xử lý. Bước sáu là ghi log vào bảng workflow_logs. Bước bảy là cập nhật SLA tracking. Bước tám là gửi thông báo cho các bên liên quan.
+Lý do thực hiện tất cả trong một transaction database là đảm bảo tính nhất quán. Nếu bước nào thất bại, toàn bộ được hoàn tác và đề tài giữ nguyên trạng thái cũ.
+Nếu không dùng transaction, có thể xảy ra tình huống trạng thái đã cập nhật nhưng log chưa ghi, dẫn đến dữ liệu không nhất quán và khó điều tra khi có sự cố.
+3.5.5. Xác định người đang xử lý
+Mỗi trạng thái có quy tắc xác định ai là người chịu trách nhiệm xử lý tiếp theo. Khi đề tài ở draft hoặc revision, người xử lý là chủ nhiệm đề tài. Khi ở faculty_review, người xử lý là Ban Chủ nhiệm Khoa. Khi ở university_review, người xử lý là Phòng Khoa học. Khi ở council_review, người xử lý là các thành viên Hội đồng.
+Lý do cần theo dõi người đang xử lý là để gửi thông báo nhắc nhở đúng người, tính SLA cho đúng người, và hiển thị danh sách công việc cần làm cho mỗi người.
+Nếu không biết ai đang chịu trách nhiệm, đề tài sẽ bị treo vì không ai biết mình cần hành động.
+3.5.6. Tích hợp SLA với máy trạng thái
+Mỗi chuyển đổi trạng thái tự động cập nhật thông tin SLA. Khi đề tài chuyển sang trạng thái mới, hệ thống tính deadline dựa trên thời hạn quy định của trạng thái đó và lịch làm việc. Khi đề tài chuyển sang trạng thái revision, SLA của người xét duyệt được tạm dừng.
+Lý do tích hợp SLA vào máy trạng thái là đảm bảo mọi chuyển đổi đều được tính thời gian chính xác. Không có cách nào bỏ qua hoặc quên cập nhật SLA.
+Nếu SLA được quản lý riêng biệt, có thể xảy ra tình huống trạng thái đã chuyển nhưng SLA chưa cập nhật, dẫn đến số liệu thời gian xử lý sai.
+3.5.7. Xử lý lỗi và hoàn tác
+Khi chuyển đổi trạng thái thất bại, hệ thống ghi log lỗi với đầy đủ thông tin và trả về thông báo rõ ràng cho người dùng. Đề tài giữ nguyên trạng thái cũ và người dùng có thể thử lại sau khi khắc phục vấn đề.
+Lý do cần xử lý lỗi cẩn thận là quy trình xét duyệt rất quan trọng. Một lỗi không được xử lý đúng có thể dẫn đến đề tài bị kẹt hoặc dữ liệu không nhất quán.
+Hệ thống không cho phép hoàn tác chuyển đổi trạng thái đã thành công. Thay vào đó, nếu cần quay lại, phải thực hiện một chuyển đổi mới theo quy tắc định sẵn. Điều này đảm bảo mọi thay đổi đều được ghi nhận và không có thao tác bí mật.

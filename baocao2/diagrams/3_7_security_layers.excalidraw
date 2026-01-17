@@ -1,0 +1,124 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "thesis-diagrams",
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 300,
+      "y": 20,
+      "text": "5 lớp bảo mật",
+      "fontSize": 28,
+      "fontFamily": 2
+    },
+    {
+      "id": "layer1",
+      "type": "rectangle",
+      "x": 50,
+      "y": 80,
+      "width": 700,
+      "height": 50,
+      "backgroundColor": "#e3fafc",
+      "strokeColor": "#1971c2",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "layer1_text",
+      "type": "text",
+      "x": 240,
+      "y": 95,
+      "text": "1. HTTPS/TLS - Mã hóa đường truyền",
+      "fontSize": 16,
+      "fontFamily": 2
+    },
+    {
+      "id": "layer2",
+      "type": "rectangle",
+      "x": 80,
+      "y": 140,
+      "width": 640,
+      "height": 50,
+      "backgroundColor": "#fff3bf",
+      "strokeColor": "#e67700",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "layer2_text",
+      "type": "text",
+      "x": 220,
+      "y": 155,
+      "text": "2. JWT Authentication - Xác thực người dùng",
+      "fontSize": 16,
+      "fontFamily": 2
+    },
+    {
+      "id": "layer3",
+      "type": "rectangle",
+      "x": 110,
+      "y": 200,
+      "width": 580,
+      "height": 50,
+      "backgroundColor": "#d3f9d8",
+      "strokeColor": "#2f9e44",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "layer3_text",
+      "type": "text",
+      "x": 210,
+      "y": 215,
+      "text": "3. RBAC 3D - Kiểm soát quyền truy cập",
+      "fontSize": 16,
+      "fontFamily": 2
+    },
+    {
+      "id": "layer4",
+      "type": "rectangle",
+      "x": 140,
+      "y": 260,
+      "width": 520,
+      "height": 50,
+      "backgroundColor": "#d0bfff",
+      "strokeColor": "#7048e8",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "layer4_text",
+      "type": "text",
+      "x": 230,
+      "y": 275,
+      "text": "4. Input Validation - Ngăn injection",
+      "fontSize": 16,
+      "fontFamily": 2
+    },
+    {
+      "id": "layer5",
+      "type": "rectangle",
+      "x": 170,
+      "y": 320,
+      "width": 460,
+      "height": 50,
+      "backgroundColor": "#ffe3e3",
+      "strokeColor": "#e03131",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "layer5_text",
+      "type": "text",
+      "x": 260,
+      "y": 335,
+      "text": "5. Audit Trail - Ghi log mọi thao tác",
+      "fontSize": 16,
+      "fontFamily": 2
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff"
+  }
+}

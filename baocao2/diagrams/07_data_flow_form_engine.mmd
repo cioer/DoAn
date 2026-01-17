@@ -1,0 +1,114 @@
+sequenceDiagram
+    %% Data Flow - Form Engine Document Generation
+    %% DOCX Generation & PDF Conversion Process
+
+    actor User as 👤 User<br/>(GIANG_VIEN)
+    participant Frontend as ⚛️ React Frontend
+    participant Backend as 🏢 NestJS Backend
+    participant FormEngine as 🐍 Form Engine<br/>(FastAPI)
+    participant PythonDocx as 📝 python-docx
+    participant LibreOffice as 📄 LibreOffice<br/>(Headless)
+    participant Storage as 💾 File Storage
+
+    Note over User,Storage: PHASE 1: DOCX GENERATION (< 5s Target)
+
+    User->>Frontend: 1. Click "Tạo biểu mẫu 1B"
+    activate Frontend
+    Frontend->>Frontend: 2. Collect form data<br/>(title, budget, timeline, etc.)
+    Frontend->>Backend: 3. POST /api/documents/generate<br/>{ proposalId, templateType: "1B", data }
+    activate Backend
+
+    Backend->>Backend: 4. Validate request<br/>• Check permissions (RBAC)<br/>• Verify proposal state
+    Backend->>Backend: 5. Prepare context<br/>• proposal.title<br/>• proposal.owner.displayName<br/>• proposal.faculty.name<br/>• formData sections
+
+    Backend->>FormEngine: 6. POST /generate-docx<br/>{ templateId: "1b", context: {...} }
+    activate FormEngine
+
+    FormEngine->>FormEngine: 7. Validate template exists<br/>templates/1b.docx
+    FormEngine->>PythonDocx: 8. Load template<br/>Document('templates/1b.docx')
+    activate PythonDocx
+
+    PythonDocx-->>FormEngine: 9. Document object
+    deactivate PythonDocx
+
+    FormEngine->>FormEngine: 10. Replace placeholders<br/>• Find: {{ proposal_title }}<br/>• Replace: context.title<br/>(Repeat for all fields)
+
+    FormEngine->>PythonDocx: 11. Save document<br/>doc.save(output_path)
+    activate PythonDocx
+    PythonDocx->>Storage: 12. Write DOCX file<br/>uploads/proposals/xxx/1b.docx
+    activate Storage
+    Storage-->>PythonDocx: 13. File saved
+    deactivate Storage
+    deactivate PythonDocx
+
+    FormEngine->>FormEngine: 14. Calculate SHA256 hash<br/>hashlib.sha256(file_content)
+
+    FormEngine-->>Backend: 15. Response: 200 OK<br/>{ filePath, fileName, sha256Hash }
+    deactivate FormEngine
+
+    Backend->>Backend: 16. Save metadata to DB<br/>• documents table<br/>• document_manifests table
+
+    Backend-->>Frontend: 17. Response: Document created<br/>{ documentId, downloadUrl }
+    deactivate Backend
+
+    Frontend-->>User: 18. Show success message<br/>"Tạo biểu mẫu 1B thành công"
+    deactivate Frontend
+
+    Note over User,Storage: PHASE 2: PDF CONVERSION (< 15s Target)
+
+    User->>Frontend: 19. Click "Xuất PDF"
+    activate Frontend
+    Frontend->>Backend: 20. POST /api/documents/:id/convert-to-pdf
+    activate Backend
+
+    Backend->>Backend: 21. Verify document exists<br/>• Check ownership<br/>• Get DOCX file path
+
+    Backend->>FormEngine: 22. POST /convert-to-pdf<br/>{ docxPath: "uploads/..." }
+    activate FormEngine
+
+    FormEngine->>LibreOffice: 23. Execute conversion<br/>soffice --headless --convert-to pdf<br/>--outdir temp/ docx_path
+    activate LibreOffice
+
+    LibreOffice->>LibreOffice: 24. Convert DOCX → PDF<br/>• Load DOCX<br/>• Render to PDF format<br/>• Apply formatting
+
+    LibreOffice->>Storage: 25. Write PDF file<br/>uploads/proposals/xxx/1b.pdf
+    activate Storage
+    Storage-->>LibreOffice: 26. File saved
+    deactivate Storage
+    deactivate LibreOffice
+
+    FormEngine->>FormEngine: 27. Calculate PDF hash<br/>hashlib.sha256(pdf_content)
+
+    FormEngine-->>Backend: 28. Response: 200 OK<br/>{ pdfPath, pdfSize, sha256Hash }
+    deactivate FormEngine
+
+    Backend->>Backend: 29. Update document metadata<br/>• pdfPath<br/>• pdfHash
+
+    Backend-->>Frontend: 30. Response: PDF ready<br/>{ pdfUrl }
+    deactivate Backend
+
+    Frontend-->>User: 31. Download PDF<br/>→ Browser downloads file
+    deactivate Frontend
+
+    Note over User,Storage: INTEGRITY VERIFICATION
+
+    User->>Frontend: 32. Click "Xác thực tài liệu"
+    activate Frontend
+    Frontend->>Backend: 33. GET /api/documents/:id/verify
+    activate Backend
+
+    Backend->>Storage: 34. Read document file
+    activate Storage
+    Storage-->>Backend: 35. File content
+    deactivate Storage
+
+    Backend->>Backend: 36. Calculate current hash<br/>SHA256(file_content)
+    Backend->>Backend: 37. Compare with stored hash<br/>IF hash_match → VALID<br/>ELSE → TAMPERED
+
+    Backend-->>Frontend: 38. Response:<br/>{ verified: true, result: "VALID" }
+    deactivate Backend
+
+    Frontend-->>User: 39. Show verification status<br/>"✓ Tài liệu hợp lệ"
+    deactivate Frontend
+
+    Note over User,Storage: 18 Templates: 1B - 18B<br/>Same workflow for all form types

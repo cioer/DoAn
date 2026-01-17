@@ -1,0 +1,143 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "thesis-diagrams",
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 300,
+      "y": 20,
+      "text": "Database Schema - 21 tables",
+      "fontSize": 28,
+      "fontFamily": 2
+    },
+    {
+      "id": "core_box",
+      "type": "rectangle",
+      "x": 50,
+      "y": 80,
+      "width": 200,
+      "height": 150,
+      "backgroundColor": "#e3fafc",
+      "strokeColor": "#1971c2",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "core_title",
+      "type": "text",
+      "x": 100,
+      "y": 90,
+      "text": "Core Tables",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "strokeColor": "#1971c2"
+    },
+    {
+      "id": "core_items",
+      "type": "text",
+      "x": 70,
+      "y": 115,
+      "text": "• users\n• faculties\n• proposals\n• documents\n• attachments",
+      "fontSize": 12,
+      "fontFamily": 2
+    },
+    {
+      "id": "workflow_box",
+      "type": "rectangle",
+      "x": 280,
+      "y": 80,
+      "width": 200,
+      "height": 150,
+      "backgroundColor": "#fff3bf",
+      "strokeColor": "#e67700",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "workflow_title",
+      "type": "text",
+      "x": 310,
+      "y": 90,
+      "text": "Workflow Tables",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "strokeColor": "#e67700"
+    },
+    {
+      "id": "workflow_items",
+      "type": "text",
+      "x": 300,
+      "y": 115,
+      "text": "• workflow_logs\n• workflow_actions\n• document_templates\n• form_templates\n• holidays",
+      "fontSize": 12,
+      "fontFamily": 2
+    },
+    {
+      "id": "council_box",
+      "type": "rectangle",
+      "x": 510,
+      "y": 80,
+      "width": 200,
+      "height": 150,
+      "backgroundColor": "#d3f9d8",
+      "strokeColor": "#2f9e44",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "council_title",
+      "type": "text",
+      "x": 540,
+      "y": 90,
+      "text": "Council Tables",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "strokeColor": "#2f9e44"
+    },
+    {
+      "id": "council_items",
+      "type": "text",
+      "x": 530,
+      "y": 115,
+      "text": "• councils\n• council_members\n• evaluations\n• evaluation_criteria\n• scores",
+      "fontSize": 12,
+      "fontFamily": 2
+    },
+    {
+      "id": "support_box",
+      "type": "rectangle",
+      "x": 280,
+      "y": 260,
+      "width": 200,
+      "height": 100,
+      "backgroundColor": "#d0bfff",
+      "strokeColor": "#7048e8",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "support_title",
+      "type": "text",
+      "x": 310,
+      "y": 270,
+      "text": "Support Tables",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "strokeColor": "#7048e8"
+    },
+    {
+      "id": "support_items",
+      "type": "text",
+      "x": 300,
+      "y": 295,
+      "text": "• audit_logs\n• notifications\n• sessions\n• +3 tables",
+      "fontSize": 12,
+      "fontFamily": 2
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff"
+  }
+}

@@ -1,0 +1,145 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "thesis-diagrams",
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 280,
+      "y": 20,
+      "text": "6 nhóm chức năng chính",
+      "fontSize": 28,
+      "fontFamily": 2
+    },
+    {
+      "id": "group1",
+      "type": "rectangle",
+      "x": 50,
+      "y": 80,
+      "width": 220,
+      "height": 60,
+      "backgroundColor": "#e3fafc",
+      "strokeColor": "#1971c2",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "group1_text",
+      "type": "text",
+      "x": 70,
+      "y": 100,
+      "text": "1. Xác thực & Phân quyền",
+      "fontSize": 14,
+      "fontFamily": 2
+    },
+    {
+      "id": "group2",
+      "type": "rectangle",
+      "x": 300,
+      "y": 80,
+      "width": 220,
+      "height": 60,
+      "backgroundColor": "#fff3bf",
+      "strokeColor": "#e67700",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "group2_text",
+      "type": "text",
+      "x": 320,
+      "y": 100,
+      "text": "2. Quản lý vòng đời đề tài",
+      "fontSize": 14,
+      "fontFamily": 2
+    },
+    {
+      "id": "group3",
+      "type": "rectangle",
+      "x": 550,
+      "y": 80,
+      "width": 220,
+      "height": 60,
+      "backgroundColor": "#d3f9d8",
+      "strokeColor": "#2f9e44",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "group3_text",
+      "type": "text",
+      "x": 575,
+      "y": 100,
+      "text": "3. Máy trạng thái Workflow",
+      "fontSize": 14,
+      "fontFamily": 2
+    },
+    {
+      "id": "group4",
+      "type": "rectangle",
+      "x": 50,
+      "y": 170,
+      "width": 220,
+      "height": 60,
+      "backgroundColor": "#d0bfff",
+      "strokeColor": "#7048e8",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "group4_text",
+      "type": "text",
+      "x": 65,
+      "y": 190,
+      "text": "4. Xét duyệt cấp Khoa/Trường",
+      "fontSize": 14,
+      "fontFamily": 2
+    },
+    {
+      "id": "group5",
+      "type": "rectangle",
+      "x": 300,
+      "y": 170,
+      "width": 220,
+      "height": 60,
+      "backgroundColor": "#ffe3e3",
+      "strokeColor": "#e03131",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "group5_text",
+      "type": "text",
+      "x": 320,
+      "y": 190,
+      "text": "5. Quản lý Hội đồng & Đánh giá",
+      "fontSize": 14,
+      "fontFamily": 2
+    },
+    {
+      "id": "group6",
+      "type": "rectangle",
+      "x": 550,
+      "y": 170,
+      "width": 220,
+      "height": 60,
+      "backgroundColor": "#f8f9fa",
+      "strokeColor": "#495057",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "group6_text",
+      "type": "text",
+      "x": 590,
+      "y": 190,
+      "text": "6. Tạo tài liệu tự động",
+      "fontSize": 14,
+      "fontFamily": 2
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff"
+  }
+}

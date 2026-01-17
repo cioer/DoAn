@@ -1,0 +1,251 @@
+graph TB
+    %% Use Case Diagram - 45 Use Cases
+    %% Hệ thống qlNCKH
+
+    %% ========================================
+    %% ACTORS
+    %% ========================================
+
+    GV["👨‍🏫 GIẢNG VIÊN<br/>(PI / PROJECT_OWNER)"]
+    QLK["👔 QUẢN LÝ KHOA"]
+    TKK["📋 THƯ KÝ KHOA"]
+    KHCN["🏢 PHÒNG KHCN"]
+    TKHD["📝 THƯ KÝ HỘI ĐỒNG"]
+    TV["👨‍⚖️ THÀNH VIÊN HỘI ĐỒNG"]
+    BGH["🎓 BAN GIÁM HIỆU"]
+    ADMIN["⚙️ ADMIN"]
+
+    %% ========================================
+    %% EPIC 1: User Management
+    %% ========================================
+
+    subgraph Epic1["EPIC 1: USER MANAGEMENT"]
+        UC1["UC-1.1: Đăng nhập hệ thống"]
+        UC2["UC-1.2: Quản lý thông tin cá nhân"]
+        UC3["UC-1.3: Đổi mật khẩu"]
+        UC4["UC-1.4: ADMIN quản lý người dùng"]
+        UC5["UC-1.5: ADMIN phân quyền"]
+    end
+
+    %% ========================================
+    %% EPIC 2: Proposal Management (PI)
+    %% ========================================
+
+    subgraph Epic2["EPIC 2: PROPOSAL MANAGEMENT"]
+        UC6["UC-2.1: Tạo đề tài mới"]
+        UC7["UC-2.2: Chọn biểu mẫu template"]
+        UC8["UC-2.3: Nhập thông tin đề tài"]
+        UC9["UC-2.4: Upload tài liệu đính kèm"]
+        UC10["UC-2.5: Lưu nháp đề tài"]
+        UC11["UC-2.6: Nộp đề tài lên Khoa"]
+        UC12["UC-2.7: Xem danh sách đề tài của mình"]
+        UC13["UC-2.8: Xuất đề tài ra PDF"]
+    end
+
+    %% ========================================
+    %% EPIC 3: Workflow & State Transitions
+    %% ========================================
+
+    subgraph Epic3["EPIC 3: WORKFLOW"]
+        UC14["UC-3.1: Khoa duyệt đề tài"]
+        UC15["UC-3.2: Khoa yêu cầu chỉnh sửa"]
+        UC16["UC-3.3: PI nộp lại sau khi sửa"]
+        UC17["UC-3.4: KHCN phân công hội đồng"]
+        UC18["UC-3.5: Hội đồng xét duyệt"]
+        UC19["UC-3.6: BGH phê duyệt cuối cùng"]
+    end
+
+    %% ========================================
+    %% EPIC 4: SLA & Business Calendar
+    %% ========================================
+
+    subgraph Epic4["EPIC 4: SLA MANAGEMENT"]
+        UC20["UC-4.1: Tính toán SLA deadline"]
+        UC21["UC-4.2: Cảnh báo sắp quá hạn"]
+        UC22["UC-4.3: ADMIN quản lý ngày nghỉ"]
+        UC23["UC-4.4: Pause SLA khi YC sửa"]
+    end
+
+    %% ========================================
+    %% EPIC 5: Council & Evaluation
+    %% ========================================
+
+    subgraph Epic5["EPIC 5: COUNCIL & EVALUATION"]
+        UC24["UC-5.1: KHCN tạo hội đồng"]
+        UC25["UC-5.2: Phân công thành viên HĐ"]
+        UC26["UC-5.3: Thư ký tạo phiếu đánh giá"]
+        UC27["UC-5.4: Thành viên nộp đánh giá"]
+        UC28["UC-5.5: PI xem kết quả đánh giá"]
+    end
+
+    %% ========================================
+    %% EPIC 6: Execution Phase
+    %% ========================================
+
+    subgraph Epic6["EPIC 6: EXECUTION PHASE"]
+        UC29["UC-6.1: PI bắt đầu thực hiện"]
+        UC30["UC-6.2: PI nộp hồ sơ nghiệm thu"]
+        UC31["UC-6.3: Khoa nghiệm thu"]
+        UC32["UC-6.4: Trường nghiệm thu"]
+        UC33["UC-6.5: Hoàn tất bàn giao"]
+    end
+
+    %% ========================================
+    %% EPIC 7: Document Generation
+    %% ========================================
+
+    subgraph Epic7["EPIC 7: DOCUMENT GENERATION"]
+        UC34["UC-7.1: ADMIN upload template DOCX"]
+        UC35["UC-7.2: ADMIN kích hoạt template"]
+        UC36["UC-7.3: PI tạo biểu mẫu tự động"]
+        UC37["UC-7.4: Hệ thống sinh DOCX"]
+        UC38["UC-7.5: Chuyển đổi sang PDF"]
+        UC39["UC-7.6: Xác thực tính toàn vẹn"]
+    end
+
+    %% ========================================
+    %% EPIC 8: Bulk Operations & Reporting
+    %% ========================================
+
+    subgraph Epic8["EPIC 8: BULK OPERATIONS"]
+        UC40["UC-8.1: KHCN gán holder hàng loạt"]
+        UC41["UC-8.2: KHCN nhắc nhở hàng loạt"]
+        UC42["UC-8.3: KHCN xuất báo cáo Excel"]
+        UC43["UC-8.4: KHCN xem dashboard tổng quan"]
+    end
+
+    %% ========================================
+    %% EPIC 9: Exception Handling
+    %% ========================================
+
+    subgraph Epic9["EPIC 9: EXCEPTIONS"]
+        UC44["UC-9.1: PI hủy/rút đề tài"]
+        UC45["UC-9.2: KHCN/BGH từ chối đề tài"]
+        UC46["UC-9.3: KHCN tạm dừng đề tài"]
+        UC47["UC-9.4: KHCN tiếp tục đề tài"]
+    end
+
+    %% ========================================
+    %% EPIC 10: Data Import & Backup
+    %% ========================================
+
+    subgraph Epic10["EPIC 10: DATA MANAGEMENT"]
+        UC48["UC-10.1: ADMIN import Excel"]
+        UC49["UC-10.2: ADMIN backup database"]
+        UC50["UC-10.3: ADMIN restore database"]
+        UC51["UC-10.4: ADMIN xác minh trạng thái"]
+    end
+
+    %% ========================================
+    %% ACTOR-USE CASE RELATIONSHIPS
+    %% ========================================
+
+    %% GIẢNG VIÊN
+    GV --> UC1
+    GV --> UC2
+    GV --> UC3
+    GV --> UC6
+    GV --> UC7
+    GV --> UC8
+    GV --> UC9
+    GV --> UC10
+    GV --> UC11
+    GV --> UC12
+    GV --> UC13
+    GV --> UC16
+    GV --> UC28
+    GV --> UC29
+    GV --> UC30
+    GV --> UC36
+    GV --> UC44
+
+    %% QUẢN LÝ KHOA
+    QLK --> UC1
+    QLK --> UC2
+    QLK --> UC3
+    QLK --> UC14
+    QLK --> UC15
+    QLK --> UC31
+
+    %% THƯ KÝ KHOA
+    TKK --> UC1
+    TKK --> UC2
+    TKK --> UC3
+    TKK --> UC14
+    TKK --> UC15
+
+    %% PHÒNG KHCN
+    KHCN --> UC1
+    KHCN --> UC2
+    KHCN --> UC3
+    KHCN --> UC17
+    KHCN --> UC24
+    KHCN --> UC25
+    KHCN --> UC32
+    KHCN --> UC40
+    KHCN --> UC41
+    KHCN --> UC42
+    KHCN --> UC43
+    KHCN --> UC45
+    KHCN --> UC46
+    KHCN --> UC47
+
+    %% THƯ KÝ HỘI ĐỒNG
+    TKHD --> UC1
+    TKHD --> UC2
+    TKHD --> UC3
+    TKHD --> UC18
+    TKHD --> UC26
+
+    %% THÀNH VIÊN HỘI ĐỒNG
+    TV --> UC1
+    TV --> UC2
+    TV --> UC3
+    TV --> UC18
+    TV --> UC27
+
+    %% BAN GIÁM HIỆU
+    BGH --> UC1
+    BGH --> UC2
+    BGH --> UC3
+    BGH --> UC19
+    BGH --> UC45
+
+    %% ADMIN
+    ADMIN --> UC1
+    ADMIN --> UC2
+    ADMIN --> UC3
+    ADMIN --> UC4
+    ADMIN --> UC5
+    ADMIN --> UC22
+    ADMIN --> UC34
+    ADMIN --> UC35
+    ADMIN --> UC48
+    ADMIN --> UC49
+    ADMIN --> UC50
+    ADMIN --> UC51
+
+    %% System interactions
+    UC11 -.->|triggers| UC14
+    UC16 -.->|triggers| UC14
+    UC14 -.->|approved| UC17
+    UC17 -.->|assigned| UC18
+    UC18 -.->|approved| UC19
+    UC19 -.->|approved| UC29
+    UC30 -.->|triggers| UC31
+    UC31 -.->|approved| UC32
+    UC32 -.->|approved| UC33
+
+    UC36 -.->|uses| UC37
+    UC37 -.->|generates| UC38
+    UC38 -.->|uses| UC39
+
+    %% Styling
+    classDef actorStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:3px,color:#000
+    classDef ucStyle fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#000
+
+    class GV,QLK,TKK,KHCN,TKHD,TV,BGH,ADMIN actorStyle
+    class UC1,UC2,UC3,UC4,UC5,UC6,UC7,UC8,UC9,UC10,UC11,UC12,UC13,UC14,UC15 ucStyle
+    class UC16,UC17,UC18,UC19,UC20,UC21,UC22,UC23,UC24,UC25,UC26,UC27,UC28,UC29,UC30 ucStyle
+    class UC31,UC32,UC33,UC34,UC35,UC36,UC37,UC38,UC39,UC40,UC41,UC42,UC43,UC44,UC45 ucStyle
+    class UC46,UC47,UC48,UC49,UC50,UC51 ucStyle

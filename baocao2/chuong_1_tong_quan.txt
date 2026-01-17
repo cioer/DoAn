@@ -1,0 +1,76 @@
+CHƯƠNG 1: TỔNG QUAN VỀ ĐỀ TÀI
+1.1. LÝ DO CHỌN ĐỀ TÀI
+1.1.1. Bối cảnh thực tế
+Nghiên cứu khoa học là một hoạt động quan trọng tại các trường đại học. Theo quy định của Bộ Giáo dục và Đào tạo, các trường cần quản lý chặt chẽ toàn bộ quy trình từ khi tiếp nhận đề xuất, thẩm định, phê duyệt, theo dõi thực hiện cho đến khi nghiệm thu và bàn giao kết quả.
+Tuy nhiên, qua quá trình tìm hiểu thực tế, em nhận thấy tại nhiều trường đại học, việc quản lý nghiên cứu khoa học vẫn đang được thực hiện thủ công. Các phương thức truyền thống như hồ sơ giấy, email và bảng tính Excel vẫn là công cụ chính. Điều này dẫn đến nhiều khó khăn trong quá trình vận hành.
+1.1.2. Phân tích vấn đề
+Qua khảo sát và phân tích quy trình quản lý đề tài nghiên cứu khoa học hiện tại, em đã xác định được các vấn đề chính sau:
+- Thiếu minh bạch trong theo dõi tiến độ: Giảng viên chủ nhiệm đề tài không thể biết được hồ sơ của mình đang ở giai đoạn nào, ai đang là người xem xét. Hệ thống cũng thiếu cơ chế thông báo tự động khi trạng thái hồ sơ thay đổi.
+- Khó khăn trong quản lý thời hạn xử lý: Ban Chủ nhiệm Khoa và Phòng Khoa học Công nghệ không có công cụ theo dõi thời hạn xử lý theo quy định. Tình trạng quá hạn thường xuyên xảy ra do thiếu cảnh báo sớm.
+- Thiếu hệ thống lưu vết và kiểm toán: Không có bản ghi đầy đủ về lịch sử các quyết định phê duyệt hoặc từ chối. Việc truy vết lại ai đã thực hiện hành động gì, tại thời điểm nào gặp nhiều khó khăn.
+- Phức tạp trong phân quyền và kiểm soát truy cập: Quy trình nghiên cứu khoa học có 5 giai đoạn với hơn 15 trạng thái khác nhau. Mỗi vai trò có quyền hạn khác nhau tùy theo trạng thái của đề tài. Hệ thống thủ công không đảm bảo được nguyên tắc phân quyền này.
+- Khó khăn trong tạo và quản lý biểu mẫu: Có 18 biểu mẫu cần điền thủ công, dễ sai sót. Định dạng không nhất quán giữa các hồ sơ. Việc xuất ra file PDF để lưu trữ và ký cũng tốn nhiều thời gian.
+1.1.3. Tính cấp thiết
+Trong bối cảnh chuyển đổi số và yêu cầu nâng cao hiệu quả quản trị tại các trường đại học, em nhận thấy việc xây dựng một hệ thống quản lý nghiên cứu khoa học tự động hóa, minh bạch và tuân thủ quy định là rất cần thiết. Hệ thống này không chỉ giảm thiểu công việc thủ công mà còn đảm bảo tuân thủ các quy định về thời hạn xử lý.
+1.2. MỤC TIÊU NGHIÊN CỨU
+1.2.1. Mục tiêu tổng quát
+Xây dựng hệ thống quản lý nghiên cứu khoa học cho phép số hóa toàn bộ quy trình từ giai đoạn nộp hồ sơ, thẩm định, phê duyệt, thực hiện, nghiệm thu đến bàn giao kết quả. Mục đích là nâng cao hiệu quả quản lý, đảm bảo minh bạch và tuân thủ các quy định về thời hạn xử lý.
+1.2.2. Mục tiêu cụ thể
+Để đạt được mục tiêu tổng quát, em đã đặt ra các mục tiêu cụ thể sau:
+- Số hóa quy trình workflow: Xây dựng hệ thống với 15 trạng thái chuẩn cho 5 giai đoạn của đề tài. Tự động hóa quá trình chuyển đổi trạng thái và phân công người xử lý theo quy tắc nghiệp vụ.
+- Xây dựng hệ thống quản lý thời hạn thông minh: Tính toán thời hạn theo giờ làm việc từ 8 giờ sáng đến 5 giờ chiều, từ thứ Hai đến thứ Sáu. Hệ thống sẽ cảnh báo tự động khi sắp hết hạn và khi quá hạn.
+- Xây dựng hệ thống phân quyền theo vai trò: Phân quyền theo mô hình ba chiều gồm vai trò, trạng thái và hành động. Đảm bảo mỗi người dùng chỉ thực hiện được các hành động được phép tại trạng thái hiện tại.
+- Xây dựng cơ chế ghi log đầy đủ: Ghi lại mọi thay đổi trạng thái vào bảng workflow_logs. Lưu trữ thông tin người thực hiện, thời gian, trạng thái cũ và mới, lý do thực hiện.
+- Phát triển dịch vụ tạo tài liệu tự động: Xây dựng một dịch vụ độc lập cho việc tạo 18 loại biểu mẫu từ các mẫu có sẵn. Tự động điền dữ liệu vào mẫu Word và chuyển đổi sang PDF.
+- Phát triển giao diện người dùng thân thiện: Xây dựng dashboard hiển thị các chỉ số quan trọng. Tạo queue công việc để mỗi vai trò thấy được các đề tài đang chờ xử lý.
+1.3. ĐỐI TƯỢNG VÀ PHẠM VI NGHIÊN CỨU
+1.3.1. Đối tượng nghiên cứu
+Đối tượng nghiên cứu của đồ án là quy trình quản lý đề tài nghiên cứu khoa học tại các trường đại học, bao gồm:
+- Quy trình nghiệp vụ: Quy trình 5 giai đoạn từ đề xuất đến bàn giao. Hệ thống trạng thái với 15 trạng thái và các quy tắc chuyển đổi.
+- Các vai trò và quyền hạn: Giảng viên, Ban Chủ nhiệm Khoa, Phòng Khoa học Công nghệ, Hội đồng thẩm định, Ban Giám hiệu.
+- Yêu cầu kỹ thuật: Mô hình State Machine để quản lý quy trình, phân quyền theo vai trò, theo dõi thời hạn xử lý, ghi log kiểm toán, hệ thống tạo tài liệu tự động.
+1.3.2. Phạm vi nghiên cứu
+Phạm vi của đồ án được giới hạn như sau:
+Các chức năng trong phạm vi:
+- Quản lý đề tài cấp trường
+- 5 giai đoạn workflow từ đề xuất đến bàn giao
+- Quản lý hồ sơ và tài liệu đính kèm
+- Timeline hiển thị lịch sử workflow
+- Dashboard theo dõi và queue công việc
+- Dịch vụ tạo biểu mẫu tự động với 18 loại biểu mẫu
+- Xác thực người dùng cơ bản
+- Triển khai bằng Docker Compose
+Các chức năng ngoài phạm vi:
+- Đề tài cấp Bộ, cấp Nhà nước
+- Quản lý tài chính và giải ngân chi tiết
+- Tích hợp với hệ thống kế toán
+- Xác thực bằng LDAP hoặc SAML
+- Chữ ký số thực
+- Ứng dụng di động
+1.4. Ý NGHĨA CỦA ĐỀ TÀI
+1.4.1. Ý nghĩa khoa học
+Về mặt lý thuyết, đồ án áp dụng mô hình State Machine vào bài toán workflow phức tạp trong lĩnh vực quản lý giáo dục. Em cũng nghiên cứu mô hình phân quyền ba chiều gồm vai trò, trạng thái và hành động cho hệ thống phân quyền động. Ngoài ra, đồ án đề xuất giải pháp tính toán thời hạn dựa trên giờ làm việc và múi giờ.
+Về mặt công nghệ, đồ án sử dụng kiến trúc Monorepo để chia sẻ mã nguồn giữa các ứng dụng. Prisma ORM được sử dụng để tự động chuyển đổi giữa định dạng snake_case và camelCase. Đồ án cũng kết hợp NestJS và FastAPI trong một hệ thống để tận dụng điểm mạnh của từng ngôn ngữ.
+1.4.2. Ý nghĩa thực tiễn
+Đối với giảng viên chủ nhiệm đề tài:
+- Nộp hồ sơ trực tuyến 24/7, không phụ thuộc giờ hành chính
+- Theo dõi tiến độ theo thời gian thực qua timeline và thông báo
+- Biết rõ đề tài đang ở trạng thái nào, ai đang xử lý
+- Tải xuống biểu mẫu đã điền sẵn dữ liệu để in và ký
+Đối với Ban Chủ nhiệm Khoa và Phòng Khoa học Công nghệ:
+- Dashboard theo dõi thời hạn với cảnh báo sớm
+- Queue công việc ưu tiên các đề tài sắp hết hạn
+- Giảm thiểu rủi ro vi phạm thời hạn xử lý
+- Biểu mẫu tự động đảm bảo định dạng chuẩn
+Đối với Ban Giám hiệu:
+- Dashboard tổng quan về số lượng đề tài và trạng thái
+- Báo cáo thống kê tự động
+- Ghi log đầy đủ cho kiểm toán
+- Minh bạch hóa quy trình
+1.5. CẤU TRÚC ĐỒ ÁN
+Đồ án được tổ chức thành 5 chương:
+Chương 1 - Tổng quan về đề tài: Trình bày lý do chọn đề tài, mục tiêu nghiên cứu, đối tượng và phạm vi nghiên cứu, ý nghĩa khoa học và thực tiễn.
+Chương 2 - Cơ sở lý thuyết và công nghệ: Giới thiệu các khái niệm nền tảng về State Machine, phân quyền theo vai trò, kiến trúc Microservices, và các công nghệ sử dụng trong đồ án.
+Chương 3 - Phân tích và thiết kế hệ thống: Phân tích yêu cầu nghiệp vụ, thiết kế kiến trúc hệ thống, thiết kế cơ sở dữ liệu, thiết kế giao diện người dùng.
+Chương 4 - Cài đặt và triển khai: Trình bày chi tiết quá trình cài đặt các module chính, triển khai dịch vụ tạo tài liệu, các kỹ thuật lập trình được sử dụng.
+Chương 5 - Kết quả và đánh giá: Đánh giá kết quả đạt được, kiểm thử hệ thống, phân tích ưu điểm và hạn chế, đề xuất hướng phát triển.

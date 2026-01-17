@@ -1,0 +1,336 @@
+TÀI LIỆU THAM KHẢO
+===================
+
+I. SÁCH VÀ GIÁO TRÌNH
+
+[1] Fowler, M. (2018). *Patterns of Enterprise Application Architecture*. Addison-Wesley Professional.
+
+[2] Richardson, C. (2018). *Microservices Patterns: With examples in Java*. Manning Publications.
+
+[3] Newman, S. (2021). *Building Microservices: Designing Fine-Grained Systems* (2nd Edition). O'Reilly Media.
+
+[4] Martin, R. C. (2017). *Clean Architecture: A Craftsman's Guide to Software Structure and Design*. Prentice Hall.
+
+[5] Evans, E. (2003). *Domain-Driven Design: Tackling Complexity in the Heart of Software*. Addison-Wesley Professional.
+
+[6] Gamma, E., Helm, R., Johnson, R., & Vlissides, J. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley Professional.
+
+[7] Pressman, R. S. & Maxim, B. R. (2019). *Software Engineering: A Practitioner's Approach* (9th Edition). McGraw-Hill Education.
+
+[8] Sommerville, I. (2015). *Software Engineering* (10th Edition). Pearson.
+
+[9] Walls, C. (2022). *Spring in Action* (6th Edition). Manning Publications.
+
+[10] Lerner, R. M. (2021). *TypeScript Quickly*. Manning Publications.
+
+
+II. TÀI LIỆU CÔNG NGHỆ BACKEND
+
+[11] NestJS Documentation (2025). *NestJS - A progressive Node.js framework*.
+     URL: https://docs.nestjs.com/ (Truy cập: 15/01/2025)
+
+[12] Prisma Documentation (2025). *Prisma - Next-generation Node.js and TypeScript ORM*.
+     URL: https://www.prisma.io/docs (Truy cập: 15/01/2025)
+
+[13] PostgreSQL Documentation (2024). *PostgreSQL 15 Official Documentation*.
+     URL: https://www.postgresql.org/docs/15/ (Truy cập: 10/01/2025)
+
+[14] Redis Documentation (2024). *Redis 7.x Documentation*.
+     URL: https://redis.io/docs/ (Truy cập: 10/01/2025)
+
+[15] Node.js Documentation (2024). *Node.js v20.x API Documentation*.
+     URL: https://nodejs.org/docs/latest-v20.x/api/ (Truy cập: 12/01/2025)
+
+[16] TypeScript Documentation (2024). *TypeScript Handbook*.
+     URL: https://www.typescriptlang.org/docs/ (Truy cập: 12/01/2025)
+
+[17] JWT.io (2024). *JSON Web Tokens - Introduction*.
+     URL: https://jwt.io/introduction (Truy cập: 08/01/2025)
+
+[18] Express.js Documentation (2024). *Express - Node.js web application framework*.
+     URL: https://expressjs.com/ (Truy cập: 08/01/2025)
+
+
+III. TÀI LIỆU CÔNG NGHỆ FRONTEND
+
+[19] React Documentation (2024). *React - A JavaScript library for building user interfaces*.
+     URL: https://react.dev/ (Truy cập: 15/01/2025)
+
+[20] TanStack Query Documentation (2024). *TanStack Query (React Query) Documentation*.
+     URL: https://tanstack.com/query/latest (Truy cập: 14/01/2025)
+
+[21] React Router Documentation (2024). *React Router v6 Documentation*.
+     URL: https://reactrouter.com/ (Truy cập: 14/01/2025)
+
+[22] Tailwind CSS Documentation (2024). *Tailwind CSS - A utility-first CSS framework*.
+     URL: https://tailwindcss.com/docs (Truy cập: 13/01/2025)
+
+[23] Vite Documentation (2024). *Vite - Next Generation Frontend Tooling*.
+     URL: https://vitejs.dev/ (Truy cập: 13/01/2025)
+
+[24] Zustand Documentation (2024). *Zustand - Bear necessities for state management*.
+     URL: https://docs.pmnd.rs/zustand/getting-started/introduction (Truy cập: 12/01/2025)
+
+[25] Axios Documentation (2024). *Axios - Promise based HTTP client*.
+     URL: https://axios-http.com/docs/intro (Truy cập: 12/01/2025)
+
+
+IV. TÀI LIỆU VỀ PYTHON VÀ FORM ENGINE
+
+[26] Python Documentation (2024). *Python 3.10 Documentation*.
+     URL: https://docs.python.org/3.10/ (Truy cập: 10/01/2025)
+
+[27] FastAPI Documentation (2024). *FastAPI - Modern web framework for building APIs*.
+     URL: https://fastapi.tiangolo.com/ (Truy cập: 10/01/2025)
+
+[28] python-docx Documentation (2024). *python-docx - Create and update Microsoft Word files*.
+     URL: https://python-docx.readthedocs.io/ (Truy cập: 09/01/2025)
+
+[29] LibreOffice Documentation (2024). *LibreOffice 7 Documentation*.
+     URL: https://documentation.libreoffice.org/ (Truy cập: 09/01/2025)
+
+[30] Uvicorn Documentation (2024). *Uvicorn - The lightning-fast ASGI server*.
+     URL: https://www.uvicorn.org/ (Truy cập: 09/01/2025)
+
+[31] Pydantic Documentation (2024). *Pydantic - Data validation using Python type annotations*.
+     URL: https://docs.pydantic.dev/ (Truy cập: 08/01/2025)
+
+
+V. TÀI LIỆU VỀ TESTING VÀ CHẤT LƯỢNG
+
+[32] Vitest Documentation (2024). *Vitest - A blazing fast unit test framework*.
+     URL: https://vitest.dev/ (Truy cập: 11/01/2025)
+
+[33] Playwright Documentation (2024). *Playwright - Fast and reliable end-to-end testing*.
+     URL: https://playwright.dev/ (Truy cập: 11/01/2025)
+
+[34] Jest Documentation (2024). *Jest - Delightful JavaScript Testing*.
+     URL: https://jestjs.io/ (Truy cập: 10/01/2025)
+
+[35] Testing Library Documentation (2024). *React Testing Library*.
+     URL: https://testing-library.com/react (Truy cập: 10/01/2025)
+
+[36] ESLint Documentation (2024). *ESLint - Pluggable JavaScript linter*.
+     URL: https://eslint.org/docs/latest/ (Truy cập: 09/01/2025)
+
+[37] Prettier Documentation (2024). *Prettier - Opinionated Code Formatter*.
+     URL: https://prettier.io/docs/en/ (Truy cập: 09/01/2025)
+
+
+VI. TÀI LIỆU VỀ DEVOPS VÀ TRIỂN KHAI
+
+[38] Docker Documentation (2024). *Docker - Get Started with Docker*.
+     URL: https://docs.docker.com/get-started/ (Truy cập: 14/01/2025)
+
+[39] Docker Compose Documentation (2024). *Docker Compose - Define and run multi-container applications*.
+     URL: https://docs.docker.com/compose/ (Truy cập: 14/01/2025)
+
+[40] GitHub Actions Documentation (2024). *GitHub Actions - Automate your workflow*.
+     URL: https://docs.github.com/en/actions (Truy cập: 13/01/2025)
+
+[41] Nginx Documentation (2024). *Nginx - HTTP and reverse proxy server*.
+     URL: https://nginx.org/en/docs/ (Truy cập: 12/01/2025)
+
+[42] Prometheus Documentation (2024). *Prometheus - Monitoring system & time series database*.
+     URL: https://prometheus.io/docs/introduction/overview/ (Truy cập: 11/01/2025)
+
+[43] Winston Documentation (2024). *Winston - A logger for just about everything*.
+     URL: https://github.com/winstonjs/winston (Truy cập: 11/01/2025)
+
+
+VII. TÀI LIỆU VỀ KIẾN TRÚC VÀ DESIGN PATTERNS
+
+[44] Fowler, M. (2014). *Microservices - a definition of this new architectural term*.
+     URL: https://martinfowler.com/articles/microservices.html (Truy cập: 05/01/2025)
+
+[45] Fowler, M. (2002). *Patterns of Enterprise Application Architecture - Repository Pattern*.
+     URL: https://martinfowler.com/eaaCatalog/repository.html (Truy cập: 05/01/2025)
+
+[46] Microsoft (2024). *Cloud Design Patterns*.
+     URL: https://learn.microsoft.com/en-us/azure/architecture/patterns/ (Truy cập: 06/01/2025)
+
+[47] Refactoring.Guru (2024). *Design Patterns*.
+     URL: https://refactoring.guru/design-patterns (Truy cập: 06/01/2025)
+
+[48] The Twelve-Factor App (2017). *The Twelve-Factor App Methodology*.
+     URL: https://12factor.net/ (Truy cập: 07/01/2025)
+
+[49] REST API Tutorial (2024). *RESTful API Design - Best Practices*.
+     URL: https://restfulapi.net/ (Truy cập: 07/01/2025)
+
+
+VIII. TÀI LIỆU VỀ BẢO MẬT
+
+[50] OWASP Foundation (2024). *OWASP Top 10 - 2021*.
+     URL: https://owasp.org/Top10/ (Truy cập: 08/01/2025)
+
+[51] OWASP Foundation (2024). *OWASP API Security Top 10*.
+     URL: https://owasp.org/www-project-api-security/ (Truy cập: 08/01/2025)
+
+[52] NIST (2023). *Digital Identity Guidelines - NIST Special Publication 800-63B*.
+     URL: https://pages.nist.gov/800-63-3/sp800-63b.html (Truy cập: 07/01/2025)
+
+[53] Auth0 Documentation (2024). *Authentication and Authorization Best Practices*.
+     URL: https://auth0.com/docs/secure (Truy cập: 07/01/2025)
+
+[54] bcrypt Documentation (2024). *bcrypt - A library to help you hash passwords*.
+     URL: https://github.com/kelektiv/node.bcrypt.js (Truy cập: 06/01/2025)
+
+
+IX. TÀI LIỆU VỀ STATE MACHINE VÀ WORKFLOW
+
+[55] Harel, D. (1987). "Statecharts: A visual formalism for complex systems".
+     *Science of Computer Programming*, 8(3), 231-274.
+
+[56] XState Documentation (2024). *XState - JavaScript state machines and statecharts*.
+     URL: https://xstate.js.org/docs/ (Truy cập: 05/01/2025)
+
+[57] Workflow Patterns Initiative (2024). *Control-Flow Patterns*.
+     URL: http://www.workflowpatterns.com/ (Truy cập: 05/01/2025)
+
+[58] Business Process Model and Notation (BPMN) (2024). *BPMN 2.0 Specification*.
+     URL: https://www.omg.org/spec/BPMN/ (Truy cập: 04/01/2025)
+
+
+X. TÀI LIỆU VỀ QUẢN LÝ DỰ ÁN VÀ AGILE
+
+[59] Schwaber, K. & Sutherland, J. (2020). *The Scrum Guide - The Definitive Guide to Scrum*.
+     URL: https://scrumguides.org/ (Truy cập: 03/01/2025)
+
+[60] Agile Alliance (2024). *Agile 101 - Introduction to Agile*.
+     URL: https://www.agilealliance.org/agile101/ (Truy cập: 03/01/2025)
+
+[61] Atlassian (2024). *Agile project management with Scrum*.
+     URL: https://www.atlassian.com/agile/scrum (Truy cập: 04/01/2025)
+
+
+XI. TÀI LIỆU VỀ DATABASE VÀ ORM
+
+[62] Kleppmann, M. (2017). *Designing Data-Intensive Applications*. O'Reilly Media.
+
+[63] PostgreSQL Tutorial (2024). *PostgreSQL Database Administration and Development*.
+     URL: https://www.postgresqltutorial.com/ (Truy cập: 10/01/2025)
+
+[64] Prisma Blog (2024). *Prisma Data Platform - Best Practices*.
+     URL: https://www.prisma.io/blog (Truy cập: 09/01/2025)
+
+[65] Database Indexing Explained (2024). *Use The Index, Luke - A guide to database performance*.
+     URL: https://use-the-index-luke.com/ (Truy cập: 09/01/2025)
+
+
+XII. TÀI LIỆU VỀ UI/UX DESIGN
+
+[66] Nielsen, J. & Molich, R. (1990). "Heuristic evaluation of user interfaces".
+     *Proceedings of CHI '90*, pp. 249-256.
+
+[67] Norman, D. (2013). *The Design of Everyday Things: Revised and Expanded Edition*.
+     Basic Books.
+
+[68] Krug, S. (2014). *Don't Make Me Think, Revisited: A Common Sense Approach to Web Usability*
+     (3rd Edition). New Riders.
+
+[69] Material Design (2024). *Material Design Guidelines*.
+     URL: https://m3.material.io/ (Truy cập: 06/01/2025)
+
+[70] Atomic Design Methodology (2024). *Atomic Design by Brad Frost*.
+     URL: https://atomicdesign.bradfrost.com/ (Truy cập: 06/01/2025)
+
+
+XIII. TÀI LIỆU VỀ MONOREPO VÀ BUILD TOOLS
+
+[71] Nx Documentation (2024). *Nx - Smart Monorepos · Fast CI*.
+     URL: https://nx.dev/ (Truy cập: 12/01/2025)
+
+[72] Lerna Documentation (2024). *Lerna - A tool for managing JavaScript projects*.
+     URL: https://lerna.js.org/ (Truy cập: 11/01/2025)
+
+[73] Turborepo Documentation (2024). *Turborepo - The build system that makes ship happen*.
+     URL: https://turbo.build/repo (Truy cập: 11/01/2025)
+
+[74] Webpack Documentation (2024). *Webpack - Bundle your assets*.
+     URL: https://webpack.js.org/ (Truy cập: 10/01/2025)
+
+
+XIV. BÀI BÁO VÀ NGHIÊN CỨU KHOA HỌC
+
+[75] Richardson, C. & Smith, F. (2016). "Microservices: From Design to Deployment".
+     *NGINX White Paper*.
+
+[76] Newman, S. (2019). "Monolith to Microservices: Evolutionary Patterns to Transform Your Monolith".
+     *O'Reilly Media*.
+
+[77] Taibi, D., Lenarduzzi, V., & Pahl, C. (2018). "Architectural Patterns for Microservices: A Systematic Mapping Study".
+     *Proceedings of CLOSER 2018*, pp. 221-232.
+
+[78] Di Francesco, P., Malavolta, I., & Lago, P. (2017). "Research on Architecting Microservices: Trends, Focus, and Potential for Industrial Adoption".
+     *2017 IEEE International Conference on Software Architecture (ICSA)*, pp. 21-30.
+
+[79] Balalaie, A., Heydarnoori, A., & Jamshidi, P. (2016). "Microservices Architecture Enables DevOps: Migration to a Cloud-Native Architecture".
+     *IEEE Software*, 33(3), 42-52.
+
+[80] Jamshidi, P., Pahl, C., Mendonça, N. C., Lewis, J., & Tilkov, S. (2018). "Microservices: The Journey So Far and Challenges Ahead".
+     *IEEE Software*, 35(3), 24-35.
+
+
+XV. TÀI LIỆU VỀ VERSION CONTROL VÀ COLLABORATION
+
+[81] Git Documentation (2024). *Git - Distributed version control system*.
+     URL: https://git-scm.com/doc (Truy cập: 15/01/2025)
+
+[82] GitHub Documentation (2024). *GitHub Docs - Get started with GitHub*.
+     URL: https://docs.github.com/ (Truy cập: 15/01/2025)
+
+[83] Conventional Commits (2024). *Conventional Commits 1.0.0 Specification*.
+     URL: https://www.conventionalcommits.org/ (Truy cập: 14/01/2025)
+
+
+XVI. CÁC TIÊU CHUẨN VÀ QUY ĐỊNH
+
+[84] ISO/IEC 25010:2011. *Systems and software engineering - Systems and software Quality Requirements and Evaluation (SQuaRE) - System and software quality models*.
+
+[85] ISO/IEC/IEEE 29148:2018. *Systems and software engineering - Life cycle processes - Requirements engineering*.
+
+[86] RFC 7519 (2015). *JSON Web Token (JWT)*.
+     URL: https://datatracker.ietf.org/doc/html/rfc7519 (Truy cập: 08/01/2025)
+
+[87] RFC 6749 (2012). *The OAuth 2.0 Authorization Framework*.
+     URL: https://datatracker.ietf.org/doc/html/rfc6749 (Truy cập: 08/01/2025)
+
+[88] OpenAPI Specification (2024). *OpenAPI Specification v3.1.0*.
+     URL: https://spec.openapis.org/oas/v3.1.0 (Truy cập: 07/01/2025)
+
+
+XVII. TÀI LIỆU KHÁC
+
+[89] Stack Overflow (2024). *Developer Survey 2024*.
+     URL: https://survey.stackoverflow.co/2024/ (Truy cập: 02/01/2025)
+
+[90] State of JavaScript (2024). *The State of JavaScript 2024*.
+     URL: https://stateofjs.com/ (Truy cập: 02/01/2025)
+
+[91] ThoughtWorks (2024). *Technology Radar - Volume 31*.
+     URL: https://www.thoughtworks.com/radar (Truy cập: 03/01/2025)
+
+[92] Martin Fowler's Blog (2024). *Martin Fowler - Software Development Insights*.
+     URL: https://martinfowler.com/ (Truy cập: 04/01/2025)
+
+[93] Google Cloud Architecture Center (2024). *Best practices for enterprise organizations*.
+     URL: https://cloud.google.com/architecture (Truy cập: 05/01/2025)
+
+[94] AWS Well-Architected Framework (2024). *AWS Well-Architected Framework*.
+     URL: https://aws.amazon.com/architecture/well-architected/ (Truy cập: 05/01/2025)
+
+[95] Microsoft Learn (2024). *Azure Architecture Center*.
+     URL: https://learn.microsoft.com/en-us/azure/architecture/ (Truy cập: 06/01/2025)
+
+
+---
+
+**Ghi chú:**
+- Tổng cộng 95 tài liệu tham khảo
+- Bao gồm: 10 sách/giáo trình, 85 tài liệu kỹ thuật/nghiên cứu
+- Các URL được truy cập trong khoảng thời gian từ tháng 12/2024 đến tháng 01/2025
+- Tài liệu được sắp xếp theo chủ đề để dễ tra cứu
+- Tuân thủ chuẩn trích dẫn IEEE cho báo cáo kỹ thuật
+
+**Ngày cập nhật**: 17 tháng 01 năm 2025

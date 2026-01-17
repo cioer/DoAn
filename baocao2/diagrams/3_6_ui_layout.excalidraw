@@ -1,0 +1,148 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "thesis-diagrams",
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 300,
+      "y": 20,
+      "text": "Layout giao diện - Sidebar + Content",
+      "fontSize": 28,
+      "fontFamily": 2
+    },
+    {
+      "id": "browser_frame",
+      "type": "rectangle",
+      "x": 50,
+      "y": 70,
+      "width": 700,
+      "height": 300,
+      "backgroundColor": "#ffffff",
+      "strokeColor": "#495057",
+      "strokeWidth": 2,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "header",
+      "type": "rectangle",
+      "x": 50,
+      "y": 70,
+      "width": 700,
+      "height": 40,
+      "backgroundColor": "#1971c2",
+      "strokeColor": "#1971c2",
+      "strokeWidth": 1
+    },
+    {
+      "id": "header_text",
+      "type": "text",
+      "x": 300,
+      "y": 82,
+      "text": "QL NCKH - Header (logo, user info)",
+      "fontSize": 14,
+      "fontFamily": 2,
+      "strokeColor": "#ffffff"
+    },
+    {
+      "id": "sidebar",
+      "type": "rectangle",
+      "x": 50,
+      "y": 110,
+      "width": 180,
+      "height": 260,
+      "backgroundColor": "#f8f9fa",
+      "strokeColor": "#dee2e6",
+      "strokeWidth": 1
+    },
+    {
+      "id": "sidebar_title",
+      "type": "text",
+      "x": 90,
+      "y": 120,
+      "text": "Sidebar Menu",
+      "fontSize": 14,
+      "fontFamily": 2,
+      "strokeColor": "#495057"
+    },
+    {
+      "id": "menu_items",
+      "type": "text",
+      "x": 70,
+      "y": 150,
+      "text": "• Dashboard\n• Đề tài của tôi\n• Quản lý đề tài\n• Hội đồng\n• Tài liệu\n• Báo cáo\n• Cài đặt",
+      "fontSize": 12,
+      "fontFamily": 2
+    },
+    {
+      "id": "content",
+      "type": "rectangle",
+      "x": 230,
+      "y": 110,
+      "width": 520,
+      "height": 260,
+      "backgroundColor": "#ffffff",
+      "strokeColor": "#dee2e6",
+      "strokeWidth": 1
+    },
+    {
+      "id": "content_title",
+      "type": "text",
+      "x": 420,
+      "y": 120,
+      "text": "Main Content Area",
+      "fontSize": 14,
+      "fontFamily": 2,
+      "strokeColor": "#495057"
+    },
+    {
+      "id": "breadcrumb",
+      "type": "rectangle",
+      "x": 250,
+      "y": 150,
+      "width": 480,
+      "height": 30,
+      "backgroundColor": "#e9ecef",
+      "strokeColor": "#dee2e6",
+      "strokeWidth": 1,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "breadcrumb_text",
+      "type": "text",
+      "x": 270,
+      "y": 158,
+      "text": "Trang chủ > Đề tài > Chi tiết",
+      "fontSize": 11,
+      "fontFamily": 2,
+      "strokeColor": "#868e96"
+    },
+    {
+      "id": "content_area",
+      "type": "rectangle",
+      "x": 250,
+      "y": 190,
+      "width": 480,
+      "height": 160,
+      "backgroundColor": "#f8f9fa",
+      "strokeColor": "#dee2e6",
+      "strokeWidth": 1,
+      "strokeStyle": "dashed",
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "content_placeholder",
+      "type": "text",
+      "x": 400,
+      "y": 260,
+      "text": "Nội dung trang",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "strokeColor": "#868e96"
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff"
+  }
+}
