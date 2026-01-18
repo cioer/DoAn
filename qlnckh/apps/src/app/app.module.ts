@@ -51,7 +51,7 @@ import { ProposalDocumentsModule } from '../modules/proposal-documents/proposal-
     }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'web-apps'),
-      exclude: ['/api*'],
+      exclude: ['/api{*path}'],
     }),
     AuthModule,
     UsersModule,
