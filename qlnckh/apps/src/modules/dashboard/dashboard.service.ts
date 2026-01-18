@@ -1358,7 +1358,7 @@ export class DashboardService {
         entityType: true,
         entityId: true,
         createdAt: true,
-        actor: {
+        actorUser: {
           select: {
             displayName: true,
             email: true,
@@ -1413,8 +1413,8 @@ export class DashboardService {
         action: log.action,
         entityType: log.entityType,
         entityId: log.entityId,
-        actorName: log.actor?.displayName || 'System',
-        actorEmail: log.actor?.email || '',
+        actorName: log.actorUser?.displayName || 'System',
+        actorEmail: log.actorUser?.email || '',
         createdAt: log.createdAt,
       })),
       lastUpdated: now,
