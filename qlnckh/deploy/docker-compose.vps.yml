@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: qlnckh-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-qlnckh}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-qlnckh}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qlnckh}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - qlnckh-network
+
+  # NestJS API + React Frontend
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qlnckh-app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"  # Only localhost, Nginx will proxy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qlnckh}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-qlnckh}?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      FORM_ENGINE_URL: http://form-engine:8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - qlnckh-network
+
+  # Python Form Engine
+  form-engine:
+    build:
+      context: ../form-engine-service
+      dockerfile: Dockerfile
+    container_name: qlnckh-form-engine
+    restart: unless-stopped
+    environment:
+      PYTHONUNBUFFERED: 1
+    volumes:
+      - ../modul_create_temple:/app/templates:ro
+      - form_output:/app/output
+    networks:
+      - qlnckh-network
+
+volumes:
+  postgres_data:
+  form_output:
+
+networks:
+  qlnckh-network:
+    driver: bridge
