@@ -1,0 +1,118 @@
+version: '3.8'
+
+services:
+  # ===========================================================================
+  # PostgreSQL Database
+  # ===========================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: qlnckh-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-qlnckh}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-qlnckh}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-qlnckh}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - qlnckh-network
+
+  # ===========================================================================
+  # QLNCKH API + Web Application
+  # ===========================================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qlnckh-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-qlnckh}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-qlnckh}?schema=public
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is required}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
+      JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION:-15m}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-7d}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+      COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-strict}
+      DEMO_MODE: ${DEMO_MODE:-false}
+      APP_MODE: production
+      FORM_ENGINE_URL: ${FORM_ENGINE_URL:-http://form-engine:8000}
+    volumes:
+      - uploads_data:/app/uploads
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    networks:
+      - qlnckh-network
+
+  # ===========================================================================
+  # Form Engine Service (Python/FastAPI)
+  # ===========================================================================
+  form-engine:
+    build:
+      context: ../form-engine-service
+      dockerfile: Dockerfile
+    container_name: qlnckh-form-engine
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - form_engine_output:/app/output
+      - form_engine_templates:/app/templates
+    ports:
+      - "${FORM_ENGINE_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - qlnckh-network
+
+  # ===========================================================================
+  # Nginx Reverse Proxy (Optional - for HTTPS termination)
+  # ===========================================================================
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: qlnckh-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./nginx/ssl:/etc/nginx/ssl:ro
+  #   depends_on:
+  #     - app
+  #   networks:
+  #     - qlnckh-network
+
+volumes:
+  postgres_data:
+    driver: local
+  uploads_data:
+    driver: local
+  form_engine_output:
+    driver: local
+  form_engine_templates:
+    driver: local
+
+networks:
+  qlnckh-network:
+    driver: bridge
