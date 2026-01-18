@@ -1,6 +1,34 @@
 version: '3.8'
 
 services:
+  # Nginx Reverse Proxy with SSL
+  nginx:
+    image: nginx:alpine
+    container_name: qlnckh-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf.active:/etc/nginx/conf.d/default.conf:ro
+      - certbot_www:/var/www/certbot:ro
+      - certbot_conf:/etc/letsencrypt:ro
+    depends_on:
+      - app
+    networks:
+      - qlnckh-network
+
+  # Certbot for SSL
+  certbot:
+    image: certbot/certbot
+    container_name: qlnckh-certbot
+    volumes:
+      - certbot_www:/var/www/certbot
+      - certbot_conf:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - qlnckh-network
+
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
@@ -27,8 +55,8 @@ services:
       dockerfile: Dockerfile
     container_name: qlnckh-app
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:3000:3000"  # Only localhost, Nginx will proxy
+    expose:
+      - "3000"  # Internal only, Nginx will proxy
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-qlnckh}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-qlnckh}?schema=public
@@ -60,6 +88,8 @@ services:
 volumes:
   postgres_data:
   form_output:
+  certbot_www:
+  certbot_conf:
 
 networks:
   qlnckh-network:
