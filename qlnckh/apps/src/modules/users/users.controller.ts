@@ -23,6 +23,7 @@ import { Permission } from '../rbac/permissions.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Request } from 'express';
 import { UserRole } from '@prisma/client';
+import { RbacService } from '../rbac/rbac.service';
 
 /**
  * Current User Interface from JWT
@@ -52,7 +53,10 @@ interface CurrentUserData {
 @UseGuards(JwtAuthGuard, AnyPermissionsGuard)
 @RequireAnyPermissions(Permission.USER_MANAGE, Permission.FACULTY_USER_MANAGE)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly rbacService: RbacService,
+  ) {}
 
   /**
    * POST /api/users
@@ -243,6 +247,28 @@ export class UsersController {
     return {
       success: true,
       data: result,
+    };
+  }
+
+  /**
+   * POST /api/users/seed-permissions
+   * Seed default permissions for all roles (ADMIN only)
+   *
+   * This initializes/resets the permission system with default values.
+   * Should be called after deployment or when permissions are lost.
+   */
+  @Post('seed-permissions')
+  @RequireAnyPermissions(Permission.USER_MANAGE)
+  @HttpCode(HttpStatus.OK)
+  async seedPermissions() {
+    const results = await this.rbacService.seedPermissions();
+
+    return {
+      success: true,
+      data: {
+        message: 'Đã seed permissions thành công cho tất cả roles',
+        results,
+      },
     };
   }
 }

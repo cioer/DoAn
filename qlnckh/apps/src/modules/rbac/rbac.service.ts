@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../auth/prisma.service';
 import { Permission } from './permissions.enum';
-import { UserRole } from '@prisma/client';
+import { UserRole, Permission as PrismaPermission } from '@prisma/client';
 
 /**
  * Permission cache entry with TTL
@@ -156,5 +156,121 @@ export class RbacService implements OnModuleInit {
   async getPermissionsForUser(role: UserRole): Promise<string[]> {
     const permissions = await this.getUserPermissions(role);
     return permissions.map((p) => p as string);
+  }
+
+  /**
+   * Seed default permissions for all roles
+   * This should be called to initialize the permission system
+   * @returns Summary of seeded permissions
+   */
+  async seedPermissions(): Promise<{ role: string; permissions: string[] }[]> {
+    this.logger.log('Starting permission seeding...');
+
+    // Define permissions for each role using Prisma's Permission enum
+    const rolePermissions: Record<UserRole, PrismaPermission[]> = {
+      // ADMIN gets all permissions
+      [UserRole.ADMIN]: Object.values(PrismaPermission),
+
+      // PHONG_KHCN - Science & Technology Department
+      [UserRole.PHONG_KHCN]: [
+        PrismaPermission.DASHBOARD_VIEW,
+        PrismaPermission.CALENDAR_MANAGE,
+        PrismaPermission.AUDIT_VIEW,
+        PrismaPermission.USER_MANAGE,
+        PrismaPermission.FORM_TEMPLATE_IMPORT,
+        PrismaPermission.DEMO_SWITCH_PERSONA,
+        PrismaPermission.DEMO_RESET,
+      ],
+
+      // QUAN_LY_KHOA - Faculty Manager
+      [UserRole.QUAN_LY_KHOA]: [
+        PrismaPermission.DASHBOARD_VIEW,
+        PrismaPermission.FACULTY_DASHBOARD_VIEW,
+        PrismaPermission.FACULTY_APPROVE,
+        PrismaPermission.FACULTY_RETURN,
+        PrismaPermission.PROPOSAL_VIEW_FACULTY,
+        PrismaPermission.FACULTY_USER_MANAGE,
+      ],
+
+      // GIANG_VIEN - Lecturer/PI
+      [UserRole.GIANG_VIEN]: [
+        PrismaPermission.DASHBOARD_VIEW,
+        PrismaPermission.PROPOSAL_CREATE,
+        PrismaPermission.PROPOSAL_EDIT,
+        PrismaPermission.VIEW_EVALUATION_RESULTS,
+        PrismaPermission.EXPORT_PROPOSAL_PDF,
+      ],
+
+      // HOI_DONG - Council Member
+      [UserRole.HOI_DONG]: [
+        PrismaPermission.DASHBOARD_VIEW,
+        PrismaPermission.VIEW_EVALUATION_RESULTS,
+      ],
+
+      // THU_KY_HOI_DONG - Council Secretary
+      [UserRole.THU_KY_HOI_DONG]: [
+        PrismaPermission.DASHBOARD_VIEW,
+        PrismaPermission.CALENDAR_MANAGE,
+        PrismaPermission.VIEW_EVALUATION_RESULTS,
+      ],
+
+      // BAN_GIAM_HOC - Board of Directors
+      [UserRole.BAN_GIAM_HOC]: [
+        PrismaPermission.DASHBOARD_VIEW,
+        PrismaPermission.AUDIT_VIEW,
+      ],
+
+      // BGH - Legacy Board of Directors
+      [UserRole.BGH]: [
+        PrismaPermission.DASHBOARD_VIEW,
+        PrismaPermission.AUDIT_VIEW,
+      ],
+
+      // THU_KY_KHOA - Faculty Secretary
+      [UserRole.THU_KY_KHOA]: [
+        PrismaPermission.DASHBOARD_VIEW,
+        PrismaPermission.FACULTY_DASHBOARD_VIEW,
+        PrismaPermission.PROPOSAL_VIEW_FACULTY,
+      ],
+
+      // THANH_TRUNG - Evaluation Committee
+      [UserRole.THANH_TRUNG]: [
+        PrismaPermission.DASHBOARD_VIEW,
+        PrismaPermission.VIEW_EVALUATION_RESULTS,
+      ],
+    };
+
+    const results: { role: string; permissions: string[] }[] = [];
+
+    for (const [role, permissions] of Object.entries(rolePermissions)) {
+      // Delete existing permissions for this role
+      await this.prisma.rolePermission.deleteMany({
+        where: { role: role as UserRole },
+      });
+
+      // Insert new permissions
+      if (permissions.length > 0) {
+        await this.prisma.rolePermission.createMany({
+          data: permissions.map((permission) => ({
+            role: role as UserRole,
+            permission,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      results.push({
+        role,
+        permissions: permissions as string[],
+      });
+
+      this.logger.log(`Seeded ${permissions.length} permissions for role ${role}`);
+    }
+
+    // Clear all cache after seeding
+    this.clearAllCache();
+
+    this.logger.log('Permission seeding completed');
+    return results;
   }
 }
