@@ -12,7 +12,9 @@ async function bootstrap() {
 
   // Enable CORS
   app.enableCors({
-    origin: ['http://localhost:4200', 'http://localhost:5173', 'http://localhost:5174'],
+    origin: process.env.NODE_ENV === 'production'
+      ? ['https://huuthang.online', 'http://huuthang.online']
+      : ['http://localhost:4200', 'http://localhost:5173', 'http://localhost:5174'],
     credentials: true,
   });
 
@@ -24,7 +26,8 @@ async function bootstrap() {
   app.setGlobalPrefix(globalPrefix);
 
   const port = process.env.PORT || 4000;
-  await app.listen(port, '127.0.0.1');
+  const host = process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1';
+  await app.listen(port, host);
 
   Logger.log(
     `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`,
