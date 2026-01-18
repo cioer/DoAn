@@ -87,11 +87,36 @@ services:
     networks:
       - qlnckh-network
 
+  # Webhook Server cho Auto-Deploy
+  # Nhận thông báo từ GitHub và tự động deploy khi có push
+  webhook:
+    build:
+      context: ./webhook
+      dockerfile: Dockerfile
+    container_name: qlnckh-webhook
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9000:9000"  # Chỉ localhost, nginx sẽ proxy
+    environment:
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-change-this-secret}
+      WEBHOOK_PORT: 9000
+      DEPLOY_SCRIPT: /app/auto-deploy.sh
+    volumes:
+      # Mount Docker socket để có thể chạy docker commands
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount repo để có thể pull code
+      - ../../:/repo
+      # Logs
+      - webhook_logs:/app/logs
+    networks:
+      - qlnckh-network
+
 volumes:
   postgres_data:
   form_output:
   certbot_www:
   certbot_conf:
+  webhook_logs:
 
 networks:
   qlnckh-network:
