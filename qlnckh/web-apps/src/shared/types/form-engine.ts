@@ -200,3 +200,84 @@ export const TEMPLATE_GROUPS = {
     ] as FormTemplateType[],
   },
 };
+
+// =====================================================
+// Form Engine Direct Integration Types
+// =====================================================
+
+/**
+ * Template info từ Form Engine service
+ * Returned by GET /api/v1/forms/templates
+ */
+export interface EngineTemplate {
+  name: string;           // e.g., "1b.docx"
+  path?: string;          // Full path (may be omitted)
+  size: number;           // file size in bytes
+  modified: string;       // ISO date string
+  variables?: string[];   // extracted variables (optional)
+}
+
+/**
+ * Result từ generate-test endpoint
+ */
+export interface GenerateTestResult {
+  formId: string;
+  isApproved: boolean;
+  docx_path: string;
+  pdf_path?: string;
+  docx_url: string;
+  pdf_url?: string;
+  sha256_docx: string;
+  sha256_pdf?: string;
+  template: string;
+  timestamp: string;
+  user_id: string;
+  proposal_id?: string;
+}
+
+/**
+ * Request body cho generate-test
+ */
+export interface GenerateTestRequest {
+  formId: string;
+  isApproved?: boolean;   // cho checkbox forms (Đạt/Không đạt)
+}
+
+/**
+ * Valid form IDs for Form Engine
+ */
+export const VALID_FORM_IDS = [
+  '1b', '2b', '3b', '4b', '5b', '6b', '7b', '8b', '9b',
+  '10b', '11b', '12b', '13b', '14b', '15b', '16b', '17b', '18b',
+  'pl1', 'pl2', 'pl3', 'phuluc',
+] as const;
+
+export type ValidFormId = typeof VALID_FORM_IDS[number];
+
+/**
+ * Form ID descriptions (Vietnamese)
+ */
+export const FORM_ID_DESCRIPTIONS: Record<string, string> = {
+  '1b': 'Phiếu đề xuất đề tài NCKH',
+  '2b': 'Phiếu đánh giá đề xuất',
+  '3b': 'Biên bản họp xét chọn Khoa',
+  '4b': 'Danh mục tổng hợp',
+  '5b': 'Phiếu đánh giá cấp Trường',
+  '6b': 'Biên bản họp Hội đồng',
+  '7b': 'Phiếu yêu cầu chỉnh sửa',
+  '8b': 'Phiếu đánh giá nghiệm thu Khoa',
+  '9b': 'Biên bản nghiệm thu Khoa',
+  '10b': 'Báo cáo tổng kết',
+  '11b': 'Quyết định nghiệm thu Khoa',
+  '12b': 'Phiếu đánh giá nghiệm thu Trường',
+  '13b': 'Biên bản nghiệm thu Trường',
+  '14b': 'Quyết định nghiệm thu Trường',
+  '15b': 'Danh sách sản phẩm',
+  '16b': 'Phụ lục sản phẩm',
+  '17b': 'Biên bản bàn giao',
+  '18b': 'Đơn xin gia hạn',
+  'pl1': 'Phụ lục 1',
+  'pl2': 'Phụ lục 2',
+  'pl3': 'Phụ lục 3',
+  'phuluc': 'Phụ lục chung',
+};

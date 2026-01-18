@@ -16,6 +16,9 @@ import type {
   FormEngineHealth,
   FormTemplateType,
   AvailableFormsResponse,
+  EngineTemplate,
+  GenerateTestResult,
+  GenerateTestRequest,
 } from '../../shared/types/form-engine';
 
 /**
@@ -225,6 +228,38 @@ export const formEngineApi = {
   getPdfUrl: (documentId: string): string => {
     return `/api/proposal-documents/${documentId}/download-pdf`;
   },
+
+  // =====================================================
+  // Form Engine Direct Integration (Admin only)
+  // =====================================================
+
+  /**
+   * Get templates directly from Form Engine service
+   * Requires ADMIN or PHONG_KHCN role
+   *
+   * @returns List of templates from Form Engine
+   */
+  getEngineTemplates: async (): Promise<EngineTemplate[]> => {
+    const response = await apiClient.get<ApiResponse<EngineTemplate[]>>(
+      '/proposal-documents/engine-templates'
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Generate test document with sample data
+   * Requires ADMIN role
+   *
+   * @param request - Form ID and approval status
+   * @returns Generated document info with download URLs
+   */
+  generateTest: async (request: GenerateTestRequest): Promise<GenerateTestResult> => {
+    const response = await apiClient.post<ApiResponse<GenerateTestResult>>(
+      '/proposal-documents/generate-test',
+      request
+    );
+    return response.data.data;
+  },
 };
 
 /**
@@ -241,4 +276,13 @@ export const downloadFile = (blob: Blob, fileName: string): void => {
   window.URL.revokeObjectURL(url);
 };
 
-export type { GenerateFormRequest, FormGenerationResult, FormEngineTemplate, FormEngineHealth, AvailableFormsResponse };
+export type {
+  GenerateFormRequest,
+  FormGenerationResult,
+  FormEngineTemplate,
+  FormEngineHealth,
+  AvailableFormsResponse,
+  EngineTemplate,
+  GenerateTestResult,
+  GenerateTestRequest,
+};

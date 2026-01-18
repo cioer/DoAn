@@ -15,6 +15,7 @@ from ..schemas import (
     RenderFormResult
 )
 from ...core.engine import FormEngine
+from ..sample_data import get_sample_data, VALID_FORM_IDS
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/forms", tags=["Forms"])
@@ -103,6 +104,43 @@ async def list_templates():
                 "message": str(e)
             }
         )
+
+
+@router.get("/sample-data/{form_id}")
+async def get_sample_data_endpoint(form_id: str, is_approved: bool = True):
+    """
+    Get sample data for a specific form template.
+
+    - **form_id**: Form identifier (e.g., "1b", "2b", "pl1")
+    - **is_approved**: Whether to generate "approved" variant (default: True)
+
+    Returns sample context data that can be used to render the form.
+    """
+    try:
+        # Validate form_id exists
+        form_id_lower = form_id.lower()
+
+        if form_id_lower not in VALID_FORM_IDS:
+            return {
+                "success": False,
+                "error": {
+                    "code": "INVALID_FORM_ID",
+                    "message": f"Form '{form_id}' không tồn tại. Các form hợp lệ: {', '.join(VALID_FORM_IDS)}"
+                }
+            }
+
+        data = get_sample_data(form_id_lower, is_approved=is_approved)
+        return {"success": True, "data": data}
+
+    except Exception as e:
+        logger.exception(f"Error getting sample data for {form_id}: {e}")
+        return {
+            "success": False,
+            "error": {
+                "code": "SAMPLE_DATA_ERROR",
+                "message": str(e)
+            }
+        }
 
 
 @router.get("/templates/{template_name}", response_model=ApiResponseTemplateInfo)

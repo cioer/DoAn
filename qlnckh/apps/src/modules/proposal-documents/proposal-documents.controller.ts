@@ -29,13 +29,16 @@ import {
   GenerateFormDto,
   GenerateMultipleFormsDto,
   QueryProposalDocumentsDto,
+  GenerateTestDto,
 } from './dto';
+import { FormEngineService } from '../form-engine/form-engine.service';
 
 @Controller('proposal-documents')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ProposalDocumentsController {
   constructor(
     private readonly proposalDocumentsService: ProposalDocumentsService,
+    private readonly formEngineService: FormEngineService,
   ) {}
 
   /**
@@ -115,6 +118,51 @@ export class ProposalDocumentsController {
   @Get('proposal/:proposalId/can-transition')
   async canTransition(@Param('proposalId') proposalId: string) {
     return this.proposalDocumentsService.canTransition(proposalId);
+  }
+
+  /**
+   * Lấy danh sách templates từ Form Engine service
+   * Chỉ ADMIN và PHONG_KHCN có quyền truy cập
+   */
+  @Get('engine-templates')
+  @RequireRoles(UserRole.ADMIN, UserRole.PHONG_KHCN)
+  async getEngineTemplates() {
+    const templates = await this.formEngineService.getTemplates();
+    return { success: true, data: templates };
+  }
+
+  /**
+   * Generate test document với sample data
+   * Chỉ ADMIN có quyền (để tránh abuse)
+   */
+  @Post('generate-test')
+  @RequireRoles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async generateTest(
+    @Body() dto: GenerateTestDto,
+    @CurrentUser() user: any,
+  ) {
+    // Get sample data from Form Engine
+    const sampleData = await this.formEngineService.getSampleData(
+      dto.formId,
+      dto.isApproved ?? true,
+    );
+
+    // Render form with sample data
+    const result = await this.formEngineService.renderForm({
+      templateName: `${dto.formId}.docx`,
+      context: sampleData,
+      userId: user.id,
+    });
+
+    return {
+      success: true,
+      data: {
+        formId: dto.formId,
+        isApproved: dto.isApproved ?? true,
+        ...result,
+      },
+    };
   }
 
   /**

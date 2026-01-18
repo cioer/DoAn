@@ -203,4 +203,63 @@ export class FormEngineService {
   getBaseUrl(): string {
     return this.baseUrl;
   }
+
+  /**
+   * Get sample data for a specific form template
+   *
+   * @param formId - Form identifier (e.g., "1b", "2b", "pl1")
+   * @param isApproved - Whether to generate "approved" variant (default: true)
+   * @returns Sample context data that can be used to render the form
+   * @throws BadRequestException if form_id is invalid or service error
+   */
+  async getSampleData(formId: string, isApproved: boolean = true): Promise<Record<string, unknown>> {
+    try {
+      const response = await this.client.get<FormEngineApiResponse<Record<string, unknown>>>(
+        `/api/v1/forms/sample-data/${encodeURIComponent(formId)}`,
+        {
+          params: { is_approved: isApproved },
+        },
+      );
+
+      if (!response.data.success) {
+        const error = response.data.error;
+        this.logger.error(`Failed to fetch sample data for ${formId}: ${error?.code}`);
+
+        throw new BadRequestException({
+          success: false,
+          error: {
+            code: error?.code || 'SAMPLE_DATA_ERROR',
+            message: error?.message || `Không thể lấy dữ liệu mẫu cho form '${formId}'`,
+          },
+        });
+      }
+
+      return response.data.data || {};
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
+      const axiosError = error as AxiosError;
+      if (axiosError.code === 'ECONNREFUSED' || axiosError.code === 'ETIMEDOUT') {
+        this.logger.error(`FormEngine service unavailable: ${axiosError.message}`);
+        throw new ServiceUnavailableException({
+          success: false,
+          error: {
+            code: 'SERVICE_UNAVAILABLE',
+            message: 'Form Engine service không khả dụng. Vui lòng thử lại sau.',
+          },
+        });
+      }
+
+      this.logger.error(`Failed to fetch sample data: ${(error as Error).message}`);
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'FORM_ENGINE_ERROR',
+          message: 'Lỗi khi lấy dữ liệu mẫu từ Form Engine',
+        },
+      });
+    }
+  }
 }
