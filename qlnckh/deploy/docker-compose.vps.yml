@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Nginx Reverse Proxy with SSL
   nginx:
@@ -34,6 +32,8 @@ services:
     image: postgres:15-alpine
     container_name: qlnckh-postgres
     restart: unless-stopped
+    env_file:
+      - ../.env
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-qlnckh}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -51,12 +51,14 @@ services:
   # NestJS API + React Frontend
   app:
     build:
-      context: .
+      context: ..
       dockerfile: Dockerfile
     container_name: qlnckh-app
     restart: unless-stopped
     expose:
       - "3000"  # Internal only, Nginx will proxy
+    env_file:
+      - ../.env
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-qlnckh}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-qlnckh}?schema=public
@@ -73,14 +75,14 @@ services:
   # Python Form Engine
   form-engine:
     build:
-      context: ../form-engine-service
+      context: ../../form-engine-service
       dockerfile: Dockerfile
     container_name: qlnckh-form-engine
     restart: unless-stopped
     environment:
       PYTHONUNBUFFERED: 1
     volumes:
-      - ../modul_create_temple:/app/templates:ro
+      - ../../modul_create_temple:/app/templates:ro
       - form_output:/app/output
     networks:
       - qlnckh-network
