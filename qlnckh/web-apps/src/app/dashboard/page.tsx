@@ -4,6 +4,7 @@ import { apiClient } from '../../lib/auth/auth';
 import { useAuthStore } from '../../stores/authStore';
 import { AdminDashboard } from './AdminDashboard';
 import { CouncilDashboard } from './CouncilDashboard';
+import { SystemAdminDashboard } from './SystemAdminDashboard';
 import type {
   DashboardData,
   DashboardResponse,
@@ -61,13 +62,14 @@ export default function DashboardPage() {
   const [councilData, setCouncilData] = useState<CouncilDashboardData | null>(
     null
   );
+  const [systemAdminData, setSystemAdminData] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const isSystemAdmin = user?.role === 'ADMIN';
   const isCouncilMember =
     user?.role === 'HOI_DONG' || user?.role === 'THU_KY_HOI_DONG';
-  const canViewAdminDashboard =
-    user?.role === 'PHONG_KHCN' || user?.role === 'ADMIN';
+  const canViewAdminDashboard = user?.role === 'PHONG_KHCN';
 
   // Load dashboard data based on role
   useEffect(() => {
@@ -79,13 +81,17 @@ export default function DashboardPage() {
     setError('');
 
     try {
-      if (isCouncilMember) {
+      if (isSystemAdmin) {
+        // Load system admin dashboard
+        const response = await apiClient.get<{ success: boolean; data: any }>('/dashboard/admin');
+        setSystemAdminData(response.data.data);
+      } else if (isCouncilMember) {
         // Load council dashboard
         const response =
           await apiClient.get<CouncilDashboardResponse>('/dashboard/council');
         setCouncilData(response.data.data);
       } else if (canViewAdminDashboard) {
-        // Load admin dashboard
+        // Load PHONG_KHCN dashboard
         const response = await apiClient.get<DashboardResponse>('/dashboard');
         setAdminData(response.data.data);
       } else {
@@ -124,6 +130,17 @@ export default function DashboardPage() {
     return <ErrorDisplay message={error} />;
   }
 
+  // System Admin Dashboard (ADMIN only)
+  if (systemAdminData) {
+    return (
+      <SystemAdminDashboard
+        data={systemAdminData}
+        onNavigate={navigate}
+        onRefresh={loadDashboard}
+      />
+    );
+  }
+
   // Council Member Dashboard
   if (councilData) {
     return (
@@ -135,7 +152,7 @@ export default function DashboardPage() {
     );
   }
 
-  // Admin Dashboard (PHONG_KHCN/ADMIN)
+  // PHONG_KHCN Dashboard
   if (adminData) {
     return (
       <AdminDashboard

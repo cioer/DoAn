@@ -534,6 +534,40 @@ export class DashboardController {
   }
 
   /**
+   * GET /api/dashboard/admin
+   * System Admin Dashboard for ADMIN role only
+   * Returns user stats, recent audit logs, and system health summary
+   */
+  @Get('admin')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Lấy dữ liệu dashboard quản trị hệ thống',
+    description:
+      'Trả về thống kê người dùng, nhật ký hệ thống gần đây và trạng thái sức khỏe. Chỉ ADMIN mới có thể truy cập.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Admin dashboard data retrieved successfully',
+  })
+  async getAdminDashboard(@CurrentUser() user: RequestUser) {
+    const data = await this.dashboardService.getAdminDashboardData();
+    const health = await this.healthService.getHealthStatus();
+
+    return {
+      success: true,
+      data: {
+        ...data,
+        health: {
+          overall: health.overall,
+          database: health.database.status,
+          uptime: health.uptime,
+        },
+      },
+    };
+  }
+
+  /**
    * GET /api/dashboard/bgh
    * BAN_GIAM_HOC (Hiệu trưởng) Dashboard
    * Returns proposals in SCHOOL_ACCEPTANCE_REVIEW for final school acceptance

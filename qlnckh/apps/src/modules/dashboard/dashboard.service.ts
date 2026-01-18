@@ -1326,4 +1326,98 @@ export class DashboardService {
       lastUpdated: now,
     };
   }
+
+  /**
+   * Get Admin System Dashboard data
+   * Returns user statistics, recent audit logs, and quick stats
+   */
+  async getAdminDashboardData() {
+    const now = new Date();
+
+    // User statistics by role
+    const [giangVien, quanLyKhoa, hoiDong, thuKyHoiDong, phongKhcn, banGiamHoc, admin] =
+      await Promise.all([
+        this.prisma.user.count({ where: { role: 'GIANG_VIEN', deletedAt: null } }),
+        this.prisma.user.count({ where: { role: 'QUAN_LY_KHOA', deletedAt: null } }),
+        this.prisma.user.count({ where: { role: 'HOI_DONG', deletedAt: null } }),
+        this.prisma.user.count({ where: { role: 'THU_KY_HOI_DONG', deletedAt: null } }),
+        this.prisma.user.count({ where: { role: 'PHONG_KHCN', deletedAt: null } }),
+        this.prisma.user.count({ where: { role: { in: ['BAN_GIAM_HOC', 'BGH'] }, deletedAt: null } }),
+        this.prisma.user.count({ where: { role: 'ADMIN', deletedAt: null } }),
+      ]);
+
+    const totalUsers = giangVien + quanLyKhoa + hoiDong + thuKyHoiDong + phongKhcn + banGiamHoc + admin;
+
+    // Recent audit logs (last 10)
+    const recentAuditLogs = await this.prisma.auditEvent.findMany({
+      take: 10,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        action: true,
+        entityType: true,
+        entityId: true,
+        createdAt: true,
+        actor: {
+          select: {
+            displayName: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // Quick stats
+    const [totalProposals, totalFaculties, totalCouncils] = await Promise.all([
+      this.prisma.proposal.count({ where: { deletedAt: null } }),
+      this.prisma.faculty.count(),
+      this.prisma.council.count(),
+    ]);
+
+    // Proposals by state for status overview
+    const proposalsByState = await this.prisma.proposal.groupBy({
+      by: ['state'],
+      _count: { state: true },
+      where: { deletedAt: null },
+    });
+
+    const statusOverview = proposalsByState.map((item) => ({
+      state: item.state,
+      count: item._count.state,
+    }));
+
+    this.logger.log(`Admin dashboard data retrieved: ${totalUsers} users, ${totalProposals} proposals`);
+
+    return {
+      userStats: {
+        totalUsers,
+        byRole: {
+          giangVien,
+          quanLyKhoa,
+          hoiDong,
+          thuKyHoiDong,
+          phongKhcn,
+          banGiamHoc,
+          admin,
+        },
+      },
+      quickStats: {
+        totalProposals,
+        totalFaculties,
+        totalCouncils,
+        totalUsers,
+      },
+      statusOverview,
+      recentAuditLogs: recentAuditLogs.map((log) => ({
+        id: log.id,
+        action: log.action,
+        entityType: log.entityType,
+        entityId: log.entityId,
+        actorName: log.actor?.displayName || 'System',
+        actorEmail: log.actor?.email || '',
+        createdAt: log.createdAt,
+      })),
+      lastUpdated: now,
+    };
+  }
 }
