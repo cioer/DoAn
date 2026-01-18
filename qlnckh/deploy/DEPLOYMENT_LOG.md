@@ -317,11 +317,185 @@ docker compose -f docker-compose.vps.yml --env-file ../.env restart
 
 ---
 
+## 11. Thiết lập Auto-Deploy với GitHub Webhooks
+
+**Mục tiêu:** VPS tự động cập nhật code khi push lên branch `main`.
+
+**Kiến trúc:**
+```
+Push code lên GitHub
+        ↓
+GitHub gửi POST đến https://huuthang.online/webhook
+        ↓
+Webhook server (Node.js container) xác thực signature
+        ↓
+Chạy auto-deploy.sh: git pull → rebuild → restart
+```
+
+### 11.1. Tạo Webhook Server
+
+```javascript
+// deploy/webhook/server.js
+const http = require('http');
+const crypto = require('crypto');
+
+// Xác thực signature từ GitHub
+function verifySignature(payload, signature) {
+  const expected = 'sha256=' + crypto
+    .createHmac('sha256', SECRET)
+    .update(payload)
+    .digest('hex');
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expected)
+  );
+}
+```
+
+**Lý do dùng HMAC-SHA256:**
+- GitHub ký payload bằng secret key
+- Server xác thực để đảm bảo request thật sự từ GitHub
+- Ngăn chặn kẻ tấn công giả mạo webhook
+
+### 11.2. Script Auto-Deploy
+
+```bash
+# deploy/webhook/auto-deploy.sh
+
+# 1. Pull code mới
+git fetch origin main
+git reset --hard origin/main
+
+# 2. Kiểm tra file nào thay đổi
+CHANGED=$(git diff --name-only $OLD_COMMIT $NEW_COMMIT)
+
+# 3. Chỉ rebuild nếu source code thay đổi (không rebuild nếu chỉ đổi docs)
+if echo "$CHANGED" | grep -q "^qlnckh/"; then
+  docker compose build app
+  docker compose up -d app
+fi
+```
+
+**Lý do kiểm tra file thay đổi:**
+- Tiết kiệm thời gian: không rebuild nếu chỉ đổi README
+- Giảm downtime: chỉ restart service cần thiết
+
+### 11.3. Thêm vào Docker Compose
+
+```yaml
+# docker-compose.vps.yml
+webhook:
+  build: ./webhook
+  ports:
+    - "127.0.0.1:9000:9000"  # Chỉ localhost, nginx proxy
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock  # Để chạy docker commands
+    - ../../:/repo  # Mount repo để git pull
+  environment:
+    WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+```
+
+**Lý do mount Docker socket:**
+- Webhook container cần chạy `docker compose` để rebuild/restart
+- Mount socket cho phép container giao tiếp với Docker daemon trên host
+
+**Bảo mật:**
+- Port 9000 chỉ bind localhost (không expose ra ngoài)
+- Nginx proxy `/webhook` endpoint với HTTPS
+
+### 11.4. Cập nhật Nginx Config
+
+```nginx
+# Thêm upstream cho webhook
+upstream webhook {
+    server webhook:9000;
+}
+
+# Proxy /webhook endpoint
+location /webhook {
+    proxy_pass http://webhook;
+    # Giữ nguyên headers từ GitHub để xác thực
+    proxy_set_header X-Hub-Signature-256 $http_x_hub_signature_256;
+    proxy_set_header X-GitHub-Event $http_x_github_event;
+}
+```
+
+**Lý do proxy qua Nginx:**
+- Webhook được bảo vệ bởi HTTPS (SSL termination tại Nginx)
+- Không cần expose thêm port ra ngoài
+- Dùng chung domain `huuthang.online`
+
+### 11.5. Cấu hình GitHub Webhook
+
+1. Vào **Repository Settings → Webhooks → Add webhook**
+2. **Payload URL:** `https://huuthang.online/webhook`
+3. **Content type:** `application/json`
+4. **Secret:** Paste WEBHOOK_SECRET từ VPS
+5. **Events:** Chọn "Just the push event"
+
+### 11.6. Các file đã tạo
+
+| File | Mô tả |
+|------|-------|
+| `deploy/webhook/server.js` | Webhook server nhận request từ GitHub |
+| `deploy/webhook/auto-deploy.sh` | Script pull code và rebuild containers |
+| `deploy/webhook/Dockerfile` | Docker image cho webhook service |
+| `deploy/setup-autodeploy.sh` | Script setup trên VPS |
+| `deploy/AUTO_DEPLOY_SETUP.md` | Hướng dẫn chi tiết |
+
+### 11.7. Lệnh setup trên VPS
+
+```bash
+# SSH vào VPS và chạy setup script
+ssh deploy@huuthang.online
+cd /home/deploy/qlnckh
+git pull origin main
+bash qlnckh/deploy/setup-autodeploy.sh
+
+# Script sẽ:
+# - Tạo WEBHOOK_SECRET
+# - Build webhook container
+# - Cập nhật nginx config
+# - In hướng dẫn cấu hình GitHub
+```
+
+### 11.8. Xem logs
+
+```bash
+# Logs webhook server
+docker logs -f qlnckh-webhook
+
+# Logs deploy
+docker exec qlnckh-webhook cat /app/logs/deploy.log
+```
+
+---
+
+## 12. Kiểm tra Website sau Deploy
+
+**Ngày kiểm tra:** 18/01/2026
+
+| Endpoint | Status | Ý nghĩa |
+|----------|--------|---------|
+| `https://huuthang.online/` | `200 OK` | Frontend React hoạt động |
+| `https://huuthang.online/api/auth/me` | `401 Unauthorized` | API hoạt động (cần đăng nhập) |
+| SSL Certificate | Valid | HTTPS hoạt động với HTTP/2 |
+| Nginx | `nginx/1.29.4` | Reverse proxy hoạt động |
+| Express | Running | NestJS backend hoạt động |
+
+**Kết luận:** Website hoạt động bình thường sau khi deploy.
+
+---
+
 ## Bài học rút ra
 
 1. **Docker networking:** Containers giao tiếp qua Docker network, không phải localhost. App phải bind `0.0.0.0`.
 
 2. **Đường dẫn tương đối:** Luôn kiểm tra kỹ đường dẫn tương đối từ vị trí file docker-compose.yml.
+
+7. **Auto-deploy với Webhooks:** Dùng GitHub webhooks + container riêng để tự động deploy. Luôn xác thực signature để bảo mật.
+
+8. **Mount Docker socket cẩn thận:** Cho phép container chạy docker commands nhưng cũng là rủi ro bảo mật - chỉ dùng cho services tin cậy.
 
 3. **Environment variables:** Docker Compose chỉ auto-load `.env` nếu nằm cùng thư mục. Dùng `--env-file` khi `.env` ở nơi khác.
 
