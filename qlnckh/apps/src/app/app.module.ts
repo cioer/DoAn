@@ -50,7 +50,7 @@ import { ProposalDocumentsModule } from '../modules/proposal-documents/proposal-
       envFilePath: '.env',
     }),
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', '..', 'web-apps'),
+      rootPath: join(__dirname, '..', 'web-apps'),
       exclude: ['/api{*path}'],
     }),
     AuthModule,
