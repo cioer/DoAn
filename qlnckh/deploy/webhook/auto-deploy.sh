@@ -40,6 +40,9 @@ error() {
 # ============================================
 log "========== BẮT ĐẦU AUTO-DEPLOY =========="
 
+# Fix: Git safe.directory (container user khác với repo owner)
+git config --global --add safe.directory "$REPO_DIR"
+
 # Kiểm tra thư mục repo
 if [ ! -d "$REPO_DIR/.git" ]; then
     error "Không tìm thấy git repository tại $REPO_DIR"
