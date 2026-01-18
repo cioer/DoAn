@@ -1,9 +1,0 @@
-4.6. KẾT LUẬN CHƯƠNG
-Chương này đã trình bày chi tiết quá trình cài đặt và triển khai hệ thống quản lý nghiên cứu khoa học.
-Về cấu trúc dự án, em sử dụng Nx phiên bản 22.3.3 để quản lý monorepo chứa cả backend và frontend. Backend NestJS phiên bản 11.0.0 được tổ chức thành 23 module độc lập. Frontend React phiên bản 19.0.0 với Vite 7.0.0 được tổ chức theo tính năng. Form Engine Python với FastAPI phiên bản 0.109.2 chạy như microservice riêng.
-Về cài đặt backend, module auth sử dụng JWT với Passport và bcrypt. Module rbac triển khai 8 vai trò và 8 nhóm quyền. Module workflow quản lý 13 trạng thái và 26 loại hành động. Module proposals, council, documents, và các module hỗ trợ khác hoàn thiện nghiệp vụ quản lý đề tài.
-Về cài đặt frontend, TanStack Query phiên bản 5.90.16 quản lý trạng thái server, Zustand phiên bản 5.0.9 quản lý trạng thái client. Axios với interceptor xử lý xác thực và refresh token. React Router DOM phiên bản 7.11.0 điều hướng với kiểm tra quyền. Tailwind CSS phiên bản 4.1.18 và Lucide React phiên bản 0.562.0 xây dựng giao diện nhất quán. Recharts phiên bản 3.6.0 vẽ biểu đồ dashboard.
-Về cài đặt Form Engine, python-docx phiên bản 1.1.0 xử lý merge dữ liệu vào mẫu Word. LibreOffice phiên bản 7 chuyển đổi sang PDF. 18 loại biểu mẫu từ FORM_1B đến FORM_18B phục vụ toàn bộ quy trình.
-Về triển khai Docker, các container được cấu hình với health check và phụ thuộc đúng thứ tự. PostgreSQL phiên bản 15-alpine làm database chính. Nginx làm reverse proxy và serve file tĩnh. Mạng Docker cho phép các container giao tiếp an toàn. Biến môi trường tách biệt cấu hình cho từng môi trường.
-Mỗi công nghệ được chọn đều có lý do rõ ràng và phiên bản cụ thể được ghi nhận để đảm bảo khả năng tái tạo môi trường. Quy trình deploy được thiết kế để giảm thiểu downtime và hỗ trợ rollback khi cần.
-Chương tiếp theo sẽ trình bày kết quả đạt được và đánh giá hệ thống sau khi triển khai.

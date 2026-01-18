@@ -89,3 +89,20 @@ __pycache__/
 .venv/
 venv/
 ENV/
+
+# ============================================
+# Development tools (local only, not for VPS)
+# ============================================
+.claude/
+.codex/
+.gemini/
+.vite/
+_bmad/
+_bmad-output/
+
+# Documentation (local only)
+baocao2/
+apps/
+API_SPECIFICATION.md
+manual_test.md
+BAO_CAO_*.md
