@@ -1,7 +1,6 @@
 {
   "name": "api-e2e",
   "$schema": "../node_modules/nx/schemas/project-schema.json",
-  "implicitDependencies": ["api"],
   "projectType": "application",
   "targets": {
     "e2e": {
@@ -10,8 +9,7 @@
       "options": {
         "jestConfig": "apps-e2e/jest.config.cts",
         "passWithNoTests": true
-      },
-      "dependsOn": ["api:build", "api:serve"]
+      }
     }
   }
 }
