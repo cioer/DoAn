@@ -114,7 +114,7 @@ export function Sidebar() {
     hasPermission(Permission.DASHBOARD_VIEW);
 
   const canViewResearcherDashboard = effectiveUser?.role === 'GIANG_VIEN' && hasPermission(Permission.DASHBOARD_VIEW);
-  const canViewFacultyDashboard = hasPermission(Permission.FACULTY_DASHBOARD_VIEW);
+  const canViewFacultyDashboard = hasPermission(Permission.FACULTY_DASHBOARD_VIEW) && effectiveUser?.role !== 'ADMIN';
   const canViewCalendar = hasPermission(Permission.CALENDAR_MANAGE);
   const canViewBulkOps = effectiveUser?.role === 'PHONG_KHCN' || effectiveUser?.role === 'ADMIN';
   const canViewAuditLog = hasPermission(Permission.AUDIT_VIEW);
