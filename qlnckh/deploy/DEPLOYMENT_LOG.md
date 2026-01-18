@@ -1,6 +1,7 @@
 # Nhật ký Deploy QLNCKH lên VPS
 
 **Ngày:** 18/01/2026
+**Auto-deploy:** ✅ Đã kích hoạt (test lúc 12:53 GMT+7)
 **Domain:** huuthang.online
 **VPS:** deploy@huuthang.online
 
