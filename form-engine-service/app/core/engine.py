@@ -303,14 +303,15 @@ class FormEngine:
         sha256_docx = calculate_sha256(docx_output_path)
         sha256_pdf = calculate_sha256(pdf_output_path) if pdf_output_path else None
 
-        # Build relative paths for URLs
+        # Build relative paths for URLs and API responses
         relative_path = os.path.relpath(docx_output_path, self.output_dir)
+        relative_pdf_path = relative_path.replace('.docx', '.pdf') if pdf_output_path else None
         docx_url = f"{self.base_url}/files/{relative_path}"
-        pdf_url = f"{self.base_url}/files/{relative_path.replace('.docx', '.pdf')}" if pdf_output_path else None
+        pdf_url = f"{self.base_url}/files/{relative_pdf_path}" if pdf_output_path else None
 
         result = {
-            "docx_path": docx_output_path,
-            "pdf_path": pdf_output_path,
+            "docx_path": relative_path,  # Return relative path for frontend
+            "pdf_path": relative_pdf_path,  # Return relative path for frontend
             "docx_url": docx_url,
             "pdf_url": pdf_url,
             "template": template_name,
