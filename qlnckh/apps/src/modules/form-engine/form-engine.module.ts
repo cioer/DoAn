@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { FormEngineService } from './form-engine.service';
 import { FormContextService } from './form-context.service';
+import { FormEngineController } from './form-engine.controller';
 
 /**
  * Form Engine Module
@@ -18,6 +19,7 @@ import { FormContextService } from './form-context.service';
  * - FORM_ENGINE_TIMEOUT: Request timeout in ms (default: 30000)
  */
 @Module({
+  controllers: [FormEngineController],
   providers: [FormEngineService, FormContextService],
   exports: [FormEngineService, FormContextService],
 })

@@ -93,15 +93,12 @@ export function GenerateTestDialog({
 
     setIsDownloading('docx');
     try {
-      // Prefer docx_url from server if available (already validated)
-      let url = result.docx_url;
-      if (!url) {
-        const sanitized = sanitizePath(result.docx_path);
-        if (!sanitized) {
-          throw new Error('Invalid file path');
-        }
-        url = `/api/files/${encodeURIComponent(sanitized)}`;
+      // Always construct URL from path (server URLs may contain localhost)
+      const sanitized = sanitizePath(result.docx_path);
+      if (!sanitized) {
+        throw new Error('Invalid file path');
       }
+      const url = `/api/form-engine/files/${encodeURIComponent(sanitized)}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error('Download failed');
 
@@ -120,15 +117,12 @@ export function GenerateTestDialog({
 
     setIsDownloading('pdf');
     try {
-      // Prefer pdf_url from server if available (already validated)
-      let url = result.pdf_url;
-      if (!url) {
-        const sanitized = sanitizePath(result.pdf_path);
-        if (!sanitized) {
-          throw new Error('Invalid file path');
-        }
-        url = `/api/files/${encodeURIComponent(sanitized)}`;
+      // Always construct URL from path (server URLs may contain localhost)
+      const sanitized = sanitizePath(result.pdf_path);
+      if (!sanitized) {
+        throw new Error('Invalid file path');
       }
+      const url = `/api/form-engine/files/${encodeURIComponent(sanitized)}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error('Download failed');
 
