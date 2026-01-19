@@ -323,8 +323,13 @@ export class ProposalDocumentsController {
       process.env.FORM_ENGINE_OUTPUT_BASE || '/mnt/dulieu/DoAn/form-engine-service';
     let fullPath = filePath;
 
+    // Handle legacy absolute paths from form-engine container
+    // Convert /app/output/... to the mapped volume path
+    if (fullPath.startsWith('/app/output/')) {
+      fullPath = fullPath.replace('/app/output/', `${formEngineBaseDir}/`);
+    }
     // Convert relative path to absolute
-    if (fullPath.startsWith('./')) {
+    else if (fullPath.startsWith('./')) {
       fullPath = fullPath.replace('./', `${formEngineBaseDir}/`);
     } else if (!fullPath.startsWith('/')) {
       fullPath = `${formEngineBaseDir}/${fullPath}`;
