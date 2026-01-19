@@ -66,6 +66,10 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       COOKIE_SECRET: ${COOKIE_SECRET}
       FORM_ENGINE_URL: http://form-engine:8080
+      FORM_ENGINE_OUTPUT_BASE: /app/form-engine-output
+    volumes:
+      # Mount form-engine output volume to access generated documents
+      - form_output:/app/form-engine-output:ro
     depends_on:
       postgres:
         condition: service_healthy
