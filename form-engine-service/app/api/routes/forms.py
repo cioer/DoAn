@@ -15,7 +15,7 @@ from ..schemas import (
     RenderFormResult
 )
 from ...core.engine import FormEngine
-from ..sample_data import get_sample_data, VALID_FORM_IDS
+from ...sample_data import get_sample_data, VALID_FORM_IDS
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/forms", tags=["Forms"])
