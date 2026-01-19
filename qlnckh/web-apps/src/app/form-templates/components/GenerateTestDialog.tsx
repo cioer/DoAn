@@ -99,7 +99,7 @@ export function GenerateTestDialog({
         throw new Error('Invalid file path');
       }
       const url = `/api/form-engine/files/${encodeURIComponent(sanitized)}`;
-      const response = await fetch(url);
+      const response = await fetch(url, { credentials: 'include' });
       if (!response.ok) throw new Error('Download failed');
 
       const blob = await response.blob();
@@ -123,7 +123,7 @@ export function GenerateTestDialog({
         throw new Error('Invalid file path');
       }
       const url = `/api/form-engine/files/${encodeURIComponent(sanitized)}`;
-      const response = await fetch(url);
+      const response = await fetch(url, { credentials: 'include' });
       if (!response.ok) throw new Error('Download failed');
 
       const blob = await response.blob();
