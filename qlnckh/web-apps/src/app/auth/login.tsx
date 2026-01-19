@@ -11,7 +11,6 @@ const DEMO_ACCOUNTS = [
   { email: 'DT-USER-003@demo.qlnckh.edu.vn', role: 'Thư ký Khoa', name: 'Lê Văn C' },
   { email: 'DT-USER-004@demo.qlnckh.edu.vn', role: 'Phòng KHCN', name: 'Phạm Thị D' },
   { email: 'DT-USER-005@demo.qlnckh.edu.vn', role: 'Thư ký HĐ', name: 'Hoàng Văn E' },
-  { email: 'DT-USER-006@demo.qlnckh.edu.vn', role: 'Thành Trung', name: 'Đặng Thị F' },
   { email: 'DT-USER-007@demo.qlnckh.edu.vn', role: 'Ban Giám hiệu', name: 'Vũ Văn G' },
   { email: 'DT-USER-008@demo.qlnckh.edu.vn', role: 'Admin', name: 'Admin System' },
 ];
