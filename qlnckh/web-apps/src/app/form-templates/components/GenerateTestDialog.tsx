@@ -98,7 +98,9 @@ export function GenerateTestDialog({
       if (!sanitized) {
         throw new Error('Invalid file path');
       }
-      const url = `/api/form-engine/files/${encodeURIComponent(sanitized)}`;
+      // Encode each path segment individually, keeping slashes as path separators
+      const encodedPath = sanitized.split('/').map(encodeURIComponent).join('/');
+      const url = `/api/form-engine/files/${encodedPath}`;
       const response = await fetch(url, { credentials: 'include' });
       if (!response.ok) throw new Error('Download failed');
 
@@ -122,7 +124,9 @@ export function GenerateTestDialog({
       if (!sanitized) {
         throw new Error('Invalid file path');
       }
-      const url = `/api/form-engine/files/${encodeURIComponent(sanitized)}`;
+      // Encode each path segment individually, keeping slashes as path separators
+      const encodedPath = sanitized.split('/').map(encodeURIComponent).join('/');
+      const url = `/api/form-engine/files/${encodedPath}`;
       const response = await fetch(url, { credentials: 'include' });
       if (!response.ok) throw new Error('Download failed');
 
