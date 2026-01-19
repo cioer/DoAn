@@ -1,8 +1,21 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { School, User, Lock, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
+import { School, User, Lock, ArrowRight, Loader2, CheckCircle2, Users } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { authApi } from '../../lib/auth/auth';
+
+// Demo accounts for quick login
+const DEMO_ACCOUNTS = [
+  { email: 'DT-USER-001@demo.qlnckh.edu.vn', role: 'Giảng viên', name: 'Nguyễn Văn A' },
+  { email: 'DT-USER-002@demo.qlnckh.edu.vn', role: 'Quản lý Khoa', name: 'Trần Thị B' },
+  { email: 'DT-USER-003@demo.qlnckh.edu.vn', role: 'Thư ký Khoa', name: 'Lê Văn C' },
+  { email: 'DT-USER-004@demo.qlnckh.edu.vn', role: 'Phòng KHCN', name: 'Phạm Thị D' },
+  { email: 'DT-USER-005@demo.qlnckh.edu.vn', role: 'Thư ký HĐ', name: 'Hoàng Văn E' },
+  { email: 'DT-USER-006@demo.qlnckh.edu.vn', role: 'Thành Trung', name: 'Đặng Thị F' },
+  { email: 'DT-USER-007@demo.qlnckh.edu.vn', role: 'Ban Giám hiệu', name: 'Vũ Văn G' },
+  { email: 'DT-USER-008@demo.qlnckh.edu.vn', role: 'Admin', name: 'Admin System' },
+];
+const DEMO_PASSWORD = 'Demo@123';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -120,6 +133,39 @@ export default function LoginPage() {
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Demo Account Selector */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <label
+                htmlFor="demo-account"
+                className="block text-sm font-semibold text-amber-800 mb-2"
+              >
+                <Users className="w-4 h-4 inline-block mr-1.5 -mt-0.5" />
+                Chọn tài khoản Demo
+              </label>
+              <select
+                id="demo-account"
+                className="block w-full px-3 py-2 rounded-lg border border-amber-300 bg-white text-slate-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all text-sm"
+                onChange={(e) => {
+                  const account = DEMO_ACCOUNTS.find(a => a.email === e.target.value);
+                  if (account) {
+                    setEmail(account.email);
+                    setPassword(DEMO_PASSWORD);
+                  }
+                }}
+                defaultValue=""
+              >
+                <option value="" disabled>-- Chọn tài khoản --</option>
+                {DEMO_ACCOUNTS.map((account) => (
+                  <option key={account.email} value={account.email}>
+                    {account.role} - {account.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-amber-600 mt-1.5">
+                Mật khẩu mặc định: <code className="bg-amber-100 px-1 rounded">Demo@123</code>
+              </p>
+            </div>
+
             {/* Error Alert */}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
