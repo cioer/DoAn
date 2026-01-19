@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Param,
+  Req,
   Res,
   UseGuards,
   StreamableFile,
@@ -9,7 +10,7 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import axios from 'axios';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../rbac/guards/roles.guard';
@@ -35,15 +36,18 @@ export class FormEngineController {
   /**
    * Proxy file downloads from Form Engine service
    * Only ADMIN can access test-generated files
+   * Uses wildcard route to support paths with subdirectories (e.g., 2026-01-19/file.docx)
    */
-  @Get('files/:path')
+  @Get('files/*')
   @RequireRoles(UserRole.ADMIN)
   async serveFile(
-    @Param('path') filePath: string,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
+    // Extract the full path after /files/
+    const fullPath = req.params[0] || '';
     // Decode the URL-encoded path
-    const decodedPath = decodeURIComponent(filePath);
+    const decodedPath = decodeURIComponent(fullPath);
 
     // Security: Validate path to prevent directory traversal
     if (decodedPath.includes('..') || decodedPath.startsWith('/')) {
