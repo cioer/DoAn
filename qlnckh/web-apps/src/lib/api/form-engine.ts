@@ -269,10 +269,21 @@ export const formEngineApi = {
    * @returns List of generated documents
    */
   getProposalDocuments: async (proposalId: string): Promise<ProposalDocument[]> => {
-    const response = await apiClient.get<ProposalDocument[]>(
+    const response = await apiClient.get<{
+      proposalId: string;
+      proposalCode: string;
+      currentState: string;
+      documents: ProposalDocument[];
+      requiredForms: string[];
+      optionalForms: string[];
+      completedForms: string[];
+      missingForms: string[];
+      canTransition: boolean;
+    }>(
       `/proposal-documents/proposal/${proposalId}`
     );
-    return response.data;
+    // Extract documents array from response
+    return response.data.documents || [];
   },
 };
 
