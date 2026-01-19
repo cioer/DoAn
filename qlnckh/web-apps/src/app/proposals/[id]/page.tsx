@@ -38,6 +38,8 @@ import { attachmentsApi, Attachment } from '../../../lib/api/attachments';
 import { evaluationApi, Evaluation } from '../../../lib/api/evaluations';
 import { FileUpload } from '../../../components/forms/FileUpload';
 import { AttachmentList } from '../../../components/forms/AttachmentList';
+import { ProposalDocumentsList } from '../../../components/forms/ProposalDocumentsList';
+import { formEngineApi, ProposalDocument } from '../../../lib/api/form-engine';
 import { useAuthStore } from '../../../stores/authStore';
 import { getStateLabel } from '../../../lib/constants/states';
 
@@ -57,6 +59,10 @@ export default function ProposalDetailPage() {
   const [attachmentsTotal, setAttachmentsTotal] = useState(0);
   const [attachmentsTotalSize, setAttachmentsTotalSize] = useState(0);
   const [isLoadingAttachments, setIsLoadingAttachments] = useState(false);
+
+  // Proposal Documents (biểu mẫu NCKH đã tạo)
+  const [proposalDocuments, setProposalDocuments] = useState<ProposalDocument[]>([]);
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
 
   // Evaluation state (GIANG_VIEN Feature - View evaluation results)
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
@@ -118,6 +124,23 @@ export default function ProposalDetailPage() {
   }, [id]);
 
   /**
+   * Load proposal documents (biểu mẫu NCKH đã tạo)
+   */
+  const loadProposalDocuments = useCallback(async () => {
+    if (!id) return;
+
+    setIsLoadingDocuments(true);
+    try {
+      const docs = await formEngineApi.getProposalDocuments(id);
+      setProposalDocuments(docs);
+    } catch (error) {
+      console.error('Failed to load proposal documents:', error);
+    } finally {
+      setIsLoadingDocuments(false);
+    }
+  }, [id]);
+
+  /**
    * Load evaluation results (GIANG_VIEN Feature)
    * Only available for finalized evaluations
    * Only calls API if proposal is in a state that supports evaluations
@@ -147,18 +170,19 @@ export default function ProposalDetailPage() {
   }, [id, proposal]);
 
   /**
-   * Load attachments and evaluation when proposal is loaded
+   * Load attachments, proposal documents, and evaluation when proposal is loaded
    */
   useEffect(() => {
     if (proposal) {
       void loadAttachments();
+      void loadProposalDocuments();
       // Load evaluation if proposal is in a state that may have evaluations (GIANG_VIEN Feature)
       const councilReviewStates = ['OUTLINE_COUNCIL_REVIEW', 'COUNCIL_REVIEW', 'APPROVED', 'CHANGES_REQUESTED'];
       if (councilReviewStates.includes(proposal.state)) {
         void loadEvaluation();
       }
     }
-  }, [proposal, loadAttachments, loadEvaluation]);
+  }, [proposal, loadAttachments, loadProposalDocuments, loadEvaluation]);
 
   /**
    * Handle upload success (Story 11.5)
@@ -569,7 +593,7 @@ export default function ProposalDetailPage() {
           </section>
         )}
 
-        {/* Attachments Section (Story 11.5) */}
+        {/* Attachments Section (Story 11.5) - Gộp biểu mẫu đã tạo + tài liệu đính kèm */}
         <section className="border border-gray-200 rounded-xl p-6 bg-white/90 backdrop-blur-sm shadow-soft">
           <div className="flex items-center gap-2 mb-4">
             <FileText className="h-5 w-5 text-primary-600" />
@@ -577,6 +601,29 @@ export default function ProposalDetailPage() {
               Tài liệu đính kèm
             </h2>
           </div>
+
+          {/* Biểu mẫu NCKH đã tạo - hiển thị theo trạng thái đã qua */}
+          {!isLoadingDocuments ? (
+            proposalDocuments.length > 0 && (
+              <div className="mb-6">
+                <ProposalDocumentsList
+                  proposalId={proposal.id}
+                  currentState={proposal.state}
+                  documents={proposalDocuments}
+                  showAllStates={currentUser?.role === 'ADMIN' || currentUser?.role === 'PHONG_KHCN'}
+                />
+              </div>
+            )
+          ) : (
+            <div className="text-center py-4 text-gray-500 text-sm">
+              Đang tải biểu mẫu...
+            </div>
+          )}
+
+          {/* Divider nếu có cả biểu mẫu và attachments */}
+          {proposalDocuments.length > 0 && attachments.length > 0 && (
+            <hr className="my-6 border-gray-200" />
+          )}
 
           {/* File Upload Component (Story 11.5) */}
           {canUploadAttachments && (
@@ -619,7 +666,8 @@ export default function ProposalDetailPage() {
             proposalCode={proposal.code}
             onSuccess={(docId) => {
               console.log('Document generated:', docId);
-              // Could show toast notification or refresh documents list
+              // Refresh documents list sau khi tạo biểu mẫu mới
+              void loadProposalDocuments();
             }}
             onError={(error) => {
               console.error('Document generation failed:', error);

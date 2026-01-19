@@ -281,3 +281,85 @@ export const FORM_ID_DESCRIPTIONS: Record<string, string> = {
   'pl3': 'Phụ lục 3',
   'phuluc': 'Phụ lục chung',
 };
+
+/**
+ * ProposalDocument - Biểu mẫu NCKH đã tạo
+ */
+export interface ProposalDocument {
+  id: string;
+  proposalId: string;
+  formType: string;
+  status: 'DRAFT' | 'PENDING' | 'APPROVED' | 'FINALIZED';
+  version: number;
+  filePath?: string;
+  fileName?: string;
+  fileSize?: number;
+  sha256Hash?: string;
+  formData?: Record<string, unknown>;
+  createdBy: string;
+  createdAt: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+}
+
+/**
+ * Mapping FormType -> Tên tiếng Việt
+ */
+export const FORM_TYPE_NAMES: Record<string, string> = {
+  FORM_1B: 'Phiếu đề xuất (1B)',
+  FORM_PL1: 'Đề cương chi tiết (PL1)',
+  FORM_2B: 'Phiếu đánh giá Khoa (2B)',
+  FORM_3B: 'Biên bản họp Khoa (3B)',
+  FORM_4B: 'Danh mục tổng hợp (4B)',
+  FORM_5B: 'Biên bản xét chọn Trường (5B)',
+  FORM_6B: 'Biên bản Hội đồng (6B)',
+  FORM_7B: 'Báo cáo hoàn thiện (7B)',
+  FORM_8B: 'Đề nghị lập HĐ NT Khoa (8B)',
+  FORM_9B: 'Phiếu đánh giá NT Khoa (9B)',
+  FORM_10B: 'Biên bản họp NT Khoa (10B)',
+  FORM_11B: 'Báo cáo hoàn thiện NT Khoa (11B)',
+  FORM_PL2: 'Báo cáo tổng kết (PL2)',
+  FORM_12B: 'Nhận xét phản biện (12B)',
+  FORM_13B: 'Đề nghị lập HĐ NT Trường (13B)',
+  FORM_14B: 'Phiếu đánh giá NT Trường (14B)',
+  FORM_15B: 'Biên bản họp NT Trường (15B)',
+  FORM_16B: 'Báo cáo hoàn thiện NT Trường (16B)',
+  FORM_PL3: 'Nhận xét phản biện chi tiết (PL3)',
+  FORM_17B: 'Biên bản giao nhận (17B)',
+  FORM_18B: 'Đơn xin gia hạn (18B)',
+};
+
+/**
+ * Mapping trạng thái -> các biểu mẫu được tạo ở trạng thái đó
+ * Dùng để lọc hiển thị biểu mẫu của các trạng thái đã qua
+ */
+export const STATE_FORM_MAPPING: Record<string, string[]> = {
+  DRAFT: ['FORM_1B', 'FORM_PL1'],
+  FACULTY_REVIEW: ['FORM_2B', 'FORM_3B', 'FORM_4B'],
+  SCHOOL_SELECTION_REVIEW: ['FORM_5B'],
+  OUTLINE_COUNCIL_REVIEW: ['FORM_6B', 'FORM_7B'],
+  IN_PROGRESS: ['FORM_18B'],
+  FACULTY_ACCEPTANCE_REVIEW: ['FORM_8B', 'FORM_9B', 'FORM_10B', 'FORM_11B', 'FORM_PL2'],
+  SCHOOL_ACCEPTANCE_REVIEW: ['FORM_12B', 'FORM_13B', 'FORM_14B', 'FORM_15B', 'FORM_16B', 'FORM_PL3'],
+  HANDOVER: ['FORM_17B'],
+};
+
+/**
+ * Thứ tự các trạng thái trong quy trình
+ */
+export const STATE_ORDER: string[] = [
+  'DRAFT',
+  'FACULTY_REVIEW',
+  'SCHOOL_SELECTION_REVIEW',
+  'OUTLINE_COUNCIL_REVIEW',
+  'CHANGES_REQUESTED',
+  'APPROVED',
+  'IN_PROGRESS',
+  'FACULTY_ACCEPTANCE_REVIEW',
+  'SCHOOL_ACCEPTANCE_REVIEW',
+  'HANDOVER',
+  'COMPLETED',
+];

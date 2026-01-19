@@ -19,6 +19,7 @@ import type {
   EngineTemplate,
   GenerateTestResult,
   GenerateTestRequest,
+  ProposalDocument,
 } from '../../shared/types/form-engine';
 
 /**
@@ -260,6 +261,19 @@ export const formEngineApi = {
     );
     return response.data.data;
   },
+
+  /**
+   * Get all documents (biểu mẫu đã tạo) for a proposal
+   *
+   * @param proposalId - Proposal ID
+   * @returns List of generated documents
+   */
+  getProposalDocuments: async (proposalId: string): Promise<ProposalDocument[]> => {
+    const response = await apiClient.get<ProposalDocument[]>(
+      `/proposal-documents/proposal/${proposalId}`
+    );
+    return response.data;
+  },
 };
 
 /**
@@ -285,4 +299,5 @@ export type {
   EngineTemplate,
   GenerateTestResult,
   GenerateTestRequest,
+  ProposalDocument,
 };
