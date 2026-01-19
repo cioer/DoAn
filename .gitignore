@@ -102,7 +102,7 @@ _bmad-output/
 
 # Documentation (local only)
 baocao2/
-apps/
+/apps/
 API_SPECIFICATION.md
 manual_test.md
 BAO_CAO_*.md
