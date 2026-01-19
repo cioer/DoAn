@@ -82,7 +82,8 @@ services:
     environment:
       PYTHONUNBUFFERED: 1
     volumes:
-      - ../../modul_create_temple/form_engine/templates:/app/templates:ro
+      # Templates are baked into the image via COPY in Dockerfile
+      # Only mount output directory for persistence
       - form_output:/app/output
     networks:
       - qlnckh-network
