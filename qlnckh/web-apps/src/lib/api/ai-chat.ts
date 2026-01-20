@@ -52,6 +52,24 @@ export interface ChatResponse {
 }
 
 /**
+ * AI Fill Form request
+ */
+export interface AiFillFormRequest {
+  formType: string;
+  title: string;
+  fieldKey?: string;
+  existingData?: Record<string, string>;
+}
+
+/**
+ * AI Fill Form response
+ */
+export interface AiFillFormResponse {
+  fields: Record<string, string>;
+  model: string;
+}
+
+/**
  * API response wrapper
  */
 interface ApiResponse<T> {
@@ -90,6 +108,17 @@ export const aiChatApi = {
   chatWithProposal: async (request: ChatWithProposalRequest): Promise<ChatResponse> => {
     const response = await apiClient.post<ApiResponse<ChatResponse>>(
       '/ai-chat/with-proposal',
+      request
+    );
+    return response.data.data;
+  },
+
+  /**
+   * AI Fill Form - Generate content for form fields
+   */
+  fillForm: async (request: AiFillFormRequest): Promise<AiFillFormResponse> => {
+    const response = await apiClient.post<ApiResponse<AiFillFormResponse>>(
+      '/ai-chat/fill-form',
       request
     );
     return response.data.data;

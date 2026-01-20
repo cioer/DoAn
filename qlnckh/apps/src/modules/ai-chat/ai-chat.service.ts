@@ -259,4 +259,124 @@ ${formData.sanPham ? `- Sản phẩm dự kiến: ${formData.sanPham}` : ''}
 - Nếu câu hỏi ngoài phạm vi đề tài, vẫn cố gắng hỗ trợ một cách hữu ích
 - Không bịa đặt thông tin không có trong dữ liệu`;
   }
+
+  /**
+   * AI Fill Form - Generate content for form fields
+   */
+  async fillForm(
+    formType: string,
+    title: string,
+    fieldKey?: string,
+    existingData?: Record<string, string>,
+  ): Promise<{ fields: Record<string, string>; model: string }> {
+    if (!this.isAvailable()) {
+      throw new HttpException('AI Chat service not configured', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    const fieldDefinitions = this.getFieldDefinitions(formType);
+    if (!fieldDefinitions) {
+      throw new HttpException(`Unknown form type: ${formType}`, HttpStatus.BAD_REQUEST);
+    }
+
+    // Filter fields if specific field requested
+    const fieldsToFill = fieldKey
+      ? fieldDefinitions.filter(f => f.key === fieldKey)
+      : fieldDefinitions.filter(f => f.type === 'textarea'); // Only fill text fields
+
+    if (fieldsToFill.length === 0) {
+      throw new HttpException('No fields to fill', HttpStatus.BAD_REQUEST);
+    }
+
+    const systemPrompt = this.buildFillFormPrompt(formType, title, fieldsToFill, existingData);
+
+    const messages: ChatMessageDto[] = [
+      { role: MessageRole.SYSTEM, content: systemPrompt },
+      { role: MessageRole.USER, content: `Hãy điền nội dung cho các trường sau dựa trên tên đề tài "${title}". Trả về JSON với key là tên trường và value là nội dung.` },
+    ];
+
+    try {
+      const response = await this.callZaiApi(messages);
+      const content = response.choices[0].message.content;
+
+      // Parse JSON from response
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('Invalid AI response format');
+      }
+
+      const fields = JSON.parse(jsonMatch[0]);
+
+      return {
+        fields,
+        model: response.model,
+      };
+    } catch (error) {
+      this.logger.error('Fill form failed:', error);
+      throw new HttpException(
+        error.message || 'AI form fill failed',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Get field definitions for a form type
+   */
+  private getFieldDefinitions(formType: string): Array<{
+    key: string;
+    label: string;
+    type: string;
+    description?: string;
+  }> | null {
+    const definitions: Record<string, Array<{ key: string; label: string; type: string; description?: string }>> = {
+      form_1b: [
+        { key: 'tinh_cap_thiet', label: 'Tính cấp thiết của đề tài', type: 'textarea', description: 'Trình bày tính cấp thiết, lý do cần thực hiện đề tài nghiên cứu' },
+        { key: 'muc_tieu_de_tai', label: 'Mục tiêu đề tài', type: 'textarea', description: 'Liệt kê mục tiêu tổng quát và cụ thể' },
+        { key: 'noi_dung_chinh', label: 'Nội dung chính', type: 'textarea', description: 'Mô tả các nội dung nghiên cứu chính, phương pháp thực hiện' },
+        { key: 'ket_qua_du_kien', label: 'Kết quả dự kiến', type: 'textarea', description: 'Liệt kê các sản phẩm, kết quả cụ thể' },
+        { key: 'kha_nang_va_dia_chi_ung_dung', label: 'Khả năng và địa chỉ ứng dụng', type: 'textarea', description: 'Mô tả nơi có thể triển khai, đối tượng hưởng lợi' },
+        { key: 'du_kien_hieu_qua_tuong_lai', label: 'Dự kiến hiệu quả tương lai', type: 'textarea', description: 'Đánh giá tác động dài hạn của nghiên cứu' },
+      ],
+      // Add more form types here as needed
+    };
+
+    return definitions[formType] || null;
+  }
+
+  /**
+   * Build prompt for form filling
+   */
+  private buildFillFormPrompt(
+    formType: string,
+    title: string,
+    fields: Array<{ key: string; label: string; description?: string }>,
+    existingData?: Record<string, string>,
+  ): string {
+    const fieldList = fields.map(f => {
+      const existing = existingData?.[f.key];
+      return `- ${f.key}: ${f.label}${f.description ? ` (${f.description})` : ''}${existing ? `\n  Nội dung hiện có: "${existing}"` : ''}`;
+    }).join('\n');
+
+    return `Bạn là trợ lý AI chuyên viết nội dung cho đề tài nghiên cứu khoa học.
+
+**Tên đề tài:** ${title}
+
+**Các trường cần điền:**
+${fieldList}
+
+**Yêu cầu:**
+1. Viết nội dung phù hợp với tên đề tài
+2. Mỗi trường cần đủ chi tiết, có ý nghĩa
+3. Sử dụng ngôn ngữ học thuật, chuyên nghiệp
+4. Trả về JSON object với key là tên trường (tiếng Việt không dấu, snake_case) và value là nội dung
+5. Nếu có nội dung hiện có, hãy cải thiện hoặc bổ sung thêm
+6. Với trường muc_tieu_de_tai và noi_dung_chinh, dùng format liệt kê (dấu -)
+7. Tối thiểu 50 ký tự cho mỗi trường
+
+**Ví dụ output:**
+{
+  "tinh_cap_thiet": "Nội dung...",
+  "muc_tieu_de_tai": "- Mục tiêu tổng quát:...\\n- Mục tiêu cụ thể 1:..."
+}`;
+  }
 }

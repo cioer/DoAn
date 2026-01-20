@@ -1,7 +1,9 @@
-import { CalendarDays, DollarSign } from 'lucide-react';
+import { useState } from 'react';
+import { CalendarDays, DollarSign, AlertCircle } from 'lucide-react';
 import { Textarea } from '../ui/Textarea';
 import { Input } from '../ui/Input';
 import { Form1bData, FORM_1B_FIELDS } from '../../shared/types/form-1b';
+import { AiFillAllButton, AiFillFieldButton } from '../ai-chat';
 
 /**
  * Props for Form1bFields component
@@ -15,6 +17,10 @@ export interface Form1bFieldsProps {
   errors?: Record<string, string>;
   /** Whether all fields should be disabled */
   disabled?: boolean;
+  /** Proposal title for AI context */
+  proposalTitle?: string;
+  /** Whether to show AI fill buttons */
+  showAiFill?: boolean;
 }
 
 /**
@@ -39,29 +45,99 @@ export function Form1bFields({
   onChange,
   errors = {},
   disabled = false,
+  proposalTitle = '',
+  showAiFill = true,
 }: Form1bFieldsProps) {
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  // Handle AI fill for all fields
+  const handleAiFillAll = (fields: Record<string, string>) => {
+    setAiError(null);
+    Object.entries(fields).forEach(([key, value]) => {
+      if (key in formData) {
+        onChange(key as keyof Form1bData, value);
+      }
+    });
+  };
+
+  // Handle AI fill for a specific field
+  const handleAiFillField = (fieldKey: string) => (fields: Record<string, string>) => {
+    setAiError(null);
+    if (fields[fieldKey]) {
+      onChange(fieldKey as keyof Form1bData, fields[fieldKey]);
+    }
+  };
+
+  // Get current form data as existing data for AI
+  const getExistingData = (): Record<string, string> => {
+    const data: Record<string, string> = {};
+    FORM_1B_FIELDS.forEach((field) => {
+      if (formData[field.key]) {
+        data[field.key] = formData[field.key];
+      }
+    });
+    return data;
+  };
+
   return (
     <div className="space-y-6">
+      {/* AI Error Message */}
+      {aiError && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{aiError}</span>
+        </div>
+      )}
+
       {/* Section: Nội dung đề tài */}
       <div className="space-y-5">
-        <h3 className="text-base font-semibold text-gray-800 pb-2 border-b border-gray-200">
-          Nội dung đề tài
-        </h3>
+        <div className="flex items-center justify-between pb-2 border-b border-gray-200">
+          <h3 className="text-base font-semibold text-gray-800">
+            Nội dung đề tài
+          </h3>
+          {showAiFill && !disabled && (
+            <AiFillAllButton
+              formType="form_1b"
+              title={proposalTitle}
+              existingData={getExistingData()}
+              onFill={handleAiFillAll}
+              onError={setAiError}
+              size="sm"
+              disabled={!proposalTitle.trim()}
+            />
+          )}
+        </div>
 
         {/* Render textarea fields */}
         {FORM_1B_FIELDS.map((field) => (
-          <Textarea
-            key={field.key}
-            label={field.label}
-            required={field.required}
-            rows={field.rows}
-            placeholder={field.placeholder}
-            helperText={field.helperText}
-            value={formData[field.key]}
-            onChange={(e) => onChange(field.key, e.target.value)}
-            error={errors[field.key]}
-            disabled={disabled}
-          />
+          <div key={field.key} className="relative">
+            <Textarea
+              label={
+                <div className="flex items-center justify-between w-full">
+                  <span>{field.label}</span>
+                  {showAiFill && !disabled && (
+                    <AiFillFieldButton
+                      formType="form_1b"
+                      title={proposalTitle}
+                      fieldKey={field.key}
+                      existingData={getExistingData()}
+                      onFill={handleAiFillField(field.key)}
+                      onError={setAiError}
+                      disabled={!proposalTitle.trim()}
+                    />
+                  )}
+                </div>
+              }
+              required={field.required}
+              rows={field.rows}
+              placeholder={field.placeholder}
+              helperText={field.helperText}
+              value={formData[field.key]}
+              onChange={(e) => onChange(field.key, e.target.value)}
+              error={errors[field.key]}
+              disabled={disabled}
+            />
+          </div>
         ))}
       </div>
 

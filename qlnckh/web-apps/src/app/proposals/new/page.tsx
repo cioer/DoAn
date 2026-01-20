@@ -221,6 +221,8 @@ export default function CreateProposalPage() {
             formData={formData}
             onChange={handleFieldChange}
             errors={errors}
+            proposalTitle={title}
+            showAiFill={true}
           />
 
           {/* Error Message */}

@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from 'class-variance-authority';
-import { forwardRef, type TextareaHTMLAttributes } from 'react';
+import { forwardRef, type TextareaHTMLAttributes, type ReactNode } from 'react';
 
 /**
  * Textarea Component Variants - Modern Soft UI
@@ -45,8 +45,8 @@ export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
   error?: string;
   /** Helper text to display below textarea */
   helperText?: string;
-  /** Label for the textarea */
-  label?: string;
+  /** Label for the textarea (can be string or React node) */
+  label?: ReactNode;
   /** Required field indicator */
   required?: boolean;
 }

@@ -93,3 +93,29 @@ export class ChatResponseDto {
     totalTokens: number;
   };
 }
+
+/**
+ * AI Fill Form request DTO
+ */
+export class AiFillFormDto {
+  @IsString()
+  formType: string; // e.g., 'form_1b', 'evaluation'
+
+  @IsString()
+  title: string; // Proposal title for context
+
+  @IsOptional()
+  @IsString()
+  fieldKey?: string; // Specific field to fill (optional - if not provided, fill all)
+
+  @IsOptional()
+  existingData?: Record<string, string>; // Existing form data for context
+}
+
+/**
+ * AI Fill Form response
+ */
+export interface AiFillFormResponse {
+  fields: Record<string, string>;
+  model: string;
+}

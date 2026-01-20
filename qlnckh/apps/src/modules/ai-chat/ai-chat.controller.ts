@@ -11,7 +11,7 @@ import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AiChatService } from './ai-chat.service';
-import { ChatCompletionDto, ChatWithProposalDto } from './dto';
+import { ChatCompletionDto, ChatWithProposalDto, AiFillFormDto } from './dto';
 
 /**
  * AI Chat Controller
@@ -69,6 +69,26 @@ export class AiChatController {
     return {
       success: true,
       data: response,
+    };
+  }
+
+  /**
+   * AI Fill Form - Generate content for form fields
+   */
+  @Post('fill-form')
+  async fillForm(
+    @Body() dto: AiFillFormDto,
+    @CurrentUser() user: any,
+  ) {
+    const result = await this.aiChatService.fillForm(
+      dto.formType,
+      dto.title,
+      dto.fieldKey,
+      dto.existingData,
+    );
+    return {
+      success: true,
+      data: result,
     };
   }
 
