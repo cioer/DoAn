@@ -203,29 +203,94 @@ export class AiChatService {
    */
   private buildProposalSystemPrompt(proposal: any): string {
     const formData = proposal.formData || {};
+    const stateLabels: Record<string, string> = {
+      DRAFT: 'Nháp',
+      FACULTY_REVIEW: 'Chờ duyệt (Khoa)',
+      SCHOOL_SELECTION_REVIEW: 'Chờ duyệt (Trường)',
+      OUTLINE_COUNCIL_REVIEW: 'Chờ xét duyệt (Hội đồng)',
+      CHANGES_REQUESTED: 'Yêu cầu chỉnh sửa',
+      APPROVED: 'Đã duyệt',
+      IN_PROGRESS: 'Đang thực hiện',
+      FACULTY_ACCEPTANCE_REVIEW: 'Nghiệm thu (Khoa)',
+      SCHOOL_ACCEPTANCE_REVIEW: 'Nghiệm thu (Trường)',
+      HANDOVER: 'Bàn giao',
+      COMPLETED: 'Hoàn thành',
+      CANCELLED: 'Đã hủy',
+      REJECTED: 'Từ chối',
+      PAUSED: 'Tạm dừng',
+    };
 
-    return `Bạn là trợ lý AI cho hệ thống Quản lý Nghiên cứu Khoa học (QLNCKH).
-Bạn đang hỗ trợ người dùng về đề tài nghiên cứu sau:
+    // Format dates
+    const formatDate = (date: any) => {
+      if (!date) return null;
+      try {
+        return new Date(date).toLocaleDateString('vi-VN');
+      } catch {
+        return date;
+      }
+    };
 
-**Thông tin đề tài:**
-- Mã đề tài: ${proposal.code}
-- Tên đề tài: ${proposal.title}
-- Chủ nhiệm: ${proposal.owner?.displayName || 'N/A'}
-- Khoa: ${proposal.faculty?.name || 'N/A'}
-- Trạng thái: ${proposal.state}
-- Ngày tạo: ${proposal.createdAt?.toLocaleDateString('vi-VN') || 'N/A'}
+    // Build content sections only if data exists
+    const contentSections: string[] = [];
 
-**Nội dung đề tài:**
-${formData.mucTieu ? `- Mục tiêu: ${formData.mucTieu}` : ''}
-${formData.noiDung ? `- Nội dung: ${formData.noiDung}` : ''}
-${formData.phuongPhap ? `- Phương pháp: ${formData.phuongPhap}` : ''}
-${formData.sanPham ? `- Sản phẩm dự kiến: ${formData.sanPham}` : ''}
+    if (formData.tinh_cap_thiet) {
+      contentSections.push(`**Tính cấp thiết:**\n${formData.tinh_cap_thiet}`);
+    }
+    if (formData.muc_tieu_de_tai) {
+      contentSections.push(`**Mục tiêu:**\n${formData.muc_tieu_de_tai}`);
+    }
+    if (formData.noi_dung_chinh) {
+      contentSections.push(`**Nội dung chính:**\n${formData.noi_dung_chinh}`);
+    }
+    if (formData.ket_qua_du_kien) {
+      contentSections.push(`**Kết quả dự kiến:**\n${formData.ket_qua_du_kien}`);
+    }
+    if (formData.kha_nang_va_dia_chi_ung_dung) {
+      contentSections.push(`**Khả năng ứng dụng:**\n${formData.kha_nang_va_dia_chi_ung_dung}`);
+    }
+    if (formData.du_kien_hieu_qua_tuong_lai) {
+      contentSections.push(`**Hiệu quả dự kiến:**\n${formData.du_kien_hieu_qua_tuong_lai}`);
+    }
 
-**Hướng dẫn:**
-- Trả lời bằng tiếng Việt, ngắn gọn và dễ hiểu
-- Nếu được hỏi về đề tài, sử dụng thông tin ở trên để trả lời
-- Nếu câu hỏi ngoài phạm vi đề tài, vẫn cố gắng hỗ trợ một cách hữu ích
-- Không bịa đặt thông tin không có trong dữ liệu`;
+    // Timeline info
+    const timelineInfo: string[] = [];
+    if (formData.thoi_gian_bat_dau) {
+      timelineInfo.push(`Bắt đầu: ${formatDate(formData.thoi_gian_bat_dau)}`);
+    }
+    if (formData.thoi_gian_ket_thuc) {
+      timelineInfo.push(`Kết thúc: ${formatDate(formData.thoi_gian_ket_thuc)}`);
+    }
+    if (formData.nhu_cau_kinh_phi_du_kien) {
+      timelineInfo.push(`Kinh phí: ${formData.nhu_cau_kinh_phi_du_kien}`);
+    }
+
+    return `Bạn là trợ lý AI thông minh cho hệ thống Quản lý Nghiên cứu Khoa học. Bạn đang hỗ trợ người dùng về một đề tài cụ thể.
+
+## THÔNG TIN ĐỀ TÀI
+
+**Cơ bản:**
+- Mã: ${proposal.code}
+- Tên: ${proposal.title}
+- Chủ nhiệm: ${proposal.owner?.displayName || 'Chưa có'}
+- Đơn vị: ${proposal.faculty?.name || 'Chưa có'}
+- Trạng thái: ${stateLabels[proposal.state] || proposal.state}
+- Ngày tạo: ${formatDate(proposal.createdAt) || 'N/A'}
+${timelineInfo.length > 0 ? `- ${timelineInfo.join(' | ')}` : ''}
+
+${contentSections.length > 0 ? `## NỘI DUNG ĐỀ TÀI\n\n${contentSections.join('\n\n')}` : '(Chưa có nội dung chi tiết)'}
+
+## HƯỚNG DẪN TRẢ LỜI
+
+1. **Ngôn ngữ:** Trả lời bằng tiếng Việt, rõ ràng, chuyên nghiệp
+2. **Độ dài:** Ngắn gọn nhưng đầy đủ thông tin
+3. **Dựa trên dữ liệu:** Chỉ sử dụng thông tin có trong đề tài, không bịa đặt
+4. **Hỗ trợ đa dạng:** Có thể giúp:
+   - Giải thích nội dung đề tài
+   - Đề xuất cải thiện các phần còn thiếu/yếu
+   - Trả lời câu hỏi về quy trình xét duyệt
+   - Gợi ý phương pháp nghiên cứu phù hợp
+   - Hỗ trợ viết báo cáo, tóm tắt
+5. **Thừa nhận giới hạn:** Nếu không có đủ thông tin, hãy nói rõ và hỏi lại người dùng`;
   }
 
   /**
