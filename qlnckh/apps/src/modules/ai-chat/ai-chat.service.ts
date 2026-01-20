@@ -1,12 +1,12 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../auth/prisma.service';
+import OpenAI from 'openai';
 import {
   ChatMessageDto,
   ChatCompletionDto,
   ChatWithProposalDto,
   ChatResponseDto,
-  ZaiChatResponse,
   MessageRole,
 } from './dto';
 
@@ -22,20 +22,25 @@ import {
 @Injectable()
 export class AiChatService {
   private readonly logger = new Logger(AiChatService.name);
-  private readonly apiKey: string;
-  private readonly apiUrl: string;
+  private readonly openai: OpenAI | null;
   private readonly model: string;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
   ) {
-    this.apiKey = this.configService.get<string>('ZAI_API_KEY') || '';
-    this.apiUrl = this.configService.get<string>('ZAI_API_URL') || 'https://api.z.ai/api/coding/paas/v4';
+    const apiKey = this.configService.get<string>('ZAI_API_KEY') || '';
+    const baseURL = this.configService.get<string>('ZAI_API_URL') || 'https://api.z.ai/api/coding/paas/v4';
     this.model = this.configService.get<string>('ZAI_MODEL') || 'glm-4.5-air';
 
-    if (!this.apiKey) {
+    if (!apiKey) {
       this.logger.warn('ZAI_API_KEY not configured - AI Chat will not work');
+      this.openai = null;
+    } else {
+      this.openai = new OpenAI({
+        apiKey,
+        baseURL,
+      });
     }
   }
 
@@ -43,7 +48,7 @@ export class AiChatService {
    * Check if AI Chat is available
    */
   isAvailable(): boolean {
-    return !!this.apiKey;
+    return !!this.openai;
   }
 
   /**
@@ -118,7 +123,7 @@ export class AiChatService {
    * Stream chat completion (returns async generator for SSE)
    */
   async *streamChatCompletion(dto: ChatCompletionDto): AsyncGenerator<string> {
-    if (!this.isAvailable()) {
+    if (!this.openai) {
       throw new HttpException('AI Chat service not configured', HttpStatus.SERVICE_UNAVAILABLE);
     }
 
@@ -127,57 +132,20 @@ export class AiChatService {
       : dto.messages;
 
     try {
-      const response = await fetch(`${this.apiUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: messages.map(m => ({ role: m.role, content: m.content })),
-          stream: true,
-          max_tokens: 2048,
-        }),
+      const stream = await this.openai.chat.completions.create({
+        model: this.model,
+        messages: messages.map(m => ({
+          role: m.role as 'system' | 'user' | 'assistant',
+          content: m.content
+        })),
+        stream: true,
+        max_tokens: 2048,
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || 'API request failed');
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('No response body');
-      }
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') {
-              return;
-            }
-            try {
-              const parsed = JSON.parse(data);
-              const content = parsed.choices?.[0]?.delta?.content;
-              if (content) {
-                yield content;
-              }
-            } catch {
-              // Skip invalid JSON
-            }
-          }
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content) {
+          yield content;
         }
       }
     } catch (error) {
@@ -187,52 +155,46 @@ export class AiChatService {
   }
 
   /**
-   * Call Z.AI API
+   * Call Z.AI API using OpenAI SDK
    */
   private async callZaiApi(
     messages: ChatMessageDto[],
     options?: { maxTokens?: number; temperature?: number },
-  ): Promise<ZaiChatResponse> {
+  ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
+    if (!this.openai) {
+      throw new Error('OpenAI client not initialized');
+    }
+
     const maxTokens = options?.maxTokens ?? 2048;
     const temperature = options?.temperature ?? 0.7;
 
-    const response = await fetch(`${this.apiUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages: messages.map(m => ({ role: m.role, content: m.content })),
-        max_tokens: maxTokens,
-        temperature,
-      }),
+    const response = await this.openai.chat.completions.create({
+      model: this.model,
+      messages: messages.map(m => ({
+        role: m.role as 'system' | 'user' | 'assistant',
+        content: m.content
+      })),
+      max_tokens: maxTokens,
+      temperature,
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      this.logger.error('Z.AI API error:', error);
-      throw new Error(error.error?.message || 'Z.AI API request failed');
-    }
-
-    return response.json();
+    return response;
   }
 
   /**
-   * Format Z.AI response to ChatResponseDto
+   * Format OpenAI SDK response to ChatResponseDto
    */
-  private formatResponse(response: ZaiChatResponse): ChatResponseDto {
+  private formatResponse(response: OpenAI.Chat.Completions.ChatCompletion): ChatResponseDto {
     const choice = response.choices[0];
     return {
-      content: choice.message.content,
-      reasoning: choice.message.reasoning_content,
+      content: choice.message.content || '',
+      reasoning: (choice.message as any).reasoning_content, // Z.AI specific field
       model: response.model,
-      usage: {
+      usage: response.usage ? {
         promptTokens: response.usage.prompt_tokens,
         completionTokens: response.usage.completion_tokens,
         totalTokens: response.usage.total_tokens,
-      },
+      } : undefined,
     };
   }
 
@@ -303,7 +265,11 @@ ${formData.sanPham ? `- Sản phẩm dự kiến: ${formData.sanPham}` : ''}
     try {
       // Use higher max_tokens for form filling (need more space for 6 fields)
       const response = await this.callZaiApi(messages, { maxTokens: 4096, temperature: 0.7 });
-      const content = response.choices[0].message.content;
+      const content = response.choices[0].message.content || '';
+
+      if (!content) {
+        throw new Error('Empty response from AI');
+      }
 
       this.logger.debug('AI fill form raw response length:', content.length);
       this.logger.debug('AI fill form raw response:', content.substring(0, 500));
