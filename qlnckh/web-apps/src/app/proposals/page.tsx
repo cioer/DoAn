@@ -152,39 +152,43 @@ export default function ProposalsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-6 md:py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Đề tài nghiên cứu</h1>
-            <p className="text-gray-600 mt-1">Danh sách các đề tài nghiên cứu khoa học</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Đề tài nghiên cứu</h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1">Danh sách các đề tài nghiên cứu khoa học</p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Export button */}
             <Button
               variant="secondary"
               onClick={handleExportClick}
-              leftIcon={<Download className="h-5 w-5" />}
+              leftIcon={<Download className="h-4 w-4 sm:h-5 sm:w-5" />}
+              className="flex-1 sm:flex-none"
             >
-              Xuất Excel
+              <span className="hidden sm:inline">Xuất Excel</span>
+              <span className="sm:hidden">Excel</span>
             </Button>
 
             {canCreate && (
               <Button
                 variant="primary"
                 onClick={() => navigate('/proposals/new')}
-                leftIcon={<Plus className="h-5 w-5" />}
+                leftIcon={<Plus className="h-4 w-4 sm:h-5 sm:w-5" />}
+                className="flex-1 sm:flex-none"
               >
-                Tạo đề tài mới
+                <span className="hidden sm:inline">Tạo đề tài mới</span>
+                <span className="sm:hidden">Tạo mới</span>
               </Button>
             )}
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-4 sm:mb-6">
           <ProposalFilters
             filters={filters}
             onFiltersChange={(newFilters) => setFilters(newFilters)}
@@ -204,28 +208,32 @@ export default function ProposalsPage() {
 
           {/* Pagination */}
           {!isLoading && proposals.length > 0 && (
-            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-              <div className="text-sm text-gray-700">
-                Hiển thị {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, totalCount)} trong số {totalCount} đề tài
+            <div className="px-4 sm:px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="text-xs sm:text-sm text-gray-700 text-center sm:text-left">
+                <span className="hidden sm:inline">Hiển thị </span>
+                {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, totalCount)}
+                <span className="hidden sm:inline"> trong số</span>
+                <span className="sm:hidden">/</span> {totalCount}
+                <span className="hidden sm:inline"> đề tài</span>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center gap-2">
                 <button
                   onClick={() => setPage(Math.max(1, page - 1))}
                   disabled={page === 1}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 min-h-[44px] min-w-[44px]"
                 >
                   Trước
                 </button>
 
-                <span className="text-sm text-gray-700">
-                  Trang {page} / {totalPages}
+                <span className="text-sm text-gray-700 px-2">
+                  {page} / {totalPages}
                 </span>
 
                 <button
                   onClick={() => setPage(Math.min(totalPages, page + 1))}
                   disabled={page === totalPages}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 min-h-[44px] min-w-[44px]"
                 >
                   Sau
                 </button>

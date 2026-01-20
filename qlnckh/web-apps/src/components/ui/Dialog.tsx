@@ -38,14 +38,14 @@ export interface DialogProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 /**
- * Dialog Content Size Classes - Modern Soft UI
+ * Dialog Content Size Classes - Mobile-first responsive sizes
  */
 const dialogSizes = {
-  sm: 'max-w-sm w-full',
-  md: 'max-w-md w-full',
-  lg: 'max-w-lg w-full',
-  xl: 'max-w-xl w-full',
-  full: 'max-w-4xl w-full',
+  sm: 'w-full max-w-[calc(100vw-1.5rem)] sm:max-w-sm',
+  md: 'w-full max-w-[calc(100vw-1.5rem)] sm:max-w-md',
+  lg: 'w-full max-w-[calc(100vw-1.5rem)] sm:max-w-md md:max-w-lg',
+  xl: 'w-full max-w-[calc(100vw-1.5rem)] sm:max-w-lg md:max-w-xl',
+  full: 'w-full max-w-[calc(100vw-1.5rem)] sm:max-w-xl md:max-w-2xl lg:max-w-4xl',
 };
 
 /**
@@ -110,18 +110,18 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
         >
           {/* Header */}
           {(title || showCloseButton) && (
-            <div className="flex items-center justify-between p-6 border-b border-gray-100/80">
-              <div className="flex-1">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-100/80">
+              <div className="flex-1 pr-2">
                 {title && (
                   <h2
                     id="dialog-title"
-                    className="text-lg font-bold text-gray-900"
+                    className="text-base sm:text-lg font-bold text-gray-900"
                   >
                     {title}
                   </h2>
                 )}
                 {description && (
-                  <p id="dialog-description" className="text-sm text-gray-600 mt-1">
+                  <p id="dialog-description" className="text-xs sm:text-sm text-gray-600 mt-1">
                     {description}
                   </p>
                 )}
@@ -130,7 +130,7 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                 <button
                   onClick={onClose}
                   className={cn(
-                    'flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center',
+                    'flex-shrink-0 min-w-[44px] min-h-[44px] w-10 h-10 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center',
                     'text-gray-400 hover:text-gray-600 hover:bg-gray-100',
                     'transition-all duration-200'
                   )}
@@ -144,14 +144,14 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
 
           {/* Body */}
           {children && (
-            <div className="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+            <div className="p-4 sm:p-6 max-h-[60vh] sm:max-h-[70vh] overflow-y-auto custom-scrollbar">
               {children}
             </div>
           )}
 
           {/* Footer */}
           {footer && (
-            <div className="p-6 border-t border-gray-100/80 bg-gray-50/50 rounded-b-2xl">
+            <div className="p-4 sm:p-6 border-t border-gray-100/80 bg-gray-50/50 rounded-b-2xl">
               {footer}
             </div>
           )}
@@ -204,7 +204,7 @@ export const DialogBody = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
     return (
       <div
         ref={ref}
-        className={cn('p-6 max-h-[70vh] overflow-y-auto custom-scrollbar', className)}
+        className={cn('p-4 sm:p-6 max-h-[60vh] sm:max-h-[70vh] overflow-y-auto custom-scrollbar', className)}
         {...props}
       />
     );
@@ -221,7 +221,7 @@ export const DialogFooter = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEle
     return (
       <div
         ref={ref}
-        className={cn('p-6 border-t border-gray-100/80 bg-gray-50/50 rounded-b-2xl flex justify-end gap-3', className)}
+        className={cn('p-4 sm:p-6 border-t border-gray-100/80 bg-gray-50/50 rounded-b-2xl flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3', className)}
         {...props}
       />
     );

@@ -19,7 +19,8 @@ import {
   Layers,
   FileUp,
   Upload,
-  Key
+  Key,
+  X
 } from 'lucide-react';
 import { ReactNode, useState } from 'react';
 import { useSidebar } from './SidebarContext';
@@ -56,7 +57,7 @@ const NavItem = ({
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 min-h-[44px] ${
         isActive ? activeClasses[color] : inactiveClasses
       }`}
       title={collapsed ? String(children) : undefined}
@@ -89,17 +90,24 @@ const SidebarSection = ({
 
 /**
  * Sidebar Component - Modern Soft UI Admin Sidebar
+ * Supports both desktop (fixed sidebar) and mobile (drawer overlay)
  */
 export function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, actingAs, isAuthenticated, logout, getEffectiveUser, hasPermission } = useAuthStore();
-  const { collapsed, toggleCollapsed } = useSidebar();
+  const { collapsed, toggleCollapsed, mobileOpen, setMobileOpen } = useSidebar();
   const [showChangePassword, setShowChangePassword] = useState(false);
 
   if (!isAuthenticated) {
     return null;
   }
+
+  // Close mobile drawer when navigating
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    setMobileOpen(false);
+  };
 
   const effectiveUser = getEffectiveUser();
   const displayName = effectiveUser?.displayName || 'Người dùng';
@@ -134,18 +142,15 @@ export function Sidebar() {
 
   const isActive = (path: string) => location.pathname.startsWith(path);
 
-  return (
-    <aside
-      className={`fixed left-0 top-0 h-full bg-white/90 backdrop-blur-xl border-r border-gray-200/50 shadow-soft-xl z-50 transition-all duration-300 flex flex-col ${
-        collapsed ? 'w-20' : 'w-64'
-      }`}
-    >
+  // Sidebar content (shared between desktop and mobile)
+  const sidebarContent = (isMobile: boolean) => (
+    <>
       {/* Logo Section */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200/50 flex-shrink-0">
-        {!collapsed ? (
+        {isMobile || !collapsed ? (
           <div
             className="flex items-center gap-2 cursor-pointer"
-            onClick={() => navigate('/')}
+            onClick={() => handleNavigate('/')}
           >
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-soft-lg">
               QL
@@ -160,47 +165,57 @@ export function Sidebar() {
         ) : (
           <div
             className="flex items-center justify-center w-full cursor-pointer"
-            onClick={() => navigate('/')}
+            onClick={() => handleNavigate('/')}
           >
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-soft-lg">
               QL
             </div>
           </div>
         )}
-        <button
-          onClick={toggleCollapsed}
-          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-        >
-          {collapsed ? (
-            <ChevronRight className="w-4 h-4 text-gray-500" />
-          ) : (
-            <ChevronLeft className="w-4 h-4 text-gray-500" />
-          )}
-        </button>
+        {isMobile ? (
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+            aria-label="Đóng menu"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        ) : (
+          <button
+            onClick={toggleCollapsed}
+            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors hidden lg:flex"
+          >
+            {collapsed ? (
+              <ChevronRight className="w-4 h-4 text-gray-500" />
+            ) : (
+              <ChevronLeft className="w-4 h-4 text-gray-500" />
+            )}
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-3 space-y-1 custom-scrollbar">
         {/* Main Navigation */}
-        <SidebarSection collapsed={collapsed}>Menu chính</SidebarSection>
+        <SidebarSection collapsed={!isMobile && collapsed}>Menu chính</SidebarSection>
 
         <NavItem
-          onClick={() => navigate('/proposals')}
+          onClick={() => handleNavigate('/proposals')}
           isActive={isActive('/proposals')}
           icon={FileText}
           color="blue"
-          collapsed={collapsed}
+          collapsed={!isMobile && collapsed}
         >
           Đề tài
         </NavItem>
 
         {canViewResearcherDashboard && (
           <NavItem
-            onClick={() => navigate('/dashboard/researcher')}
+            onClick={() => handleNavigate('/dashboard/researcher')}
             isActive={isActive('/dashboard/researcher')}
             icon={LayoutDashboard}
             color="indigo"
-            collapsed={collapsed}
+            collapsed={!isMobile && collapsed}
           >
             Dashboard
           </NavItem>
@@ -208,11 +223,11 @@ export function Sidebar() {
 
         {canViewFacultyDashboard && (
           <NavItem
-            onClick={() => navigate('/dashboard/faculty')}
+            onClick={() => handleNavigate('/dashboard/faculty')}
             isActive={isActive('/dashboard/faculty')}
             icon={Building2}
             color="blue"
-            collapsed={collapsed}
+            collapsed={!isMobile && collapsed}
           >
             Khoa
           </NavItem>
@@ -220,11 +235,11 @@ export function Sidebar() {
 
         {canViewBghDashboard && (
           <NavItem
-            onClick={() => navigate('/dashboard/bgh')}
+            onClick={() => handleNavigate('/dashboard/bgh')}
             isActive={isActive('/dashboard/bgh')}
             icon={Shield}
             color="emerald"
-            collapsed={collapsed}
+            collapsed={!isMobile && collapsed}
           >
             Hiệu trưởng
           </NavItem>
@@ -232,11 +247,11 @@ export function Sidebar() {
 
         {canViewDashboard && (
           <NavItem
-            onClick={() => navigate('/dashboard')}
+            onClick={() => handleNavigate('/dashboard')}
             isActive={isActive('/dashboard') && !isActive('/dashboard/')}
             icon={Home}
             color="blue"
-            collapsed={collapsed}
+            collapsed={!isMobile && collapsed}
           >
             Tổng quan
           </NavItem>
@@ -244,11 +259,11 @@ export function Sidebar() {
 
         {canViewCalendar && (
           <NavItem
-            onClick={() => navigate('/calendar')}
+            onClick={() => handleNavigate('/calendar')}
             isActive={isActive('/calendar')}
             icon={Calendar}
             color="purple"
-            collapsed={collapsed}
+            collapsed={!isMobile && collapsed}
           >
             Lịch
           </NavItem>
@@ -256,11 +271,11 @@ export function Sidebar() {
 
         {canViewCouncils && (
           <NavItem
-            onClick={() => navigate('/councils')}
+            onClick={() => handleNavigate('/councils')}
             isActive={isActive('/councils')}
             icon={GraduationCap}
             color="indigo"
-            collapsed={collapsed}
+            collapsed={!isMobile && collapsed}
           >
             Hội đồng
           </NavItem>
@@ -268,16 +283,16 @@ export function Sidebar() {
 
         {/* Management Section */}
         {(canViewBulkOps || canViewAuditLog || canViewFormTemplates || canViewImport || canManageUsers) && (
-          <SidebarSection collapsed={collapsed}>Quản trị</SidebarSection>
+          <SidebarSection collapsed={!isMobile && collapsed}>Quản trị</SidebarSection>
         )}
 
         {canManageUsers && (
           <NavItem
-            onClick={() => navigate('/admin/users')}
+            onClick={() => handleNavigate('/admin/users')}
             isActive={isActive('/admin/users')}
             icon={Users}
             color="orange"
-            collapsed={collapsed}
+            collapsed={!isMobile && collapsed}
           >
             Quản lý người dùng
           </NavItem>
@@ -285,11 +300,11 @@ export function Sidebar() {
 
         {canViewAuditLog && (
           <NavItem
-            onClick={() => navigate('/audit')}
+            onClick={() => handleNavigate('/audit')}
             isActive={isActive('/audit')}
             icon={ClipboardList}
             color="purple"
-            collapsed={collapsed}
+            collapsed={!isMobile && collapsed}
           >
             Nhật ký hệ thống
           </NavItem>
@@ -297,11 +312,11 @@ export function Sidebar() {
 
         {canViewFormTemplates && (
           <NavItem
-            onClick={() => navigate('/form-templates')}
+            onClick={() => handleNavigate('/form-templates')}
             isActive={isActive('/form-templates')}
             icon={FileUp}
             color="indigo"
-            collapsed={collapsed}
+            collapsed={!isMobile && collapsed}
           >
             Biểu mẫu
           </NavItem>
@@ -309,11 +324,11 @@ export function Sidebar() {
 
         {canViewBulkOps && (
           <NavItem
-            onClick={() => navigate('/bulk-operations')}
+            onClick={() => handleNavigate('/bulk-operations')}
             isActive={isActive('/bulk-operations')}
             icon={Layers}
             color="emerald"
-            collapsed={collapsed}
+            collapsed={!isMobile && collapsed}
           >
             Xử lý hàng loạt
           </NavItem>
@@ -321,11 +336,11 @@ export function Sidebar() {
 
         {canViewImport && (
           <NavItem
-            onClick={() => navigate('/admin/import')}
+            onClick={() => handleNavigate('/admin/import')}
             isActive={isActive('/admin/import')}
             icon={Upload}
             color="blue"
-            collapsed={collapsed}
+            collapsed={!isMobile && collapsed}
           >
             Import dữ liệu
           </NavItem>
@@ -334,7 +349,7 @@ export function Sidebar() {
 
       {/* User Section - Fixed at bottom */}
       <div className="p-3 border-t border-gray-200/50 flex-shrink-0 mt-auto">
-        {!collapsed ? (
+        {isMobile || !collapsed ? (
           <div className="flex items-center gap-3 p-2 rounded-xl bg-gradient-to-r from-gray-50 to-blue-50">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold shadow-soft">
               {displayName.charAt(0).toUpperCase()}
@@ -351,14 +366,14 @@ export function Sidebar() {
             </div>
             <button
               onClick={() => setShowChangePassword(true)}
-              className="p-2 rounded-lg hover:bg-white transition-colors text-gray-500 hover:text-blue-500"
+              className="p-2 rounded-lg hover:bg-white transition-colors text-gray-500 hover:text-blue-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
               title="Đổi mật khẩu"
             >
               <Key className="w-4 h-4" />
             </button>
             <button
               onClick={handleLogout}
-              className="p-2 rounded-lg hover:bg-white transition-colors text-gray-500 hover:text-red-500"
+              className="p-2 rounded-lg hover:bg-white transition-colors text-gray-500 hover:text-red-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
               title="Đăng xuất"
             >
               <LogOut className="w-4 h-4" />
@@ -371,14 +386,14 @@ export function Sidebar() {
             </div>
             <button
               onClick={() => setShowChangePassword(true)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-blue-500"
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-blue-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
               title="Đổi mật khẩu"
             >
               <Key className="w-4 h-4" />
             </button>
             <button
               onClick={handleLogout}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-red-500"
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-red-500 min-h-[44px] min-w-[44px] flex items-center justify-center"
               title="Đăng xuất"
             >
               <LogOut className="w-4 h-4" />
@@ -386,12 +401,42 @@ export function Sidebar() {
           </div>
         )}
       </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop Sidebar - Hidden on mobile */}
+      <aside
+        className={`fixed left-0 top-0 h-full bg-white/90 backdrop-blur-xl border-r border-gray-200/50 shadow-soft-xl z-40 transition-all duration-300 hidden lg:flex flex-col ${
+          collapsed ? 'w-20' : 'w-64'
+        }`}
+      >
+        {sidebarContent(false)}
+      </aside>
+
+      {/* Mobile Drawer Overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile Drawer */}
+      <aside
+        className={`fixed left-0 top-0 h-full w-72 bg-white/95 backdrop-blur-xl border-r border-gray-200/50 shadow-soft-xl z-50 transition-transform duration-300 ease-in-out flex flex-col lg:hidden ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {sidebarContent(true)}
+      </aside>
 
       {/* Change Password Modal */}
       <ChangePasswordModal
         isOpen={showChangePassword}
         onClose={() => setShowChangePassword(false)}
       />
-    </aside>
+    </>
   );
 }

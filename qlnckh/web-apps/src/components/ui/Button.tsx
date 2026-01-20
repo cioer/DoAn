@@ -27,10 +27,10 @@ const variantStyles: Record<ButtonProps['variant'], string> = {
 };
 
 const sizeStyles: Record<ButtonProps['size'], string> = {
-  xs: 'px-3 py-1.5 text-xs rounded-lg',
-  sm: 'px-3.5 py-2 text-sm rounded-lg',
-  md: 'px-5 py-2.5 text-sm rounded-xl',
-  lg: 'px-6 py-3.5 text-base rounded-xl',
+  xs: 'px-3 py-1.5 text-xs rounded-lg min-h-[36px] sm:min-h-[32px]',
+  sm: 'px-3.5 py-2 text-sm rounded-lg min-h-[44px] sm:min-h-[36px]',
+  md: 'px-5 py-2.5 text-sm rounded-xl min-h-[44px]',
+  lg: 'px-6 py-3.5 text-base rounded-xl min-h-[48px]',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(

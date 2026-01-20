@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
+import { MobileHeader } from './MobileHeader';
 import { SidebarProvider, useSidebar } from './SidebarContext';
 import { useAuthStore } from '../../stores/authStore';
 import { Chatbox } from '../ai-chat';
@@ -16,17 +17,21 @@ function LayoutContent({ children }: { children: ReactNode }) {
       {/* Sidebar - only show when authenticated */}
       {isAuthenticated && <Sidebar />}
 
-      {/* Main Content - margin adjusts based on sidebar state */}
+      {/* Mobile Header with hamburger menu - only show when authenticated */}
+      {isAuthenticated && <MobileHeader />}
+
+      {/* Main Content - margin adjusts based on sidebar state, no margin on mobile */}
       <main
         className={`transition-all duration-300 ${
           isAuthenticated
             ? collapsed
-              ? 'ml-20'
-              : 'ml-64'
+              ? 'lg:ml-20'
+              : 'lg:ml-64'
             : 'ml-0'
         }`}
       >
-        <div className="p-4 md:p-6 lg:p-8">
+        {/* Add top padding on mobile for the fixed header */}
+        <div className="p-3 pt-16 sm:p-4 sm:pt-16 md:p-6 lg:p-8 lg:pt-8">
           {children}
         </div>
       </main>
@@ -63,8 +68,9 @@ export function ResponsiveLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20">
       <SidebarProvider>
         <Sidebar />
-        <main className="ml-64 transition-all duration-300">
-          <div className="p-4 md:p-6 lg:p-8">
+        <MobileHeader />
+        <main className="lg:ml-64 transition-all duration-300">
+          <div className="p-3 pt-16 sm:p-4 sm:pt-16 md:p-6 lg:p-8 lg:pt-8">
             {children}
           </div>
         </main>

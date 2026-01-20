@@ -130,31 +130,31 @@ export default function CreateProposalPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-6 md:py-8">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-6 sm:mb-8 flex items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary-100 rounded-lg">
-              <FileText className="h-6 w-6 text-primary-600" />
+            <div className="p-2 bg-primary-100 rounded-lg flex-shrink-0">
+              <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-primary-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Tạo đề tài mới</h1>
-              <p className="text-gray-600 mt-1">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Tạo đề tài mới</h1>
+              <p className="text-sm sm:text-base text-gray-600 mt-0.5 sm:mt-1">
                 Phiếu đề xuất đề tài NCKH (Mẫu 1b)
               </p>
             </div>
           </div>
           <button
             onClick={handleCancel}
-            className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-100"
+            className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-100 min-h-[44px] min-w-[44px] flex items-center justify-center flex-shrink-0"
           >
-            <X className="h-6 w-6" />
+            <X className="h-5 w-5 sm:h-6 sm:w-6" />
           </button>
         </div>
 
         {/* Form */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 space-y-5 sm:space-y-6">
           {/* Basic Info Section */}
           <div className="space-y-5">
             <h3 className="text-base font-semibold text-gray-800 pb-2 border-b border-gray-200">
@@ -241,10 +241,10 @@ export default function CreateProposalPage() {
           )}
 
           {/* Actions */}
-          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-gray-200">
             <button
               onClick={handleCancel}
-              className="px-4 py-2 text-gray-700 hover:text-gray-900 transition-colors rounded-lg hover:bg-gray-100"
+              className="px-4 py-2.5 text-gray-700 hover:text-gray-900 transition-colors rounded-xl hover:bg-gray-100 min-h-[44px] w-full sm:w-auto text-center"
             >
               Hủy
             </button>
@@ -252,7 +252,7 @@ export default function CreateProposalPage() {
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="inline-flex items-center px-6 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors shadow-sm"
+              className="inline-flex items-center justify-center px-6 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors shadow-sm min-h-[44px] w-full sm:w-auto"
             >
               {isSubmitting ? (
                 <>

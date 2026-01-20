@@ -3,6 +3,7 @@ import { ProjectState } from '../../lib/constants/states';
 import { StateBadge } from './StateBadge';
 import { Button } from '../ui';
 import { Eye, Edit2 } from 'lucide-react';
+import { ProposalCardList } from './ProposalCard';
 
 /**
  * Proposal summary for list view
@@ -77,94 +78,102 @@ export function ProposalTable({ proposals, isLoading }: ProposalTableProps) {
   }
 
   return (
-    <div className="card overflow-hidden !rounded-2xl !border-gray-100">
-      <div className="overflow-x-auto">
-        <table className="min-w-full">
-          <thead>
-            <tr className="bg-gray-50/80 border-b border-gray-100 text-left">
-              <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Mã số
-              </th>
-              <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Tên đề tài
-              </th>
-              <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Trạng thái
-              </th>
-              <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Người tạo
-              </th>
-              <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Đơn vị
-              </th>
-              <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Thao tác
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-50">
-            {proposals.map((proposal) => (
-              <tr
-                key={proposal.id}
-                className="group hover:bg-primary-50/30 transition-colors duration-150 cursor-pointer"
-                onClick={() => navigate(`/proposals/${proposal.id}`)}
-              >
-                <td className="px-6 py-5 whitespace-nowrap text-sm font-medium text-gray-900">
-                  <span className="font-mono text-primary-600 bg-primary-50 px-2 py-1 rounded-md text-xs">
-                    {proposal.code}
-                  </span>
-                </td>
-                <td className="px-6 py-5 text-sm text-gray-700 max-w-xs font-medium">
-                  <div className="line-clamp-2 md:line-clamp-1">
-                    {proposal.title}
-                  </div>
-                </td>
-                <td className="px-6 py-5 whitespace-nowrap">
-                  <StateBadge state={proposal.state as ProjectState} />
-                </td>
-                <td className="px-6 py-5 whitespace-nowrap text-sm text-gray-500">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 text-white text-[10px] flex items-center justify-center font-bold">
-                      {proposal.owner?.displayName?.charAt(0) || 'U'}
-                    </div>
-                    {proposal.owner?.displayName || '-'}
-                  </div>
-                </td>
-                <td className="px-6 py-5 whitespace-nowrap text-sm text-gray-500">
-                  {proposal.faculty?.name || '-'}
-                </td>
-                <td
-                  className="px-6 py-5 whitespace-nowrap text-right text-sm font-medium"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => navigate(`/proposals/${proposal.id}`)}
-                      title="Xem chi tiết"
-                    >
-                      <Eye size={16} className="text-gray-500" />
-                    </Button>
+    <>
+      {/* Mobile Card View - visible on small screens */}
+      <div className="md:hidden">
+        <ProposalCardList proposals={proposals} />
+      </div>
 
-                    {proposal.state === ProjectState.DRAFT && (
+      {/* Desktop Table View - hidden on small screens */}
+      <div className="hidden md:block card overflow-hidden !rounded-2xl !border-gray-100">
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr className="bg-gray-50/80 border-b border-gray-100 text-left">
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Mã số
+                </th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Tên đề tài
+                </th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Trạng thái
+                </th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Người tạo
+                </th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Đơn vị
+                </th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Thao tác
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-50">
+              {proposals.map((proposal) => (
+                <tr
+                  key={proposal.id}
+                  className="group hover:bg-primary-50/30 transition-colors duration-150 cursor-pointer"
+                  onClick={() => navigate(`/proposals/${proposal.id}`)}
+                >
+                  <td className="px-6 py-5 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <span className="font-mono text-primary-600 bg-primary-50 px-2 py-1 rounded-md text-xs">
+                      {proposal.code}
+                    </span>
+                  </td>
+                  <td className="px-6 py-5 text-sm text-gray-700 max-w-xs font-medium">
+                    <div className="line-clamp-2 md:line-clamp-1">
+                      {proposal.title}
+                    </div>
+                  </td>
+                  <td className="px-6 py-5 whitespace-nowrap">
+                    <StateBadge state={proposal.state as ProjectState} />
+                  </td>
+                  <td className="px-6 py-5 whitespace-nowrap text-sm text-gray-500">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 text-white text-[10px] flex items-center justify-center font-bold">
+                        {proposal.owner?.displayName?.charAt(0) || 'U'}
+                      </div>
+                      {proposal.owner?.displayName || '-'}
+                    </div>
+                  </td>
+                  <td className="px-6 py-5 whitespace-nowrap text-sm text-gray-500">
+                    {proposal.faculty?.name || '-'}
+                  </td>
+                  <td
+                    className="px-6 py-5 whitespace-nowrap text-right text-sm font-medium"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                       <Button
                         variant="ghost"
                         size="xs"
-                        onClick={() => navigate(`/proposals/${proposal.id}/edit`)}
-                        title="Chỉnh sửa"
-                        className="hover:bg-primary-50 hover:text-primary-600"
+                        onClick={() => navigate(`/proposals/${proposal.id}`)}
+                        title="Xem chi tiết"
                       >
-                        <Edit2 size={16} />
+                        <Eye size={16} className="text-gray-500" />
                       </Button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+                      {proposal.state === ProjectState.DRAFT && (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => navigate(`/proposals/${proposal.id}/edit`)}
+                          title="Chỉnh sửa"
+                          className="hover:bg-primary-50 hover:text-primary-600"
+                        >
+                          <Edit2 size={16} />
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
