@@ -52,8 +52,8 @@ export default function CreateProposalPage() {
     setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
-  // Validate form
-  const validateForm = (): boolean => {
+  // Validate form - returns errors object for immediate use
+  const validateForm = (): Record<string, string> => {
     const newErrors: Record<string, string> = {};
 
     // Validate title
@@ -73,14 +73,15 @@ export default function CreateProposalPage() {
     Object.assign(newErrors, form1bErrors);
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return newErrors;
   };
 
   // Handle submit
   const handleSubmit = async () => {
-    if (!validateForm()) {
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
       // Scroll to first error
-      const firstErrorKey = Object.keys(errors)[0];
+      const firstErrorKey = Object.keys(validationErrors)[0];
       const errorElement = document.getElementById(firstErrorKey);
       if (errorElement) {
         errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });

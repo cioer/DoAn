@@ -112,6 +112,7 @@ export function Form1bFields({
         {FORM_1B_FIELDS.map((field) => (
           <div key={field.key} className="relative">
             <Textarea
+              id={field.key}
               label={
                 <div className="flex items-center justify-between w-full">
                   <span>{field.label}</span>
@@ -153,6 +154,7 @@ export function Form1bFields({
             type="date"
             name="thoi_gian_bat_dau"
             label="Thời gian bắt đầu"
+            required
             leftIcon={<CalendarDays className="h-4 w-4" />}
             value={formData.thoi_gian_bat_dau}
             onChange={(e) => onChange('thoi_gian_bat_dau', e.target.value)}
@@ -164,6 +166,7 @@ export function Form1bFields({
             type="date"
             name="thoi_gian_ket_thuc"
             label="Thời gian kết thúc"
+            required
             leftIcon={<CalendarDays className="h-4 w-4" />}
             value={formData.thoi_gian_ket_thuc}
             onChange={(e) => onChange('thoi_gian_ket_thuc', e.target.value)}
@@ -177,6 +180,7 @@ export function Form1bFields({
           type="text"
           name="nhu_cau_kinh_phi_du_kien"
           label="Nhu cầu kinh phí dự kiến"
+          required
           leftIcon={<DollarSign className="h-4 w-4" />}
           placeholder="Ví dụ: 50.000.000 VNĐ"
           helperText="Nhập số tiền dự kiến cần cho đề tài"
