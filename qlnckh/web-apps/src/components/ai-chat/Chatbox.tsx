@@ -155,70 +155,80 @@ export function Chatbox({ proposalId: propProposalId, proposalTitle: propProposa
 
   return (
     <>
-      {/* Floating button */}
+      {/* Floating button - positioned lower on mobile to avoid overlap */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
           className={cn(
-            'fixed bottom-6 right-6 z-50',
-            'w-14 h-14 rounded-full shadow-lg',
+            'fixed z-50',
+            // Mobile: smaller, lower position to avoid mobile header and gestures
+            'bottom-20 right-4 w-12 h-12',
+            // Desktop: original position and size
+            'sm:bottom-6 sm:right-6 sm:w-14 sm:h-14',
+            'rounded-full shadow-lg',
             'bg-gradient-to-br from-purple-500 to-indigo-600',
             'hover:from-purple-600 hover:to-indigo-700',
             'flex items-center justify-center',
-            'transition-all duration-200 hover:scale-105',
+            'transition-all duration-200 hover:scale-105 active:scale-95',
             'focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2'
           )}
           title={proposalId ? `AI Chat - ${proposalTitle || 'Đề tài'}` : 'Mở AI Chat'}
         >
-          <MessageCircle className="w-6 h-6 text-white" />
+          <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           {/* Context indicator - show file icon when on proposal page */}
           {proposalId ? (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-400 rounded-full border-2 border-white flex items-center justify-center">
-              <FileText className="w-3 h-3 text-amber-800" />
+            <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-amber-400 rounded-full border-2 border-white flex items-center justify-center">
+              <FileText className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-800" />
             </span>
           ) : (
-            <span className="absolute top-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white" />
+            <span className="absolute top-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-400 rounded-full border-2 border-white" />
           )}
         </button>
       )}
 
-      {/* Chat window */}
+      {/* Chat window - fullscreen on mobile, floating on desktop */}
       {isOpen && (
         <div
           className={cn(
-            'fixed bottom-6 right-6 z-50',
-            'bg-white rounded-2xl shadow-2xl border border-gray-200',
-            'flex flex-col overflow-hidden',
+            'fixed z-50',
+            'bg-white flex flex-col overflow-hidden',
             'transition-all duration-200',
-            isMinimized ? 'w-72 h-14' : 'w-96 h-[500px]'
+            // Mobile: fullscreen
+            'inset-0 rounded-none',
+            // Desktop: floating window
+            'sm:inset-auto sm:bottom-6 sm:right-6 sm:rounded-2xl sm:shadow-2xl sm:border sm:border-gray-200',
+            isMinimized
+              ? 'sm:w-72 sm:h-14'
+              : 'sm:w-96 sm:h-[500px]'
           )}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white">
-            <div className="flex items-center gap-2">
-              <MessageCircle className="w-5 h-5" />
-              <div>
+          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white safe-area-top">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <MessageCircle className="w-5 h-5 flex-shrink-0" />
+              <div className="min-w-0">
                 <h3 className="font-semibold text-sm">AI Assistant</h3>
                 {proposalTitle && !isMinimized && (
-                  <p className="text-xs text-purple-100 truncate max-w-[180px]">
+                  <p className="text-xs text-purple-100 truncate">
                     {proposalTitle}
                   </p>
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-shrink-0">
               {!isMinimized && messages.length > 0 && (
                 <button
                   onClick={handleClearChat}
-                  className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+                  className="p-2 sm:p-1.5 hover:bg-white/20 rounded-lg transition-colors min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
                   title="Xóa hội thoại"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-5 h-5 sm:w-4 sm:h-4" />
                 </button>
               )}
+              {/* Minimize button - hide on mobile since it's fullscreen */}
               <button
                 onClick={() => setIsMinimized(!isMinimized)}
-                className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+                className="hidden sm:flex p-1.5 hover:bg-white/20 rounded-lg transition-colors items-center justify-center"
                 title={isMinimized ? 'Mở rộng' : 'Thu nhỏ'}
               >
                 {isMinimized ? (
@@ -229,10 +239,10 @@ export function Chatbox({ proposalId: propProposalId, proposalTitle: propProposa
               </button>
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+                className="p-2 sm:p-1.5 hover:bg-white/20 rounded-lg transition-colors min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
                 title="Đóng"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5 sm:w-4 sm:h-4" />
               </button>
             </div>
           </div>
@@ -276,8 +286,8 @@ export function Chatbox({ proposalId: propProposalId, proposalTitle: propProposa
                 </div>
               )}
 
-              {/* Input area */}
-              <div className="border-t border-gray-100 p-3">
+              {/* Input area - with safe area padding on mobile */}
+              <div className="border-t border-gray-100 p-3 pb-safe">
                 <div className="flex items-end gap-2">
                   <textarea
                     ref={inputRef}
@@ -288,7 +298,7 @@ export function Chatbox({ proposalId: propProposalId, proposalTitle: propProposa
                     rows={1}
                     className={cn(
                       'flex-1 resize-none rounded-xl border border-gray-200',
-                      'px-3 py-2 text-sm',
+                      'px-3 py-2.5 sm:py-2 text-sm',
                       'focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent',
                       'max-h-24 overflow-y-auto'
                     )}
@@ -298,14 +308,15 @@ export function Chatbox({ proposalId: propProposalId, proposalTitle: propProposa
                     onClick={handleSend}
                     disabled={!input.trim() || isLoading}
                     className={cn(
-                      'p-2.5 rounded-xl transition-all',
+                      'p-3 sm:p-2.5 rounded-xl transition-all',
+                      'min-w-[44px] min-h-[44px] flex items-center justify-center',
                       'bg-gradient-to-r from-purple-500 to-indigo-600',
                       'hover:from-purple-600 hover:to-indigo-700',
                       'disabled:opacity-50 disabled:cursor-not-allowed',
                       'focus:outline-none focus:ring-2 focus:ring-purple-500'
                     )}
                   >
-                    <Send className="w-4 h-4 text-white" />
+                    <Send className="w-5 h-5 sm:w-4 sm:h-4 text-white" />
                   </button>
                 </div>
                 <p className="text-xs text-gray-400 mt-2 text-center">
