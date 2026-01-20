@@ -189,7 +189,13 @@ export class AiChatService {
   /**
    * Call Z.AI API
    */
-  private async callZaiApi(messages: ChatMessageDto[]): Promise<ZaiChatResponse> {
+  private async callZaiApi(
+    messages: ChatMessageDto[],
+    options?: { maxTokens?: number; temperature?: number },
+  ): Promise<ZaiChatResponse> {
+    const maxTokens = options?.maxTokens ?? 2048;
+    const temperature = options?.temperature ?? 0.7;
+
     const response = await fetch(`${this.apiUrl}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -199,8 +205,8 @@ export class AiChatService {
       body: JSON.stringify({
         model: this.model,
         messages: messages.map(m => ({ role: m.role, content: m.content })),
-        max_tokens: 2048,
-        temperature: 0.7,
+        max_tokens: maxTokens,
+        temperature,
       }),
     });
 
@@ -295,9 +301,11 @@ ${formData.sanPham ? `- Sản phẩm dự kiến: ${formData.sanPham}` : ''}
     ];
 
     try {
-      const response = await this.callZaiApi(messages);
+      // Use higher max_tokens for form filling (need more space for 6 fields)
+      const response = await this.callZaiApi(messages, { maxTokens: 4096, temperature: 0.7 });
       const content = response.choices[0].message.content;
 
+      this.logger.debug('AI fill form raw response length:', content.length);
       this.logger.debug('AI fill form raw response:', content.substring(0, 500));
 
       // Try to extract JSON from markdown code blocks first
