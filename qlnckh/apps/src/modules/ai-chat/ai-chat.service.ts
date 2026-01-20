@@ -264,33 +264,18 @@ export class AiChatService {
       timelineInfo.push(`Kinh phí: ${formData.nhu_cau_kinh_phi_du_kien}`);
     }
 
-    return `Bạn là trợ lý AI thông minh cho hệ thống Quản lý Nghiên cứu Khoa học. Bạn đang hỗ trợ người dùng về một đề tài cụ thể.
+    return `Trợ lý AI hệ thống QLNCKH. Hỗ trợ đề tài: "${proposal.title}" (${proposal.code}).
 
-## THÔNG TIN ĐỀ TÀI
+QUAN TRỌNG: Chào hỏi/câu đơn giản → trả lời 1-2 câu ngắn. Câu hỏi chi tiết → trả lời đầy đủ hơn.
 
-**Cơ bản:**
-- Mã: ${proposal.code}
-- Tên: ${proposal.title}
-- Chủ nhiệm: ${proposal.owner?.displayName || 'Chưa có'}
-- Đơn vị: ${proposal.faculty?.name || 'Chưa có'}
-- Trạng thái: ${stateLabels[proposal.state] || proposal.state}
-- Ngày tạo: ${formatDate(proposal.createdAt) || 'N/A'}
+ĐỀ TÀI: ${proposal.title}
+- Mã: ${proposal.code} | Trạng thái: ${stateLabels[proposal.state] || proposal.state}
+- Chủ nhiệm: ${proposal.owner?.displayName || 'N/A'} | Đơn vị: ${proposal.faculty?.name || 'N/A'}
 ${timelineInfo.length > 0 ? `- ${timelineInfo.join(' | ')}` : ''}
 
-${contentSections.length > 0 ? `## NỘI DUNG ĐỀ TÀI\n\n${contentSections.join('\n\n')}` : '(Chưa có nội dung chi tiết)'}
+${contentSections.length > 0 ? `CHI TIẾT:\n${contentSections.join('\n')}` : ''}
 
-## HƯỚNG DẪN TRẢ LỜI
-
-1. **Ngôn ngữ:** Trả lời bằng tiếng Việt, rõ ràng, chuyên nghiệp
-2. **Độ dài:** Ngắn gọn nhưng đầy đủ thông tin
-3. **Dựa trên dữ liệu:** Chỉ sử dụng thông tin có trong đề tài, không bịa đặt
-4. **Hỗ trợ đa dạng:** Có thể giúp:
-   - Giải thích nội dung đề tài
-   - Đề xuất cải thiện các phần còn thiếu/yếu
-   - Trả lời câu hỏi về quy trình xét duyệt
-   - Gợi ý phương pháp nghiên cứu phù hợp
-   - Hỗ trợ viết báo cáo, tóm tắt
-5. **Thừa nhận giới hạn:** Nếu không có đủ thông tin, hãy nói rõ và hỏi lại người dùng`;
+Trả lời tiếng Việt. Không bịa đặt.`;
   }
 
   /**
