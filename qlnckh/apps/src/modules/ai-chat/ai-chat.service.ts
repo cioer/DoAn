@@ -298,13 +298,37 @@ ${formData.sanPham ? `- Sản phẩm dự kiến: ${formData.sanPham}` : ''}
       const response = await this.callZaiApi(messages);
       const content = response.choices[0].message.content;
 
-      // Parse JSON from response
+      this.logger.debug('AI fill form raw response:', content);
+
+      // Parse JSON from response - find the outermost {...}
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
+        this.logger.error('No JSON found in AI response:', content);
         throw new Error('Invalid AI response format');
       }
 
-      const fields = JSON.parse(jsonMatch[0]);
+      let jsonStr = jsonMatch[0];
+
+      // Clean up the JSON string - handle escaped newlines in values
+      // Replace actual newlines inside string values with \\n
+      jsonStr = jsonStr.replace(/:\s*"([^"]*)"/g, (match, value) => {
+        const cleanedValue = value
+          .replace(/\n/g, '\\n')
+          .replace(/\r/g, '\\r')
+          .replace(/\t/g, '\\t');
+        return `: "${cleanedValue}"`;
+      });
+
+      this.logger.debug('Cleaned JSON:', jsonStr);
+
+      let fields: Record<string, string>;
+      try {
+        fields = JSON.parse(jsonStr);
+      } catch (parseError) {
+        this.logger.error('JSON parse error:', parseError);
+        this.logger.error('Failed JSON string:', jsonStr);
+        throw new Error('Failed to parse AI response as JSON');
+      }
 
       return {
         fields,
