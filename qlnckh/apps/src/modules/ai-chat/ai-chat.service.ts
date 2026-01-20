@@ -263,8 +263,8 @@ ${formData.sanPham ? `- Sản phẩm dự kiến: ${formData.sanPham}` : ''}
     ];
 
     try {
-      // Use higher max_tokens for form filling (need more space for 6 fields)
-      const response = await this.callZaiApi(messages, { maxTokens: 4096, temperature: 0.7 });
+      // Use moderate max_tokens for faster response
+      const response = await this.callZaiApi(messages, { maxTokens: 2048, temperature: 0.7 });
       const content = response.choices[0].message.content || '';
 
       if (!content) {
@@ -385,26 +385,12 @@ ${formData.sanPham ? `- Sản phẩm dự kiến: ${formData.sanPham}` : ''}
       return `- ${f.key}: ${f.label}${f.description ? ` (${f.description})` : ''}${existing ? `\n  Nội dung hiện có: "${existing}"` : ''}`;
     }).join('\n');
 
-    return `Bạn là trợ lý AI chuyên viết nội dung cho đề tài nghiên cứu khoa học.
+    return `Điền nội dung ngắn gọn cho đề tài NCKH. Trả về JSON.
 
-**Tên đề tài:** ${title}
+Đề tài: ${title}
 
-**Các trường cần điền:**
-${fieldList}
+Các trường: ${fields.map(f => f.key).join(', ')}
 
-**Yêu cầu:**
-1. Viết nội dung phù hợp với tên đề tài
-2. Mỗi trường cần đủ chi tiết, có ý nghĩa
-3. Sử dụng ngôn ngữ học thuật, chuyên nghiệp
-4. Trả về JSON object với key là tên trường (tiếng Việt không dấu, snake_case) và value là nội dung
-5. Nếu có nội dung hiện có, hãy cải thiện hoặc bổ sung thêm
-6. Với trường muc_tieu_de_tai và noi_dung_chinh, dùng format liệt kê (dấu -)
-7. Tối thiểu 50 ký tự cho mỗi trường
-
-**Ví dụ output:**
-{
-  "tinh_cap_thiet": "Nội dung...",
-  "muc_tieu_de_tai": "- Mục tiêu tổng quát:...\\n- Mục tiêu cụ thể 1:..."
-}`;
+Yêu cầu: Mỗi trường 2-3 câu ngắn gọn. Trả về JSON thuần (không markdown).`;
   }
 }
