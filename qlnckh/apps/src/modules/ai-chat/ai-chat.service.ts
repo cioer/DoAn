@@ -298,19 +298,37 @@ ${formData.sanPham ? `- Sản phẩm dự kiến: ${formData.sanPham}` : ''}
       const response = await this.callZaiApi(messages);
       const content = response.choices[0].message.content;
 
-      this.logger.debug('AI fill form raw response:', content);
+      this.logger.debug('AI fill form raw response:', content.substring(0, 500));
 
-      // Parse JSON from response - find the outermost {...}
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        this.logger.error('No JSON found in AI response:', content);
+      // Try to extract JSON from markdown code blocks first
+      let jsonStr = '';
+      const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (codeBlockMatch) {
+        jsonStr = codeBlockMatch[1].trim();
+      } else {
+        // Find JSON object - match from first { to last }
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          jsonStr = jsonMatch[0];
+        }
+      }
+
+      if (!jsonStr) {
+        this.logger.error('No JSON found in AI response');
         throw new Error('Invalid AI response format');
       }
 
-      let jsonStr = jsonMatch[0];
+      // Fix common JSON issues from AI
+      // 1. Fix missing quotes around values that start with -
+      jsonStr = jsonStr.replace(/:\s*(-\s*[^",\n\}]+)/g, (match, value) => {
+        // Check if value is already quoted
+        if (match.trim().startsWith(':"') || match.trim().startsWith(': "')) {
+          return match;
+        }
+        return `: "${value.replace(/"/g, '\\"')}"`;
+      });
 
-      // Clean up the JSON string - handle escaped newlines in values
-      // Replace actual newlines inside string values with \\n
+      // 2. Clean up newlines inside string values
       jsonStr = jsonStr.replace(/:\s*"([^"]*)"/g, (match, value) => {
         const cleanedValue = value
           .replace(/\n/g, '\\n')
@@ -319,14 +337,26 @@ ${formData.sanPham ? `- Sản phẩm dự kiến: ${formData.sanPham}` : ''}
         return `: "${cleanedValue}"`;
       });
 
-      this.logger.debug('Cleaned JSON:', jsonStr);
+      // 3. If JSON is truncated (doesn't end with }), try to close it
+      if (!jsonStr.trim().endsWith('}')) {
+        // Find the last complete key-value pair and close the JSON
+        const lastCommaIndex = jsonStr.lastIndexOf(',');
+        if (lastCommaIndex > 0) {
+          jsonStr = jsonStr.substring(0, lastCommaIndex) + '}';
+        } else {
+          jsonStr = jsonStr + '"}';
+        }
+        this.logger.warn('JSON was truncated, attempted to fix');
+      }
+
+      this.logger.debug('Cleaned JSON (first 500 chars):', jsonStr.substring(0, 500));
 
       let fields: Record<string, string>;
       try {
         fields = JSON.parse(jsonStr);
       } catch (parseError) {
         this.logger.error('JSON parse error:', parseError);
-        this.logger.error('Failed JSON string:', jsonStr);
+        this.logger.error('Failed JSON string (first 1000 chars):', jsonStr.substring(0, 1000));
         throw new Error('Failed to parse AI response as JSON');
       }
 
