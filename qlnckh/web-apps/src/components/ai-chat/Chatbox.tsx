@@ -4,6 +4,7 @@ import { MessageCircle, X, Send, Minimize2, Maximize2, Trash2, FileText } from '
 import { ChatMessage } from './ChatMessage';
 import { aiChatApi, ChatMessage as ChatMessageType } from '../../lib/api/ai-chat';
 import { proposalsApi } from '../../lib/api/proposals';
+import { useAuthStore } from '../../stores/authStore';
 import { cn } from '../../lib/utils/cn';
 
 interface ChatboxProps {
@@ -56,18 +57,27 @@ export function Chatbox({ proposalId: propProposalId, proposalTitle: propProposa
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Check AI availability on mount
+  // Get auth state
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  // Check AI availability on mount (only if authenticated)
   useEffect(() => {
     const checkAvailability = async () => {
+      if (!isAuthenticated) {
+        setIsAvailable(null); // Don't hide, just unknown
+        return;
+      }
       try {
         const health = await aiChatApi.checkHealth();
         setIsAvailable(health.available);
       } catch {
-        setIsAvailable(false);
+        // On error, assume available and let user try
+        // Error will show when they actually try to chat
+        setIsAvailable(true);
       }
     };
     checkAvailability();
-  }, []);
+  }, [isAuthenticated]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -140,10 +150,8 @@ export function Chatbox({ proposalId: propProposalId, proposalTitle: propProposa
     setError(null);
   };
 
-  // Don't render if AI is not available
-  if (isAvailable === false) {
-    return null;
-  }
+  // Always render chatbox - errors will be shown when user tries to chat
+  // This prevents the chatbox from disappearing unexpectedly
 
   return (
     <>
