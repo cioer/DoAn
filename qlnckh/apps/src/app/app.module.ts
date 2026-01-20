@@ -27,6 +27,7 @@ import { DocumentTemplatesModule } from '../modules/document-templates/document-
 import { DocumentsModule } from '../modules/documents/documents.module';
 import { FormEngineModule } from '../modules/form-engine/form-engine.module';
 import { ProposalDocumentsModule } from '../modules/proposal-documents/proposal-documents.module';
+import { AiChatModule } from '../modules/ai-chat/ai-chat.module';
 
 /**
  * Application Module
@@ -76,6 +77,7 @@ import { ProposalDocumentsModule } from '../modules/proposal-documents/proposal-
     DocumentsModule,
     FormEngineModule,
     ProposalDocumentsModule,
+    AiChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],

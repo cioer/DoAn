@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { SidebarProvider, useSidebar } from './SidebarContext';
 import { useAuthStore } from '../../stores/authStore';
+import { Chatbox } from '../ai-chat';
 
 /**
  * Layout Content - Inner component that uses sidebar context
@@ -29,6 +30,9 @@ function LayoutContent({ children }: { children: ReactNode }) {
           {children}
         </div>
       </main>
+
+      {/* AI Chatbox - only show when authenticated */}
+      {isAuthenticated && <Chatbox />}
     </>
   );
 }
