@@ -69,11 +69,19 @@ export class WorkflowStateMachineService {
       metadata,
     } = options || {};
 
+    // Get proposal first to include current state in idempotency key
+    // This ensures state resets (e.g., demo seed) don't return stale cached results
+    const proposalForKey = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: { state: true },
+    });
+
     // Use IdempotencyService for atomic idempotency
+    // Include current state in key to handle state resets correctly
     const idempotencyResult = await this.idempotency.setIfAbsent(
-      context.idempotencyKey || `${action}-${proposalId}`,
+      context.idempotencyKey || `${action}-${proposalId}-from-${proposalForKey?.state || 'UNKNOWN'}`,
       async () => {
-        // 1. Get proposal with relations
+        // 1. Get proposal with full relations
         const proposal = await this.prisma.proposal.findUnique({
           where: { id: proposalId },
           include: { owner: true, faculty: true },

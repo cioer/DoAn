@@ -250,10 +250,17 @@ async function seedProposals(facultyMap: Map<string, string>): Promise<void> {
     // Generate deterministic proposal ID
     const proposalId = generateUUIDv5(DEMO_NAMESPACE, `proposal-${proposalData.code}`);
 
-    // Upsert proposal
+    // Upsert proposal - reset state when re-seeding
     await prisma.proposal.upsert({
       where: { code: proposalData.code },
-      update: {},
+      update: {
+        // Reset key fields to demo state
+        state: proposalData.state,
+        holderUnit: proposalData.holderUnit,
+        holderUser: proposalData.holderUser,
+        slaStartDate: proposalData.state !== ProjectState.DRAFT ? getFixedTimestamp() : null,
+        slaDeadline: proposalData.state !== ProjectState.DRAFT ? new Date('2026-01-08T00:00:00.000Z') : null,
+      },
       create: {
         id: proposalId,
         code: proposalData.code,
@@ -400,7 +407,11 @@ async function main(): Promise<void> {
 // EXECUTION
 // ============================================================
 
-if (require.main === module) {
+// Run when executed directly (works with jiti and node)
+// The require.main check fails with jiti, so also check for jiti execution
+const isDirectExecution = require.main === module || process.argv[1]?.includes('demo.seed');
+
+if (isDirectExecution) {
   main()
     .then(() => {
       process.exit(0);

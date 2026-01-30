@@ -168,7 +168,7 @@ export class WorkflowService {
     proposalId: string,
     context: TransitionContext,
   ): Promise<TransitionResult> {
-    const toState = ProjectState.FACULTY_REVIEW;
+    const toState = ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW;
     const action = WorkflowAction.SUBMIT;
 
     // Use IdempotencyService for atomic idempotency check
@@ -452,7 +452,7 @@ export class WorkflowService {
     proposalId: string,
     context: TransitionContext,
   ): Promise<TransitionResult> {
-    const toState = ProjectState.FACULTY_ACCEPTANCE_REVIEW;
+    const toState = ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW;
     const action = WorkflowAction.SUBMIT_ACCEPTANCE;
 
     // Use IdempotencyService for atomic idempotency check
@@ -602,7 +602,7 @@ export class WorkflowService {
     proposalId: string,
     context: TransitionContext,
   ): Promise<TransitionResult> {
-    const toState = ProjectState.SCHOOL_SELECTION_REVIEW;
+    const toState = ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW;
     const action = WorkflowAction.APPROVE;
 
     // Use IdempotencyService for atomic idempotency check
@@ -1305,11 +1305,19 @@ export class WorkflowService {
     const toState = ProjectState.CANCELLED;
     const action = WorkflowAction.CANCEL;
 
+    // Get proposal first to include current state in idempotency key
+    // This ensures state resets (e.g., demo seed) don't return stale cached results
+    const proposalForKey = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: { state: true },
+    });
+
     // Use IdempotencyService for atomic idempotency check
+    // Include current state in key to handle state resets correctly
     const idempotencyResult = await this.idempotency.setIfAbsent(
-      context.idempotencyKey || `cancel-${proposalId}`,
+      context.idempotencyKey || `cancel-${proposalId}-from-${proposalForKey?.state || 'UNKNOWN'}`,
       async () => {
-        // Get proposal
+        // Get proposal with full relations
         const proposal = await this.prisma.proposal.findUnique({
           where: { id: proposalId },
           include: { owner: true, faculty: true },
@@ -1441,11 +1449,17 @@ export class WorkflowService {
     const toState = ProjectState.WITHDRAWN;
     const action = WorkflowAction.WITHDRAW;
 
-    // Atomic idempotency
+    // Get proposal first to include current state in idempotency key
+    const proposalForKey = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: { state: true },
+    });
+
+    // Atomic idempotency - include state to handle resets
     const idempotencyResult = await this.idempotency.setIfAbsent(
-      context.idempotencyKey || `withdraw-${proposalId}`,
+      context.idempotencyKey || `withdraw-${proposalId}-from-${proposalForKey?.state || 'UNKNOWN'}`,
       async () => {
-        // 1. Get proposal
+        // 1. Get proposal with full relations
         const proposal = await this.prisma.proposal.findUnique({
           where: { id: proposalId },
           include: { owner: true, faculty: true },
@@ -1578,11 +1592,17 @@ export class WorkflowService {
     const toState = ProjectState.REJECTED;
     const action = WorkflowAction.REJECT;
 
-    // Atomic idempotency
+    // Get proposal first to include current state in idempotency key
+    const proposalForKey = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: { state: true },
+    });
+
+    // Atomic idempotency - include state to handle resets
     const idempotencyResult = await this.idempotency.setIfAbsent(
-      context.idempotencyKey || `reject-${proposalId}`,
+      context.idempotencyKey || `reject-${proposalId}-from-${proposalForKey?.state || 'UNKNOWN'}`,
       async () => {
-        // 1. Get proposal
+        // 1. Get proposal with full relations
         const proposal = await this.prisma.proposal.findUnique({
           where: { id: proposalId },
           include: { owner: true, faculty: true },
@@ -1700,23 +1720,22 @@ export class WorkflowService {
   private canReject(userRole: string, proposalState: ProjectState): boolean {
     const REJECT_PERMISSIONS: Record<string, ProjectState[]> = {
       [UserRole.QUAN_LY_KHOA]: [
-        ProjectState.FACULTY_REVIEW,
+        ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         ProjectState.CHANGES_REQUESTED,
       ],
       [UserRole.PHONG_KHCN]: [
-        ProjectState.FACULTY_REVIEW,
-        ProjectState.SCHOOL_SELECTION_REVIEW,
+        ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+        ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         ProjectState.CHANGES_REQUESTED,
       ],
-      [UserRole.THU_KY_HOI_DONG]: [ProjectState.OUTLINE_COUNCIL_REVIEW],
-      [UserRole.THANH_TRUNG]: [ProjectState.OUTLINE_COUNCIL_REVIEW],
+      [UserRole.GIANG_VIEN]: [
+        ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
+      ],
       [UserRole.BAN_GIAM_HOC]: [
-        ProjectState.FACULTY_REVIEW,
-        ProjectState.SCHOOL_SELECTION_REVIEW,
-        ProjectState.OUTLINE_COUNCIL_REVIEW,
+        ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+        ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         ProjectState.CHANGES_REQUESTED,
       ],
-      [UserRole.GIANG_VIEN]: [],
       [UserRole.ADMIN]: [],
       [UserRole.THU_KY_KHOA]: [],
     };
@@ -1750,11 +1769,17 @@ export class WorkflowService {
     const toState = ProjectState.PAUSED;
     const action = WorkflowAction.PAUSE;
 
-    // Atomic idempotency
+    // Get proposal first to include current state in idempotency key
+    const proposalForKey = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: { state: true },
+    });
+
+    // Atomic idempotency - include state to handle resets
     const idempotencyResult = await this.idempotency.setIfAbsent(
-      context.idempotencyKey || `pause-${proposalId}`,
+      context.idempotencyKey || `pause-${proposalId}-from-${proposalForKey?.state || 'UNKNOWN'}`,
       async () => {
-        // 1. Get proposal
+        // 1. Get proposal with full relations
         const proposal = await this.prisma.proposal.findUnique({
           where: { id: proposalId },
           include: { owner: true, faculty: true },
@@ -1932,11 +1957,17 @@ export class WorkflowService {
   ): Promise<TransitionResult> {
     const resumedAt = new Date();
 
-    // Atomic idempotency
+    // Get proposal first to include current state in idempotency key
+    const proposalForKey = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: { state: true },
+    });
+
+    // Atomic idempotency - include state to handle resets
     const idempotencyResult = await this.idempotency.setIfAbsent(
-      context.idempotencyKey || `resume-${proposalId}`,
+      context.idempotencyKey || `resume-${proposalId}-from-${proposalForKey?.state || 'UNKNOWN'}`,
       async () => {
-        // 1. Get proposal
+        // 1. Get proposal with full relations
         const proposal = await this.prisma.proposal.findUnique({
           where: { id: proposalId },
           include: { owner: true, faculty: true },
@@ -2255,7 +2286,7 @@ export class WorkflowService {
         const actorDisplayName = await this.getUserDisplayName(context.userId);
 
         // 5. Store return target for resubmit
-        const returnTargetState = ProjectState.OUTLINE_COUNCIL_REVIEW;
+        const returnTargetState = ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW;
         const returnTargetHolderUnit = proposal.councilId;
 
         // 6. No SLA for CHANGES_REQUESTED state
@@ -2355,7 +2386,7 @@ export class WorkflowService {
     proposalId: string,
     context: TransitionContext,
   ): Promise<TransitionResult> {
-    const toState = ProjectState.SCHOOL_ACCEPTANCE_REVIEW;
+    const toState = ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW;
     const action = WorkflowAction.FACULTY_ACCEPT;
 
     // Use IdempotencyService for atomic idempotency check
@@ -2650,7 +2681,7 @@ export class WorkflowService {
         const actorDisplayName = await this.getUserDisplayName(context.userId);
 
         // 5. Store return target for resubmit
-        const returnTargetState = ProjectState.SCHOOL_ACCEPTANCE_REVIEW;
+        const returnTargetState = ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW;
         const returnTargetHolderUnit = 'PHONG_KHCN';
 
         // 6. No SLA for CHANGES_REQUESTED state
@@ -2750,7 +2781,7 @@ export class WorkflowService {
     proposalId: string,
     context: TransitionContext,
   ): Promise<TransitionResult> {
-    const toState = ProjectState.SCHOOL_ACCEPTANCE_REVIEW;
+    const toState = ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW;
     const action = WorkflowAction.FACULTY_ACCEPT;
 
     // Use IdempotencyService for atomic idempotency check
@@ -2922,7 +2953,7 @@ export class WorkflowService {
         const actorDisplayName = await this.getUserDisplayName(context.userId);
 
         // 5. Store return target for resubmit
-        const returnTargetState = ProjectState.FACULTY_ACCEPTANCE_REVIEW;
+        const returnTargetState = ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW;
         const returnTargetHolderUnit = proposal.facultyId;
 
         // 6. No SLA for CHANGES_REQUESTED state
