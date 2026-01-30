@@ -238,7 +238,7 @@ describe('NotificationsService', () => {
           return Promise.resolve(
             mockProposals.map((p) => ({
               ...p,
-              state: ProjectState.FACULTY_REVIEW,
+              state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
             }))
           );
         });
@@ -249,7 +249,7 @@ describe('NotificationsService', () => {
       mockPrisma.proposal.findMany.mockResolvedValue(
         mockProposals.map((p) => ({
           ...p,
-          state: ProjectState.FACULTY_REVIEW,
+          state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         }))
       );
 
@@ -278,7 +278,7 @@ describe('NotificationsService', () => {
       mockPrisma.proposal.findMany.mockResolvedValue(
         mockProposals.map((p) => ({
           ...p,
-          state: ProjectState.FACULTY_REVIEW,
+          state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         }))
       );
 
@@ -298,7 +298,7 @@ describe('NotificationsService', () => {
       mockPrisma.proposal.findMany.mockResolvedValue(
         mockProposals.map((p) => ({
           ...p,
-          state: ProjectState.FACULTY_REVIEW,
+          state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         }))
       );
 
@@ -330,7 +330,7 @@ describe('NotificationsService', () => {
       mockPrisma.proposal.findMany.mockResolvedValue(
         mockProposals.map((p) => ({
           ...p,
-          state: ProjectState.FACULTY_REVIEW,
+          state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         }))
       );
 

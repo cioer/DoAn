@@ -42,7 +42,7 @@ describe('EvaluationForm (Story 5.3)', () => {
   const mockProps = {
     proposalId: 'test-proposal-123',
     holderUser: 'test-secretary-id',
-    currentState: 'OUTLINE_COUNCIL_REVIEW',
+    currentState: 'SCHOOL_COUNCIL_OUTLINE_REVIEW',
     currentUserId: 'test-secretary-id',
     currentUserRole: 'THU_KY_HOI_DONG',
     isSecretary: true,
@@ -130,7 +130,7 @@ describe('EvaluationForm (Story 5.3)', () => {
     it('should show not authorized message when proposal is not in OUTLINE_COUNCIL_REVIEW state', async () => {
       const wrongStateProps = {
         ...mockProps,
-        currentState: 'FACULTY_REVIEW',
+        currentState: 'FACULTY_COUNCIL_OUTLINE_REVIEW',
       };
 
       render(<EvaluationForm {...wrongStateProps} />);

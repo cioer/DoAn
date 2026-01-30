@@ -82,6 +82,22 @@ export const VALID_TRANSITIONS: StateTransition[] = [
     allowedRoles: ['BAN_GIAM_HOC'], // Only council chair can reject
   },
 
+  // Story 5.2: Council Assignment - PHONG_KHCN assigns council to proposal
+  // Self-transition: proposal stays at same state but with council assigned
+  {
+    fromState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
+    toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
+    action: WorkflowAction.ASSIGN_COUNCIL,
+    allowedRoles: ['PHONG_KHCN'],
+  },
+  // Faculty council assignment by QUAN_LY_KHOA
+  {
+    fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+    toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+    action: WorkflowAction.ASSIGN_COUNCIL,
+    allowedRoles: ['QUAN_LY_KHOA'],
+  },
+
   // Changes Requested → Resubmit
   {
     fromState: ProjectState.CHANGES_REQUESTED,

@@ -7,6 +7,8 @@ import {
   DEMO_PROPOSALS,
   DEMO_HOLIDAYS,
   DEMO_ROLE_PERMISSIONS,
+  DEMO_COUNCILS,
+  DEMO_COUNCIL_MEMBERS,
   type DemoProposal,
   type DemoWorkflowLog,
 } from './demo-seed-data.constants';
@@ -288,6 +290,91 @@ async function seedProposals(facultyMap: Map<string, string>): Promise<void> {
 }
 
 /**
+ * Seed councils for council review workflow (Story 5.2)
+ */
+async function seedCouncils(): Promise<void> {
+  console.log('👥 Seeding councils...');
+
+  for (const councilData of DEMO_COUNCILS) {
+    // Verify secretary exists
+    const secretary = await prisma.user.findUnique({
+      where: { id: councilData.secretaryId },
+    });
+    if (!secretary) {
+      console.error(`  ❌ Secretary not found: ${councilData.secretaryId}`);
+      continue;
+    }
+
+    await prisma.council.upsert({
+      where: { id: councilData.id },
+      update: {
+        name: councilData.name,
+        type: councilData.type,
+        secretaryId: councilData.secretaryId,
+      },
+      create: {
+        id: councilData.id,
+        name: councilData.name,
+        type: councilData.type,
+        secretaryId: councilData.secretaryId,
+        createdAt: getFixedTimestamp(),
+      },
+    });
+
+    console.log(`  ✓ ${councilData.id}: ${councilData.name} (${councilData.type})`);
+  }
+
+  console.log(`✅ Seeded ${DEMO_COUNCILS.length} councils`);
+}
+
+/**
+ * Seed council members for councils
+ */
+async function seedCouncilMembers(): Promise<void> {
+  console.log('👤 Seeding council members...');
+
+  let count = 0;
+  for (const memberData of DEMO_COUNCIL_MEMBERS) {
+    // Verify council and user exist
+    const council = await prisma.council.findUnique({
+      where: { id: memberData.councilId },
+    });
+    const user = await prisma.user.findUnique({
+      where: { id: memberData.userId },
+    });
+
+    if (!council || !user) {
+      console.warn(`  ⚠ Skipping: council=${memberData.councilId}, user=${memberData.userId}`);
+      continue;
+    }
+
+    await prisma.councilMember.upsert({
+      where: {
+        councilId_userId: {
+          councilId: memberData.councilId,
+          userId: memberData.userId,
+        },
+      },
+      update: {
+        role: memberData.role,
+        isAuthor: memberData.isAuthor ?? false,
+      },
+      create: {
+        councilId: memberData.councilId,
+        userId: memberData.userId,
+        role: memberData.role,
+        isAuthor: memberData.isAuthor ?? false,
+        createdAt: getFixedTimestamp(),
+      },
+    });
+
+    count++;
+  }
+
+  console.log(`✅ Seeded ${count} council members`);
+}
+
+/**
  * Seed business calendar (holidays)
  */
 async function seedBusinessCalendar(): Promise<void> {
@@ -329,9 +416,34 @@ async function cleanDemoData(): Promise<void> {
 
   console.log('🧹 Cleaning existing demo data...');
 
+  // Delete audit events first (FK to users)
+  await prisma.auditEvent.deleteMany({
+    where: {
+      actorUserId: {
+        startsWith: 'DT-USER-',
+      },
+    },
+  });
+
   await prisma.workflowLog.deleteMany({});
   await prisma.proposal.deleteMany({});
   await prisma.businessCalendar.deleteMany({});
+
+  // Clean councils and council members (delete members first due to FK constraint)
+  await prisma.councilMember.deleteMany({
+    where: {
+      councilId: {
+        startsWith: 'COUNCIL-',
+      },
+    },
+  });
+  await prisma.council.deleteMany({
+    where: {
+      id: {
+        startsWith: 'COUNCIL-',
+      },
+    },
+  });
 
   // Only delete demo users (those with DT-USER-XXX pattern)
   await prisma.user.deleteMany({
@@ -380,6 +492,12 @@ async function main(): Promise<void> {
   await seedRolePermissions();
   console.log('');
 
+  await seedCouncils();
+  console.log('');
+
+  await seedCouncilMembers();
+  console.log('');
+
   await seedProposals(facultyMap);
   console.log('');
 
@@ -392,6 +510,8 @@ async function main(): Promise<void> {
   console.log('========================================');
   console.log(`   Users:    ${DEMO_USERS.length}`);
   console.log(`   Faculties: ${DEMO_FACULTIES.length}`);
+  console.log(`   Councils:  ${DEMO_COUNCILS.length}`);
+  console.log(`   Members:   ${DEMO_COUNCIL_MEMBERS.length}`);
   console.log(`   Proposals: ${DEMO_PROPOSALS.length}`);
   console.log(`   Holidays:  ${DEMO_HOLIDAYS.length}`);
   console.log(`   Permissions: ${DEMO_ROLE_PERMISSIONS.length}`);

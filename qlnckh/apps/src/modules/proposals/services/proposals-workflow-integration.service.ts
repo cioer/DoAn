@@ -285,9 +285,9 @@ export class ProposalsWorkflowService {
       case WorkflowAction.APPROVE:
         // Phase A: Route based on current state
         const currentState = await this.getWorkflowState(proposalId);
-        if (currentState === ProjectState.FACULTY_REVIEW) {
+        if (currentState === ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW) {
           return this.workflow.approveFacultyReview(proposalId, context);
-        } else if (currentState === ProjectState.OUTLINE_COUNCIL_REVIEW) {
+        } else if (currentState === ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW) {
           return this.workflow.approveCouncilReview(proposalId, context);
         }
         break;
@@ -353,38 +353,35 @@ export class ProposalsWorkflowService {
     // This would use state machine helper
     // For now, return common transitions based on current state
     const transitions: Record<ProjectState, ProjectState[]> = {
-      [ProjectState.DRAFT]: [ProjectState.FACULTY_REVIEW, ProjectState.CANCELLED],
-      [ProjectState.FACULTY_REVIEW]: [
-        ProjectState.SCHOOL_SELECTION_REVIEW,
+      [ProjectState.DRAFT]: [ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW, ProjectState.CANCELLED],
+      [ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW]: [
+        ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         ProjectState.CHANGES_REQUESTED,
         ProjectState.WITHDRAWN,
       ],
-      [ProjectState.SCHOOL_SELECTION_REVIEW]: [
-        ProjectState.OUTLINE_COUNCIL_REVIEW,
-        ProjectState.WITHDRAWN,
-      ],
-      [ProjectState.OUTLINE_COUNCIL_REVIEW]: [
+      [ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW]: [
         ProjectState.APPROVED,
         ProjectState.CHANGES_REQUESTED,
         ProjectState.REJECTED,
+        ProjectState.WITHDRAWN,
       ],
       [ProjectState.APPROVED]: [ProjectState.IN_PROGRESS],
       [ProjectState.IN_PROGRESS]: [
-        ProjectState.FACULTY_ACCEPTANCE_REVIEW,
+        ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW,
         ProjectState.PAUSED,
         ProjectState.COMPLETED,
       ],
-      [ProjectState.FACULTY_ACCEPTANCE_REVIEW]: [
-        ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+      [ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW]: [
+        ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW,
         ProjectState.IN_PROGRESS,
       ],
-      [ProjectState.SCHOOL_ACCEPTANCE_REVIEW]: [
+      [ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW]: [
         ProjectState.HANDOVER,
         ProjectState.IN_PROGRESS,
       ],
       [ProjectState.HANDOVER]: [ProjectState.COMPLETED],
       [ProjectState.PAUSED]: [ProjectState.IN_PROGRESS],
-      [ProjectState.CHANGES_REQUESTED]: [ProjectState.FACULTY_REVIEW],
+      [ProjectState.CHANGES_REQUESTED]: [ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW],
       // Terminal states
       [ProjectState.CANCELLED]: [],
       [ProjectState.WITHDRAWN]: [],

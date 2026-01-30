@@ -42,7 +42,7 @@ import { Badge } from '../../../components/ui/Badge';
  */
 type ProposalStatus =
   | 'DRAFT'
-  | 'FACULTY_REVIEW'
+  | 'FACULTY_COUNCIL_OUTLINE_REVIEW'
   | 'SCHOOL_REVIEW'
   | 'COUNCIL_REVIEW'
   | 'APPROVED'
@@ -312,7 +312,7 @@ export default function ResearcherDashboardPage() {
         total: proposalList.length,
         draft: proposalList.filter((p: Proposal) => p.state === 'DRAFT').length,
         underReview: proposalList.filter((p: Proposal) =>
-          ['FACULTY_REVIEW', 'SCHOOL_REVIEW', 'COUNCIL_REVIEW'].includes(p.state)
+          ['FACULTY_COUNCIL_OUTLINE_REVIEW', 'SCHOOL_REVIEW', 'COUNCIL_REVIEW'].includes(p.state)
         ).length,
         approved: proposalList.filter((p: Proposal) => p.state === 'APPROVED').length,
         rejected: proposalList.filter((p: Proposal) => p.state === 'REJECTED').length,

@@ -165,7 +165,7 @@ export class ProposalsAcceptanceController {
      */
     @Post(':id/school-acceptance-decision')
     @HttpCode(HttpStatus.OK)
-    @RequireRoles(UserRole.PHONG_KHCN, UserRole.THU_KY_HOI_DONG, UserRole.ADMIN)
+    @RequireRoles(UserRole.PHONG_KHCN, UserRole.GIANG_VIEN, UserRole.ADMIN)
     @ApiOperation({ summary: 'Nghiệm thu cấp Trường', description: 'Phòng KHCN duyệt/không duyệt nghiệm thu.' })
     @ApiParam({ name: 'id', description: 'Proposal ID (UUID)' })
     @ApiResponse({ status: 200, description: 'Đã ra quyết định nghiệm thu', type: ProposalWithTemplateDto })

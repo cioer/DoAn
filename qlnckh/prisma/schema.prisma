@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,719 +7,544 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================================
-// ENUMS
-// ============================================================
+model attachments {
+  id          String    @id
+  proposal_id String
+  file_name   String
+  file_url    String
+  file_size   Int
+  mime_type   String
+  type        String    @default("GENERAL")
+  uploaded_by String
+  uploaded_at DateTime  @default(now())
+  deleted_at  DateTime?
+  proposals   proposals @relation(fields: [proposal_id], references: [id], onDelete: Cascade)
 
-enum UserRole {
-  GIANG_VIEN         // Giảng viên / PI (PROJECT_OWNER)
-  QUAN_LY_KHOA       // Quản lý Khoa
-  THU_KY_KHOA        // Thư ký Khoa
-  PHONG_KHCN         // Phòng KHCN
-  THU_KY_HOI_DONG    // Thư ký Hội đồng
-  THANH_TRUNG        // Thành viên Hội đồng
-  BAN_GIAM_HOC       // Ban Giám học
-  HOI_DONG           // Thành viên Hội đồng (legacy, same as THANH_TRUNG)
-  BGH                // Ban Giám hiệu (legacy, same as BAN_GIAM_HOC)
-  ADMIN              // Quản trị hệ thống
+  @@index([deleted_at])
+  @@index([proposal_id])
+  @@index([type])
+  @@index([uploaded_by])
 }
 
-enum Permission {
-  USER_MANAGE             // Quản lý người dùng
-  DEMO_SWITCH_PERSONA     // Demo: Chuyển persona
-  DEMO_RESET              // Demo: Reset dữ liệu
-  CALENDAR_MANAGE         // Quản lý lịch làm việc
-  DASHBOARD_VIEW          // Xem dashboard (Story 11.2)
-  AUDIT_VIEW              // Xem audit log
-  PROPOSAL_CREATE         // Tạo đề tài mới
-  PROPOSAL_EDIT           // Sửa đề tài
-  VIEW_EVALUATION_RESULTS  // Xem kết quả đánh giá (GIANG_VIEN Feature)
-  EXPORT_PROPOSAL_PDF     // Xuất đề tài ra PDF (GIANG_VIEN Feature)
-  FORM_TEMPLATE_IMPORT    // Import biểu mẫu từ Word (ADMIN)
-  // Faculty Management (QUAN_LY_KHOA Features)
-  FACULTY_APPROVE         // Duyệt đề tài cấp khoa
-  FACULTY_RETURN          // Trả về đề tài cần sửa
-  PROPOSAL_VIEW_FACULTY   // Xem đề tài trong khoa
-  FACULTY_DASHBOARD_VIEW  // Xem dashboard khoa
-  FACULTY_USER_MANAGE     // Quản lý người dùng trong khoa
-}
+model audit_events {
+  id                                          String   @id
+  occurred_at                                 DateTime @default(now())
+  actor_user_id                               String
+  acting_as_user_id                           String?
+  action                                      String
+  entity_type                                 String?
+  entity_id                                   String?
+  metadata                                    Json?
+  ip                                          String?
+  user_agent                                  String?
+  request_id                                  String?
+  created_at                                  DateTime @default(now())
+  users_audit_events_acting_as_user_idTousers users?   @relation("audit_events_acting_as_user_idTousers", fields: [acting_as_user_id], references: [id])
+  users_audit_events_actor_user_idTousers     users    @relation("audit_events_actor_user_idTousers", fields: [actor_user_id], references: [id])
 
-// ============================================================
-// CORE: Users
-// ============================================================
-
-model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  passwordHash String    @map("password_hash")
-  displayName  String    @map("display_name")
-  role         UserRole
-  facultyId    String?   @map("faculty_id")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-  deletedAt    DateTime? @map("deleted_at")
-
-  faculty           Faculty?          @relation(fields: [facultyId], references: [id])
-  refreshTokens     RefreshToken[]
-  auditEventsAsActor  AuditEvent[]    @relation("AuditActor")
-  auditEventsAsActing AuditEvent[]    @relation("AuditActingAs")
-  ownedProposals    Proposal[]        @relation("ProposalOwner")
-  rejectedProposals Proposal[]        @relation("RejectedBy")
-  secretaryCouncils Council[]        @relation("CouncilSecretary")
-  councilMemberships CouncilMember[]
-  evaluations       Evaluation[]      @relation("EvaluationEvaluator")
-
-  @@map("users")
-  @@index([email])
-  @@index([facultyId])
-}
-
-// ============================================================
-// AUTH: Refresh Tokens
-// ============================================================
-
-model RefreshToken {
-  id        String   @id @default(uuid())
-  token     String   @unique
-  userId    String   @map("user_id")
-  expiresAt DateTime @map("expires_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  revokedAt DateTime? @map("revoked_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([token])
-  @@map("refresh_tokens")
-}
-
-// ============================================================
-// RBAC: Role Permissions
-// ============================================================
-
-model RolePermission {
-  id         String     @id @default(uuid())
-  role       UserRole
-  permission Permission
-  createdAt  DateTime   @default(now()) @map("created_at")
-
-  @@unique([role, permission])
-  @@map("role_permissions")
-}
-
-// ============================================================
-// AUDIT: Audit Events
-// ============================================================
-
-model AuditEvent {
-  id             String   @id @default(uuid())
-  occurredAt     DateTime @default(now()) @map("occurred_at")
-  actorUserId    String   @map("actor_user_id")
-  actingAsUserId String?  @map("acting_as_user_id")
-  action         String   // AuditAction enum values
-  entityType     String?  @map("entity_type")
-  entityId       String?  @map("entity_id")
-  metadata       Json?    @db.JsonB
-  ip             String?
-  userAgent      String?  @map("user_agent")
-  requestId      String?  @map("request_id")
-  createdAt      DateTime @default(now()) @map("created_at")
-
-  // Relations
-  actorUser      User     @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: Restrict)
-  actingAsUser   User?    @relation("AuditActingAs", fields: [actingAsUserId], references: [id], onDelete: SetNull)
-
-  @@index([occurredAt])
-  @@index([actorUserId])
-  @@index([entityType, entityId])
   @@index([action])
-  @@index([createdAt])
-  @@map("audit_events")
+  @@index([actor_user_id])
+  @@index([created_at])
+  @@index([entity_type, entity_id])
+  @@index([occurred_at])
 }
 
-// ============================================================
-// WORKFLOW: Proposals
-// ============================================================
+model business_calendar {
+  id             String   @id
+  date           DateTime @unique @db.Date
+  name           String
+  is_holiday     Boolean  @default(true)
+  is_working_day Boolean  @default(false)
+  recurring      Boolean  @default(false)
+  created_at     DateTime @default(now())
+  updated_at     DateTime
 
-enum ProjectState {
-  DRAFT                     // Black nháp
-  FACULTY_REVIEW            // Đang xét duyệt tại Khoa
-  SCHOOL_SELECTION_REVIEW   // Đang phân bổ Hội đồng
-  OUTLINE_COUNCIL_REVIEW    // Đang xét duyệt bởi Hội đồng
-  CHANGES_REQUESTED         // Đã yêu cầu sửa
-  APPROVED                  // Đã duyệt
-  IN_PROGRESS               // Đang thực hiện
-  FACULTY_ACCEPTANCE_REVIEW // Đang nghiệm thu cấp Khoa
-  SCHOOL_ACCEPTANCE_REVIEW  // Đang nghiệm thu cấp Trường
-  HANDOVER                  // Đã bàn giao
-  COMPLETED                 // Đã hoàn thành
-  CANCELLED                 // Đã hủy
-  REJECTED                  // Đã từ chối
-  WITHDRAWN                 // Đã rút
-  PAUSED                    // Đã tạm dừng
-}
-
-enum WorkflowAction {
-  CREATE             // Tạo mới
-  SUBMIT             // Nộp
-  APPROVE            // Duyệt
-  RETURN             // Trả về yêu cầu sửa
-  RESUBMIT           // Nộp lại
-  START_PROJECT      // Bắt đầu thực hiện (Story 6.1)
-  SUBMIT_FACULTY_ACCEPTANCE // Nộp hồ sơ nghiệm thu cấp Khoa (Story 6.2)
-  FACULTY_ACCEPT     // Khoa chấp nhận nghiệm thu (Story 6.3)
-  FACULTY_REJECT     // Khoa từ chối nghiệm thu (Story 6.3)
-  SCHOOL_ACCEPT      // Trường chấp nhận nghiệm thu (Story 6.4)
-  SCHOOL_REJECT      // Trường từ chối nghiệm thu (Story 6.4)
-  HANDOVER_COMPLETE  // Hoàn thành bàn giao (Story 6.5)
-  SUBMIT_ACCEPTANCE  // Nộp nghiệm thu (legacy)
-  ACCEPT             // Chấp nhận nghiệm thu (legacy)
-  REJECT             // Từ chối (legacy)
-  CANCEL             // Hủy
-  WITHDRAW           // Rút
-  PAUSE              // Tạm dừng
-  RESUME             // Tiếp tục
-  FINALIZE           // Hoàn tất (đóng dự án)
-  ASSIGN_COUNCIL     // Phân bổ hội đồng
-  EVALUATION_SUBMITTED // Nộp phiếu đánh giá (Story 5.4)
-  // Epic 7: Document actions
-  TEMPLATE_UPLOAD    // Upload template (Story 7.2)
-  TEMPLATE_ACTIVATE  // Kích hoạt template (Story 7.2)
-  TEMPLATE_DELETE    // Xóa template (Story 7.2)
-  DOC_GENERATED      // Tạo tài liệu (Story 7.3)
-  DOC_DOWNLOADED     // Tải xuống tài liệu (Story 7.3)
-  DOC_VERIFIED       // Xác thực tính toàn vẹn (Story 7.3)
-  // Epic 8: Bulk Actions & Reports
-  BULK_ASSIGN        // Gán holder_user hàng loạt (Story 8.1)
-  BULK_REMIND        // Gửi email nhắc hàng loạt (Story 8.2)
-  REMIND_SENT        // Email nhắc đã gửi (Story 8.2 - per recipient)
-  EXPORT_EXCEL       // Xuất Excel (Story 8.3)
-}
-
-model Proposal {
-  id              String        @id @default(uuid())
-  code            String        @unique // DT-001, DT-002, etc.
-  title           String
-  state           ProjectState  @default(DRAFT)
-  ownerId         String        @map("owner_id")
-  facultyId       String        @map("faculty_id")
-  councilId       String?       @map("council_id")    // FK to councils (Story 5.2)
-  holderUnit      String?       @map("holder_unit")  // Faculty ID or "PKHCN" or "COUNCIL-XXX"
-  holderUser      String?       @map("holder_user")  // User ID (optional)
-  slaStartDate    DateTime?     @map("sla_start_date")
-  slaDeadline     DateTime?     @map("sla_deadline")
-  actualStartDate DateTime?     @map("actual_start_date") // Story 6.1: Set when starting project
-  completedDate   DateTime?     @map("completed_date")   // Story 6.5: Set when completing project
-  templateId      String?       @map("template_id")   // FK to form_templates (Story 2.2)
-  templateVersion String?       @map("template_version") // e.g., "v1.0" (Story 2.2)
-  formData        Json?         @map("form_data")     // JSON with section data (Story 2.2)
-
-  // Epic 9: Exception tracking fields
-  cancelledAt     DateTime?     @map("cancelled_at")   // Story 9.1: When proposal was cancelled
-  withdrawnAt     DateTime?     @map("withdrawn_at")   // Story 9.1: When proposal was withdrawn
-  rejectedAt      DateTime?     @map("rejected_at")    // Story 9.2: When proposal was rejected
-  rejectedById    String?       @map("rejected_by_id") // Story 9.2: Who rejected the proposal
-  pausedAt        DateTime?     @map("paused_at")      // Story 9.3: When proposal was paused
-  resumedAt       DateTime?     @map("resumed_at")     // Story 9.3: When proposal was resumed
-  pauseReason     String?       @map("pause_reason")   @db.Text // Story 9.3: Reason for pausing
-  expectedResumeAt DateTime?     @map("expected_resume_at") // Story 9.3: Expected resume date
-  prePauseState   ProjectState? @map("pre_pause_state") // Story 9.3: State before pausing
-  prePauseHolderUnit String?    @map("pre_pause_holder_unit") // Story 9.3: Holder before pausing
-  prePauseHolderUser String?    @map("pre_pause_holder_user") // Story 9.3: Holder user before pausing
-
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
-  deletedAt       DateTime?     @map("deleted_at")    // Soft delete (Story 2.6)
-
-  owner           User          @relation("ProposalOwner", fields: [ownerId], references: [id])
-  faculty         Faculty       @relation(fields: [facultyId], references: [id])
-  council         Council?      @relation(fields: [councilId], references: [id])
-  template        FormTemplate? @relation(fields: [templateId], references: [id])
-  rejectedByUser  User?         @relation("RejectedBy", fields: [rejectedById], references: [id])
-  workflowLogs    WorkflowLog[]
-  attachments     Attachment[]
-  evaluations     Evaluation[]
-  documents       Document[]
-  proposalDocs    ProposalDocument[]  // Biểu mẫu NCKH theo quy trình
-
-  @@map("proposals")
-  @@index([state])
-  @@index([ownerId])
-  @@index([facultyId])
-  @@index([councilId])         // Story 5.2: index for council queries
-  @@index([holderUnit])
-  @@index([holderUser])      // Story 2.6: index for holder_user queries
-  @@index([slaDeadline])     // Story 2.6: index for SLA queries
-  @@index([deletedAt])       // Story 2.6: index for soft delete filter
-  @@index([code])
-  @@index([templateId])
-  @@index([cancelledAt])     // Story 9.1: index for cancelled proposals
-  @@index([withdrawnAt])     // Story 9.1: index for withdrawn proposals
-  @@index([rejectedAt])      // Story 9.2: index for rejected proposals
-  @@index([rejectedById])    // Story 9.2: index for rejected by queries
-  @@index([pausedAt])        // Story 9.3: index for paused proposals
-  @@index([resumedAt])       // Story 9.3: index for resumed proposals
-  @@index([expectedResumeAt]) // Story 9.3: index for expected resume date
-}
-
-model WorkflowLog {
-  id                      String        @id @default(uuid())
-  proposalId              String        @map("proposal_id")
-  action                  WorkflowAction
-  fromState               ProjectState? @map("from_state")
-  toState                 ProjectState  @map("to_state")
-  actorId                 String        @map("actor_id")
-  actorName               String        @map("actor_name")
-  returnTargetState       ProjectState? @map("return_target_state")
-  returnTargetHolderUnit  String?       @map("return_target_holder_unit")
-  reasonCode              String?       @map("reason_code")
-  comment                 String?
-  timestamp               DateTime      @default(now())
-
-  proposal                Proposal      @relation(fields: [proposalId], references: [id], onDelete: Cascade)
-
-  @@map("workflow_logs")
-  @@index([proposalId])
-  @@index([timestamp])
-}
-
-// ============================================================
-// ORGANIZATION: Faculties
-// ============================================================
-
-enum FacultyType {
-  FACULTY     // Khoa
-  DEPARTMENT  // Bộ môn/Phòng
-}
-
-model Faculty {
-  id          String       @id @default(uuid())
-  code        String       @unique // FAC-001, FAC-002, etc.
-  name        String       // "Khoa CNTT", "Khoa Kinh tế", etc.
-  type        FacultyType  @default(FACULTY)
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
-
-  users       User[]
-  proposals   Proposal[]
-
-  @@map("faculties")
-  @@index([code])
-}
-
-// ============================================================
-// FORMS: Form Templates
-// ============================================================
-
-enum SectionId {
-  // Phase A: Proposal Forms (MAU_01B - MAU_07B)
-  SEC_INFO_GENERAL          // Thông tin chung
-  SEC_CONTENT_METHOD        // Nội dung nghiên cứu
-  SEC_RESEARCH_METHOD       // Phương pháp nghiên cứu
-  SEC_EXPECTED_RESULTS      // Kết quả mong đợi
-  SEC_BUDGET                // Kinh phí
-  SEC_ATTACHMENTS           // Tài liệu đính kèm
-  SEC_RESEARCHERS           // Đội ngũ nghiên cứu
-  SEC_FACILITIES            // Cơ sở vật chất
-  SEC_TIMELINE              // Kế hoạch thời gian
-  SEC_REFERENCES            // Tài liệu tham khảo
-
-  // Phase C: Faculty Acceptance (MAU_08B - MAU_11B)
-  SEC_FACULTY_ACCEPTANCE_RESULTS   // Kết quả nghiên cứu
-  SEC_FACULTY_ACCEPTANCE_PRODUCTS  // Sản phẩm nghiên cứu
-
-  // Phase D: School Acceptance (MAU_12B - MAU_16B)
-  SEC_SCHOOL_ACCEPTANCE_RESULTS   // Kết quả nghiên cứu
-  SEC_SCHOOL_ACCEPTANCE_PRODUCTS  // Sản phẩm nghiên cứu
-
-  // Phase E: Handover (MAU_17B)
-  SEC_HANDOVER_CHECKLIST   // Checklist bàn giao
-
-  // Phase B: Extension (MAU_18B)
-  SEC_EXTENSION_REASON     // Lý do gia hạn
-  SEC_EXTENSION_DURATION   // Thời gian gia hạn
-
-  // Add new sections here, never modify existing IDs
-}
-
-model FormTemplate {
-  id          String        @id @default(uuid())
-  code        String        @unique // MAU_01B, MAU_02B, etc.
-  name        String        // Vietnamese name
-  version     String        @default("v1.0")
-  description String?       @db.Text
-  isActive    Boolean       @default(true) @map("is_active")
-  projectType String        @default("CAP_TRUONG") @map("project_type") // MVP: hardcoded
-  sections    FormSection[]
-  proposals   Proposal[]    // Reverse relation from Proposal (Story 2.2)
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
-
-  @@map("form_templates")
-  @@index([code])
-  @@index([isActive])
-}
-
-model FormSection {
-  id           String    @id @default(uuid())
-  templateId   String    @map("template_id")
-  sectionId    SectionId @map("section_id")
-  label        String    // Vietnamese display label
-  component    String    // React component name
-  displayOrder Int       @map("display_order")
-  isRequired   Boolean   @default(false) @map("is_required")
-  config       Json?     @db.JsonB // Additional config (options, validation rules, etc.)
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-
-  template     FormTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-
-  @@unique([templateId, sectionId])
-  @@index([templateId])
-  @@map("form_sections")
-}
-
-// ============================================================
-// CALENDAR: Business Calendar
-// ============================================================
-
-model BusinessCalendar {
-  id            String    @id @default(uuid())
-  date          DateTime  @db.Date
-  name          String
-  isHoliday     Boolean   @default(true) @map("is_holiday")
-  isWorkingDay  Boolean   @default(false) @map("is_working_day") // For compensatory days
-  recurring     Boolean   @default(false) // Yearly recurring
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-
-  @@unique([date])
-  @@map("business_calendar")
   @@index([date])
 }
 
-// ============================================================
-// COUNCILS: Council Management (Story 5.2)
-// ============================================================
+model council_members {
+  id         String            @id
+  council_id String
+  user_id    String
+  role       CouncilMemberRole
+  created_at DateTime          @default(now())
+  is_author  Boolean           @default(false)
+  councils   councils          @relation(fields: [council_id], references: [id], onDelete: Cascade)
+  users      users             @relation(fields: [user_id], references: [id])
 
-enum CouncilType {
-  OUTLINE           // Hội đồng xét duyệt đề cương
-  ACCEPTANCE        // Hội đồng nghiệm thu
-  EXTENSION         // Hội đồng gia hạn
+  @@unique([council_id, user_id])
+  @@index([council_id])
+  @@index([is_author])
+  @@index([user_id])
 }
 
-enum CouncilMemberRole {
-  CHAIR             // Chủ tịch hội đồng
-  SECRETARY         // Thư ký
-  MEMBER            // Thành viên
-}
+model councils {
+  id              String            @id
+  name            String
+  type            CouncilType
+  secretary_id    String?
+  created_at      DateTime          @default(now())
+  updated_at      DateTime
+  council_members council_members[]
+  users           users?            @relation(fields: [secretary_id], references: [id])
+  proposals       proposals[]
 
-model Council {
-  id           String        @id @default(uuid())
-  name         String        // "Hội đồng khoa CNTT #1"
-  type         CouncilType   // OUTLINE, ACCEPTANCE, etc.
-  secretaryId  String?       @map("secretary_id")
-  secretary    User?         @relation("CouncilSecretary", fields: [secretaryId], references: [id])
-  members      CouncilMember[]
-  proposals    Proposal[]
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
-
-  @@map("councils")
   @@index([type])
 }
 
-model CouncilMember {
-  id         String        @id @default(uuid())
-  councilId  String        @map("council_id")
-  council    Council       @relation(fields: [councilId], references: [id], onDelete: Cascade)
-  userId     String        @map("user_id")
-  user       User          @relation(fields: [userId], references: [id])
-  role       CouncilMemberRole // CHAIR, SECRETARY, MEMBER
-  createdAt  DateTime      @default(now()) @map("created_at")
+model document_manifests {
+  id                  String    @id
+  document_id         String    @unique
+  template_id         String
+  template_version    Int
+  proposal_data       Json
+  generated_by        String
+  generated_at        DateTime  @default(now())
+  verified_at         DateTime?
+  verified_by         String?
+  verification_result String?
+  documents           documents @relation(fields: [document_id], references: [id])
 
-  @@unique([councilId, userId])
-  @@index([councilId])
-  @@index([userId])
-  @@map("council_members")
+  @@index([document_id])
 }
 
-// ============================================================
-// DOCUMENT TEMPLATES: DOCX Template Management (Epic 7 Story 7.2)
-// ============================================================
+model document_templates {
+  id            String               @id
+  name          String
+  description   String?
+  template_type DocumentTemplateType
+  file_path     String
+  file_name     String
+  file_size     Int
+  sha256_hash   String
+  version       Int                  @default(1)
+  placeholders  String[]
+  is_active     Boolean              @default(false)
+  created_by    String
+  created_at    DateTime             @default(now())
+  updated_at    DateTime
+  deleted_at    DateTime?
+  documents     documents[]
+
+  @@unique([template_type, is_active])
+  @@index([deleted_at])
+  @@index([is_active])
+  @@index([template_type])
+}
+
+model documents {
+  id                 String              @id
+  proposal_id        String
+  document_type      DocumentType
+  template_id        String
+  template_version   Int
+  file_path          String
+  file_name          String
+  file_size          Int
+  sha256_hash        String              @unique
+  generated_by       String
+  generated_at       DateTime            @default(now())
+  deleted_at         DateTime?
+  retention_until    DateTime?
+  document_manifests document_manifests?
+  proposals          proposals           @relation(fields: [proposal_id], references: [id])
+  document_templates document_templates  @relation(fields: [template_id], references: [id])
+
+  @@index([deleted_at])
+  @@index([generated_at])
+  @@index([proposal_id])
+  @@index([sha256_hash])
+}
+
+model evaluations {
+  id           String          @id
+  proposal_id  String
+  evaluator_id String
+  state        EvaluationState @default(DRAFT)
+  form_data    Json
+  created_at   DateTime        @default(now())
+  updated_at   DateTime
+  users        users           @relation(fields: [evaluator_id], references: [id])
+  proposals    proposals       @relation(fields: [proposal_id], references: [id], onDelete: Cascade)
+
+  @@unique([proposal_id, evaluator_id])
+  @@index([evaluator_id])
+  @@index([proposal_id])
+  @@index([state])
+}
+
+model faculties {
+  id         String      @id
+  code       String      @unique
+  name       String
+  type       FacultyType @default(FACULTY)
+  created_at DateTime    @default(now())
+  updated_at DateTime
+  proposals  proposals[]
+  users      users[]
+
+  @@index([code])
+}
+
+model form_sections {
+  id             String         @id
+  template_id    String
+  section_id     SectionId
+  label          String
+  component      String
+  display_order  Int
+  is_required    Boolean        @default(false)
+  config         Json?
+  created_at     DateTime       @default(now())
+  updated_at     DateTime
+  form_templates form_templates @relation(fields: [template_id], references: [id], onDelete: Cascade)
+
+  @@unique([template_id, section_id])
+  @@index([template_id])
+}
+
+model form_templates {
+  id            String          @id
+  code          String          @unique
+  name          String
+  version       String          @default("v1.0")
+  description   String?
+  is_active     Boolean         @default(true)
+  project_type  String          @default("CAP_TRUONG")
+  created_at    DateTime        @default(now())
+  updated_at    DateTime
+  form_sections form_sections[]
+  proposals     proposals[]
+
+  @@index([code])
+  @@index([is_active])
+}
+
+model proposal_documents {
+  id               String             @id
+  proposal_id      String
+  form_type        FormType
+  status           FormDocumentStatus @default(DRAFT)
+  version          Int                @default(1)
+  file_path        String?
+  file_name        String?
+  file_size        Int?
+  sha256_hash      String?
+  form_data        Json?
+  created_by       String
+  created_at       DateTime           @default(now())
+  updated_at       DateTime
+  approved_by      String?
+  approved_at      DateTime?
+  rejected_by      String?
+  rejected_at      DateTime?
+  rejection_reason String?
+  deleted_at       DateTime?
+  proposals        proposals          @relation(fields: [proposal_id], references: [id], onDelete: Cascade)
+
+  @@unique([proposal_id, form_type, version])
+  @@index([created_at])
+  @@index([deleted_at])
+  @@index([form_type])
+  @@index([proposal_id])
+  @@index([status])
+}
+
+model proposals {
+  id                                    String               @id
+  code                                  String               @unique
+  title                                 String
+  state                                 ProjectState         @default(DRAFT)
+  owner_id                              String
+  faculty_id                            String
+  council_id                            String?
+  holder_unit                           String?
+  holder_user                           String?
+  sla_start_date                        DateTime?
+  sla_deadline                          DateTime?
+  actual_start_date                     DateTime?
+  completed_date                        DateTime?
+  template_id                           String?
+  template_version                      String?
+  form_data                             Json?
+  cancelled_at                          DateTime?
+  withdrawn_at                          DateTime?
+  rejected_at                           DateTime?
+  rejected_by_id                        String?
+  paused_at                             DateTime?
+  resumed_at                            DateTime?
+  pause_reason                          String?
+  expected_resume_at                    DateTime?
+  pre_pause_state                       ProjectState?
+  pre_pause_holder_unit                 String?
+  pre_pause_holder_user                 String?
+  created_at                            DateTime             @default(now())
+  updated_at                            DateTime
+  deleted_at                            DateTime?
+  attachments                           attachments[]
+  documents                             documents[]
+  evaluations                           evaluations[]
+  proposal_documents                    proposal_documents[]
+  councils                              councils?            @relation(fields: [council_id], references: [id])
+  faculties                             faculties            @relation(fields: [faculty_id], references: [id])
+  users_proposals_owner_idTousers       users                @relation("proposals_owner_idTousers", fields: [owner_id], references: [id])
+  users_proposals_rejected_by_idTousers users?               @relation("proposals_rejected_by_idTousers", fields: [rejected_by_id], references: [id])
+  form_templates                        form_templates?      @relation(fields: [template_id], references: [id])
+  workflow_logs                         workflow_logs[]
+
+  @@index([cancelled_at])
+  @@index([code])
+  @@index([council_id])
+  @@index([deleted_at])
+  @@index([expected_resume_at])
+  @@index([faculty_id])
+  @@index([holder_unit])
+  @@index([holder_user])
+  @@index([owner_id])
+  @@index([paused_at])
+  @@index([rejected_at])
+  @@index([rejected_by_id])
+  @@index([resumed_at])
+  @@index([sla_deadline])
+  @@index([state])
+  @@index([template_id])
+  @@index([withdrawn_at])
+}
+
+model refresh_tokens {
+  id         String    @id
+  token      String    @unique
+  user_id    String
+  expires_at DateTime
+  created_at DateTime  @default(now())
+  revoked_at DateTime?
+  users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([user_id])
+}
+
+model role_permissions {
+  id         String     @id
+  role       UserRole
+  permission Permission
+  created_at DateTime   @default(now())
+
+  @@unique([role, permission])
+}
+
+model users {
+  id                                                 String            @id
+  email                                              String            @unique
+  password_hash                                      String
+  display_name                                       String
+  role                                               UserRole
+  faculty_id                                         String?
+  created_at                                         DateTime          @default(now())
+  updated_at                                         DateTime
+  deleted_at                                         DateTime?
+  audit_events_audit_events_acting_as_user_idTousers audit_events[]    @relation("audit_events_acting_as_user_idTousers")
+  audit_events_audit_events_actor_user_idTousers     audit_events[]    @relation("audit_events_actor_user_idTousers")
+  council_members                                    council_members[]
+  councils                                           councils[]
+  evaluations                                        evaluations[]
+  proposals_proposals_owner_idTousers                proposals[]       @relation("proposals_owner_idTousers")
+  proposals_proposals_rejected_by_idTousers          proposals[]       @relation("proposals_rejected_by_idTousers")
+  refresh_tokens                                     refresh_tokens[]
+  faculties                                          faculties?        @relation(fields: [faculty_id], references: [id])
+
+  @@index([email])
+  @@index([faculty_id])
+}
+
+model workflow_logs {
+  id                        String         @id
+  proposal_id               String
+  action                    WorkflowAction
+  from_state                ProjectState?
+  to_state                  ProjectState
+  actor_id                  String
+  actor_name                String
+  return_target_state       ProjectState?
+  return_target_holder_unit String?
+  reason_code               String?
+  comment                   String?
+  timestamp                 DateTime       @default(now())
+  proposals                 proposals      @relation(fields: [proposal_id], references: [id], onDelete: Cascade)
+
+  @@index([proposal_id])
+  @@index([timestamp])
+}
+
+enum CouncilMemberRole {
+  CHAIR
+  SECRETARY
+  MEMBER
+}
+
+enum CouncilType {
+  FACULTY_OUTLINE
+  SCHOOL_OUTLINE
+  FACULTY_ACCEPTANCE
+  SCHOOL_ACCEPTANCE
+}
 
 enum DocumentTemplateType {
-  PROPOSAL_OUTLINE       // Đề cương đề tài
-  EVALUATION_FORM        // Phiếu đánh giá
-  FINAL_REPORT           // Báo cáo cuối cùng
-  FACULTY_ACCEPTANCE     // Biên bản nghiệm thu cấp Khoa
-  SCHOOL_ACCEPTANCE      // Biên bản nghiệm thu cấp Trường
-  HANDOVER_CHECKLIST     // Biên bản bàn giao
+  PROPOSAL_OUTLINE
+  EVALUATION_FORM
+  FINAL_REPORT
+  FACULTY_ACCEPTANCE
+  SCHOOL_ACCEPTANCE
+  HANDOVER_CHECKLIST
 }
-
-model DocumentTemplate {
-  id            String                  @id @default(uuid())
-  name          String
-  description   String?                 @db.Text
-  templateType  DocumentTemplateType    @map("template_type")
-  filePath      String                  @map("file_path")
-  fileName      String                  @map("file_name")
-  fileSize      Int                     @map("file_size")
-  sha256Hash    String                  @map("sha256_hash")
-  version       Int                     @default(1) // For tracking template versions
-  placeholders  String[]                // Array of placeholder names extracted from template
-  isActive      Boolean                 @default(false) @map("is_active")
-  createdBy     String                  @map("created_by")
-  createdAt     DateTime                @default(now()) @map("created_at")
-  updatedAt     DateTime                @updatedAt @map("updated_at")
-  deletedAt     DateTime?               @map("deleted_at")
-
-  documents     Document[]
-
-  @@unique([templateType, isActive])
-  @@index([templateType])
-  @@index([isActive])
-  @@index([deletedAt])
-  @@map("document_templates")
-}
-
-// ============================================================
-// DOCUMENTS: Generated Documents (Epic 7 Story 7.3)
-// ============================================================
 
 enum DocumentType {
-  PROPOSAL_OUTLINE       // Đề cương đề tài
-  EVALUATION_FORM        // Phiếu đánh giá
-  FINAL_REPORT           // Báo cáo cuối cùng
-  FACULTY_ACCEPTANCE     // Biên bản nghiệm thu cấp Khoa
-  SCHOOL_ACCEPTANCE      // Biên bản nghiệm thu cấp Trường
-  HANDOVER_CHECKLIST     // Biên bản bàn giao
+  PROPOSAL_OUTLINE
+  EVALUATION_FORM
+  FINAL_REPORT
+  FACULTY_ACCEPTANCE
+  SCHOOL_ACCEPTANCE
+  HANDOVER_CHECKLIST
 }
-
-model Document {
-  id              String         @id @default(uuid())
-  proposalId      String         @map("proposal_id")
-  documentType    DocumentType   @map("document_type")
-  templateId      String         @map("template_id")
-  templateVersion Int            @map("template_version")
-  filePath        String         @map("file_path")
-  fileName        String         @map("file_name")
-  fileSize        Int            @map("file_size")
-  sha256Hash      String         @unique @map("sha256_hash")
-  generatedBy     String         @map("generated_by")
-  generatedAt     DateTime       @default(now()) @map("generated_at")
-  deletedAt       DateTime?      @map("deleted_at")
-  retentionUntil  DateTime?      @map("retention_until") // 7 years retention
-
-  proposal        Proposal       @relation(fields: [proposalId], references: [id])
-  template        DocumentTemplate @relation(fields: [templateId], references: [id])
-  manifest        DocumentManifest?
-
-  @@index([proposalId])
-  @@index([sha256Hash])
-  @@index([deletedAt])
-  @@index([generatedAt])
-  @@map("documents")
-}
-
-// ============================================================
-// DOCUMENT MANIFESTS: Integrity Tracking (Epic 7 Story 7.3)
-// ============================================================
-
-model DocumentManifest {
-  id                String   @id @default(uuid())
-  documentId        String   @unique @map("document_id")
-  templateId        String   @map("template_id")
-  templateVersion   Int      @map("template_version")
-  proposalData      Json     @map("proposal_data") // Snapshot of proposal data at generation time
-  generatedBy       String   @map("generated_by")
-  generatedAt       DateTime @default(now()) @map("generated_at")
-  verifiedAt        DateTime? @map("verified_at")
-  verifiedBy        String?  @map("verified_by")
-  verificationResult String? @map("verification_result") // 'VALID' | 'MISMATCH'
-
-  document          Document @relation(fields: [documentId], references: [id])
-
-  @@index([documentId])
-  @@map("document_manifests")
-}
-
-// ============================================================
-// EVALUATIONS: Council Evaluation (Story 5.3)
-// ============================================================
 
 enum EvaluationState {
-  DRAFT      // Đang soạn thảo
-  FINALIZED  // Đã hoàn tất (sau khi finalize - Story 5.4)
+  DRAFT
+  FINALIZED
 }
 
-model Evaluation {
-  id          String         @id @default(uuid())
-  proposalId  String         @map("proposal_id")
-  proposal    Proposal       @relation(fields: [proposalId], references: [id], onDelete: Cascade)
-  evaluatorId String         @map("evaluator_id")
-  evaluator   User           @relation("EvaluationEvaluator", fields: [evaluatorId], references: [id])
-  state       EvaluationState @default(DRAFT)
-  formData    Json           @map("form_data")
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
-
-  @@unique([proposalId, evaluatorId])
-  @@index([proposalId])
-  @@index([evaluatorId])
-  @@index([state])
-  @@map("evaluations")
+enum FacultyType {
+  FACULTY
+  DEPARTMENT
 }
 
-// ============================================================
-// ATTACHMENTS: Proposal Attachments (Story 2.4)
-// ============================================================
-
-model Attachment {
-  id          String    @id @default(uuid())
-  proposalId  String    @map("proposal_id")
-  fileName    String    @map("file_name")
-  fileUrl     String    @map("file_url")
-  fileSize    Int       @map("file_size")     // in bytes
-  mimeType    String    @map("mime_type")
-  type        String    @default("GENERAL") @map("type") // GENERAL, FACULTY_ACCEPTANCE, SCHOOL_ACCEPTANCE, HANDOVER (Story 6.2)
-  uploadedBy  String    @map("uploaded_by")
-  uploadedAt  DateTime  @default(now()) @map("uploaded_at")
-  deletedAt   DateTime? @map("deleted_at")
-
-  proposal    Proposal  @relation(fields: [proposalId], references: [id], onDelete: Cascade)
-
-  @@map("attachments")
-  @@index([proposalId])
-  @@index([uploadedBy])
-  @@index([deletedAt])
-  @@index([type])  // Story 6.2: Index for attachment type filtering
-}
-
-// ============================================================
-// FORM ENGINE: Form Types & Proposal Documents
-// Theo quy trình NCKH cấp Trường - Phụ lục II
-// ============================================================
-
-// Loại biểu mẫu theo Phụ lục II - Quy định quản lý đề tài NCKH
-enum FormType {
-  // --- Giai đoạn Đề xuất (DRAFT) ---
-  FORM_1B     // Phiếu đề xuất
-  FORM_PL1    // Đề cương chi tiết
-
-  // --- Giai đoạn Xét Khoa (FACULTY_REVIEW) ---
-  FORM_2B     // Phiếu đánh giá cấp Khoa
-  FORM_3B     // Biên bản họp cấp Khoa
-  FORM_4B     // Danh mục tổng hợp kết quả xét chọn
-
-  // --- Giai đoạn Xét Trường (SCHOOL_SELECTION_REVIEW) ---
-  FORM_5B     // Biên bản xét chọn sơ bộ cấp Trường
-
-  // --- Giai đoạn Hội đồng tư vấn (OUTLINE_COUNCIL_REVIEW) ---
-  FORM_6B     // Biên bản Hội đồng tư vấn xét chọn đề cương
-  FORM_7B     // Báo cáo hoàn thiện đề cương
-
-  // --- Giai đoạn Nghiệm thu Khoa (FACULTY_ACCEPTANCE_REVIEW) ---
-  FORM_8B     // Đề nghị lập HĐ nghiệm thu cấp Khoa
-  FORM_9B     // Phiếu đánh giá nghiệm thu cấp Khoa
-  FORM_10B    // Biên bản họp nghiệm thu cấp Khoa
-  FORM_11B    // Báo cáo hoàn thiện hồ sơ nghiệm thu cấp Khoa
-  FORM_PL2    // Báo cáo tổng kết đề tài
-
-  // --- Giai đoạn Nghiệm thu Trường (SCHOOL_ACCEPTANCE_REVIEW) ---
-  FORM_12B    // Nhận xét phản biện
-  FORM_13B    // Đề nghị lập HĐ nghiệm thu cấp Trường
-  FORM_14B    // Phiếu đánh giá nghiệm thu cấp Trường
-  FORM_15B    // Biên bản họp nghiệm thu cấp Trường
-  FORM_16B    // Báo cáo hoàn thiện hồ sơ nghiệm thu cấp Trường
-  FORM_PL3    // Nhận xét phản biện chi tiết
-
-  // --- Giai đoạn Hoàn thành (COMPLETED/HANDOVER) ---
-  FORM_17B    // Biên bản giao nhận sản phẩm
-
-  // --- Đặc biệt (IN_PROGRESS) ---
-  FORM_18B    // Đơn xin gia hạn
-}
-
-// Trạng thái của biểu mẫu trong quy trình
 enum FormDocumentStatus {
-  DRAFT       // Bản nháp
-  PENDING     // Chờ duyệt
-  APPROVED    // Đã duyệt
-  REJECTED    // Bị từ chối
-  FINALIZED   // Đã hoàn tất (không thể sửa)
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  FINALIZED
 }
 
-// Biểu mẫu được tạo cho mỗi đề tài - theo dõi trạng thái hoàn thiện
-model ProposalDocument {
-  id              String              @id @default(uuid())
-  proposalId      String              @map("proposal_id")
-  formType        FormType            @map("form_type")
-  status          FormDocumentStatus  @default(DRAFT)
-  version         Int                 @default(1)           // Phiên bản (khi sửa đổi)
-
-  // File info
-  filePath        String?             @map("file_path")     // Đường dẫn file đã tạo
-  fileName        String?             @map("file_name")     // Tên file
-  fileSize        Int?                @map("file_size")     // Kích thước (bytes)
-  sha256Hash      String?             @map("sha256_hash")   // Hash để verify
-
-  // Form data snapshot
-  formData        Json?               @map("form_data")     // Dữ liệu form tại thời điểm tạo
-
-  // Workflow tracking
-  createdBy       String              @map("created_by")    // User ID người tạo
-  createdAt       DateTime            @default(now()) @map("created_at")
-  updatedAt       DateTime            @updatedAt @map("updated_at")
-  approvedBy      String?             @map("approved_by")   // User ID người duyệt
-  approvedAt      DateTime?           @map("approved_at")
-  rejectedBy      String?             @map("rejected_by")   // User ID người từ chối
-  rejectedAt      DateTime?           @map("rejected_at")
-  rejectionReason String?             @map("rejection_reason") @db.Text
-
-  // Soft delete
-  deletedAt       DateTime?           @map("deleted_at")
-
-  proposal        Proposal            @relation(fields: [proposalId], references: [id], onDelete: Cascade)
-
-  @@unique([proposalId, formType, version])
-  @@index([proposalId])
-  @@index([formType])
-  @@index([status])
-  @@index([createdAt])
-  @@index([deletedAt])
-  @@map("proposal_documents")
+enum FormType {
+  FORM_1B
+  FORM_PL1
+  FORM_2B
+  FORM_3B
+  FORM_4B
+  FORM_5B
+  FORM_6B
+  FORM_7B
+  FORM_8B
+  FORM_9B
+  FORM_10B
+  FORM_11B
+  FORM_PL2
+  FORM_12B
+  FORM_13B
+  FORM_14B
+  FORM_15B
+  FORM_16B
+  FORM_PL3
+  FORM_17B
+  FORM_18B
 }
 
-// ============================================================
-// STATUS -> FORM MAPPING (Reference Comments)
-// Mapping trạng thái ProjectState với các biểu mẫu cần thiết
-// ============================================================
-//
-// DRAFT:
-//   Required: FORM_1B
-//   Optional: FORM_PL1
-//
-// FACULTY_REVIEW:
-//   Required: FORM_1B, FORM_PL1, FORM_2B, FORM_3B
-//   Optional: FORM_4B
-//
-// SCHOOL_SELECTION_REVIEW:
-//   Required: FORM_5B
-//
-// OUTLINE_COUNCIL_REVIEW:
-//   Required: FORM_6B, FORM_7B
-//
-// IN_PROGRESS:
-//   Optional: FORM_18B (khi cần gia hạn)
-//
-// FACULTY_ACCEPTANCE_REVIEW:
-//   Required: FORM_8B, FORM_9B, FORM_10B, FORM_11B, FORM_PL2
-//
-// SCHOOL_ACCEPTANCE_REVIEW:
-//   Required: FORM_12B, FORM_13B, FORM_14B, FORM_15B, FORM_16B
-//   Optional: FORM_PL3
-//
-// COMPLETED/HANDOVER:
-//   Required: FORM_17B
-// ============================================================
+enum Permission {
+  USER_MANAGE
+  DEMO_SWITCH_PERSONA
+  DEMO_RESET
+  CALENDAR_MANAGE
+  DASHBOARD_VIEW
+  AUDIT_VIEW
+  PROPOSAL_CREATE
+  PROPOSAL_EDIT
+  VIEW_EVALUATION_RESULTS
+  EXPORT_PROPOSAL_PDF
+  FORM_TEMPLATE_IMPORT
+  FACULTY_APPROVE
+  FACULTY_RETURN
+  PROPOSAL_VIEW_FACULTY
+  FACULTY_DASHBOARD_VIEW
+  FACULTY_USER_MANAGE
+}
+
+enum ProjectState {
+  DRAFT
+  FACULTY_COUNCIL_OUTLINE_REVIEW
+  SCHOOL_COUNCIL_OUTLINE_REVIEW
+  CHANGES_REQUESTED
+  APPROVED
+  IN_PROGRESS
+  FACULTY_COUNCIL_ACCEPTANCE_REVIEW
+  SCHOOL_COUNCIL_ACCEPTANCE_REVIEW
+  HANDOVER
+  COMPLETED
+  CANCELLED
+  REJECTED
+  WITHDRAWN
+  PAUSED
+}
+
+enum SectionId {
+  SEC_INFO_GENERAL
+  SEC_CONTENT_METHOD
+  SEC_RESEARCH_METHOD
+  SEC_EXPECTED_RESULTS
+  SEC_BUDGET
+  SEC_ATTACHMENTS
+  SEC_RESEARCHERS
+  SEC_FACILITIES
+  SEC_TIMELINE
+  SEC_REFERENCES
+  SEC_FACULTY_ACCEPTANCE_RESULTS
+  SEC_FACULTY_ACCEPTANCE_PRODUCTS
+  SEC_SCHOOL_ACCEPTANCE_RESULTS
+  SEC_SCHOOL_ACCEPTANCE_PRODUCTS
+  SEC_HANDOVER_CHECKLIST
+  SEC_EXTENSION_REASON
+  SEC_EXTENSION_DURATION
+}
+
+enum UserRole {
+  GIANG_VIEN
+  QUAN_LY_KHOA
+  THU_KY_KHOA
+  PHONG_KHCN
+  BAN_GIAM_HOC
+  ADMIN
+}
+
+enum WorkflowAction {
+  CREATE
+  SUBMIT
+  APPROVE
+  RETURN
+  RESUBMIT
+  START_PROJECT
+  SUBMIT_FACULTY_ACCEPTANCE
+  FACULTY_ACCEPT
+  FACULTY_REJECT
+  SCHOOL_ACCEPT
+  SCHOOL_REJECT
+  HANDOVER_COMPLETE
+  SUBMIT_ACCEPTANCE
+  ACCEPT
+  REJECT
+  CANCEL
+  WITHDRAW
+  PAUSE
+  RESUME
+  FINALIZE
+  ASSIGN_COUNCIL
+  EVALUATION_SUBMITTED
+  TEMPLATE_UPLOAD
+  TEMPLATE_ACTIVATE
+  TEMPLATE_DELETE
+  DOC_GENERATED
+  DOC_DOWNLOADED
+  DOC_VERIFIED
+  BULK_ASSIGN
+  BULK_REMIND
+  REMIND_SENT
+  EXPORT_EXCEL
+}

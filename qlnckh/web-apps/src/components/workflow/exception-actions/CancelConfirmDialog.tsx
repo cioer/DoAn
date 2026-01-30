@@ -49,12 +49,16 @@ export function CancelConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50"
       role="dialog"
       aria-modal="true"
       aria-labelledby="cancel-dialog-title"
+      onClick={(e) => e.target === e.currentTarget && handleClose()}
     >
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+      <div
+        className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 relative"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="p-6 border-b">
           <div className="flex items-center gap-3">

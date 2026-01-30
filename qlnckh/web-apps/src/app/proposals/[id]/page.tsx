@@ -149,7 +149,7 @@ export default function ProposalDetailPage() {
     if (!id || !proposal) return;
 
     // Only load evaluation for proposals in council review states
-    const councilReviewStates = ['OUTLINE_COUNCIL_REVIEW', 'COUNCIL_REVIEW', 'APPROVED', 'CHANGES_REQUESTED'];
+    const councilReviewStates = ['SCHOOL_COUNCIL_OUTLINE_REVIEW', 'COUNCIL_REVIEW', 'APPROVED', 'CHANGES_REQUESTED'];
     if (!councilReviewStates.includes(proposal.state)) {
       return;
     }
@@ -177,7 +177,7 @@ export default function ProposalDetailPage() {
       void loadAttachments();
       void loadProposalDocuments();
       // Load evaluation if proposal is in a state that may have evaluations (GIANG_VIEN Feature)
-      const councilReviewStates = ['OUTLINE_COUNCIL_REVIEW', 'COUNCIL_REVIEW', 'APPROVED', 'CHANGES_REQUESTED'];
+      const councilReviewStates = ['SCHOOL_COUNCIL_OUTLINE_REVIEW', 'COUNCIL_REVIEW', 'APPROVED', 'CHANGES_REQUESTED'];
       if (councilReviewStates.includes(proposal.state)) {
         void loadEvaluation();
       }
@@ -249,13 +249,14 @@ export default function ProposalDetailPage() {
    * Check if evaluation form should be shown (Story 5.3: AC1, AC5, Multi-member)
    * Conditions:
    * - Proposal state is OUTLINE_COUNCIL_REVIEW
-   * - Current currentUser is a council member (HOI_DONG or THU_KY_HOI_DONG)
+   * - Current user is a member of the assigned council (from API response)
+   * - Fallback to role-based check if isUserCouncilMember not available
    */
   const shouldShowEvaluationForm = Boolean(
     proposal &&
       currentUser &&
-      proposal.state === 'OUTLINE_COUNCIL_REVIEW' &&
-      isCouncilMember(currentUser.role),
+      proposal.state === 'SCHOOL_COUNCIL_OUTLINE_REVIEW' &&
+      (proposal.isUserCouncilMember || isCouncilMember(currentUser.role)),
   );
 
   /**
@@ -369,7 +370,7 @@ export default function ProposalDetailPage() {
 
       {/* Council Evaluation Summary - BAN_GIAM_HOC only */}
       {/* Shows aggregated council evaluation results before approval decision */}
-      {proposal.state === 'OUTLINE_COUNCIL_REVIEW' && currentUser?.role === 'BAN_GIAM_HOC' && (
+      {proposal.state === 'SCHOOL_COUNCIL_OUTLINE_REVIEW' && currentUser?.role === 'BAN_GIAM_HOC' && (
         <div className="mb-6">
           <CouncilEvaluationSummary
             proposalId={proposal.id}
@@ -386,7 +387,7 @@ export default function ProposalDetailPage() {
 
           {/* Story 5.1: PHONG_KHCN School Selection Actions */}
           {/* Shows "Phân bổ hội đồng" and "Yêu cầu sửa" buttons */}
-          {proposal.state === 'SCHOOL_SELECTION_REVIEW' && user?.role === 'PHONG_KHCN' && (
+          {proposal.state === 'SCHOOL_COUNCIL_OUTLINE_REVIEW' && user?.role === 'PHONG_KHCN' && (
             <SchoolSelectionActions
               proposalId={proposal.id}
               proposalState={proposal.state}
@@ -414,7 +415,7 @@ export default function ProposalDetailPage() {
 
           {/* BAN_GIAM_HOC: Council Review Approval Actions */}
           {/* Shows "Phê duyệt" and "Yêu cầu hoàn thiện" buttons at OUTLINE_COUNCIL_REVIEW state */}
-          {proposal.state === 'OUTLINE_COUNCIL_REVIEW' && user?.role === 'BAN_GIAM_HOC' && (
+          {proposal.state === 'SCHOOL_COUNCIL_OUTLINE_REVIEW' && user?.role === 'BAN_GIAM_HOC' && (
             <CouncilReviewApprovalActions
               proposalId={proposal.id}
               proposalState={proposal.state}
@@ -430,7 +431,7 @@ export default function ProposalDetailPage() {
 
           {/* BAN_GIAM_HOC: School Acceptance Actions */}
           {/* Shows "Nghiệm thu" and "Yêu cầu hoàn thiện" buttons at SCHOOL_ACCEPTANCE_REVIEW state */}
-          {proposal.state === 'SCHOOL_ACCEPTANCE_REVIEW' && user?.role === 'BAN_GIAM_HOC' && (
+          {proposal.state === 'SCHOOL_COUNCIL_ACCEPTANCE_REVIEW' && user?.role === 'BAN_GIAM_HOC' && (
             <SchoolAcceptanceActions
               proposalId={proposal.id}
               proposalState={proposal.state}
@@ -535,20 +536,20 @@ export default function ProposalDetailPage() {
               currentState={proposal.state}
               currentUserId={currentUser.id}
               currentUserRole={currentUser.role}
-              isSecretary={isCouncilSecretary(currentUser.role)}
-              isCouncilMember={isCouncilMember(currentUser.role)}
+              isSecretary={proposal.isUserCouncilSecretary || isCouncilSecretary(currentUser.role)}
+              isCouncilMember={proposal.isUserCouncilMember || isCouncilMember(currentUser.role)}
             />
           </section>
         )}
 
         {/* Council Finalization Section (Multi-member Evaluation) */}
         {/* Show for secretary to finalize after all members have submitted */}
-        {proposal && currentUser && proposal.state === 'OUTLINE_COUNCIL_REVIEW' && isCouncilSecretary(currentUser.role) && (
+        {proposal && currentUser && proposal.state === 'SCHOOL_COUNCIL_OUTLINE_REVIEW' && (proposal.isUserCouncilSecretary || isCouncilSecretary(currentUser.role)) && (
           <section className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-900">
             <CouncilFinalizationSection
               proposalId={proposal.id}
               proposalCode={proposal.code}
-              isSecretary={isCouncilSecretary(currentUser.role)}
+              isSecretary={proposal.isUserCouncilSecretary || isCouncilSecretary(currentUser.role)}
               onFinalized={() => {
                 // Reload proposal after finalization
                 if (id) {
@@ -575,7 +576,7 @@ export default function ProposalDetailPage() {
         )}
 
         {/* State-specific message */}
-        {!shouldShowEvaluationForm && proposal.state === 'OUTLINE_COUNCIL_REVIEW' && (
+        {!shouldShowEvaluationForm && proposal.state === 'SCHOOL_COUNCIL_OUTLINE_REVIEW' && (
           <section className="rounded-lg border border-yellow-200 bg-yellow-50 p-6 dark:border-yellow-800 dark:bg-yellow-900/20">
             <div className="flex items-start gap-3">
               <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />

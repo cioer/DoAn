@@ -83,8 +83,8 @@ export class ProposalQueueItemDto {
 
   @ApiProperty({
     description: 'Trạng thái hiện tại',
-    enum: ['DRAFT', 'FACULTY_REVIEW', 'SCHOOL_SELECTION_REVIEW', 'CHANGES_REQUESTED', 'APPROVED', 'IN_PROGRESS'],
-    example: 'FACULTY_REVIEW',
+    enum: ['DRAFT', 'FACULTY_COUNCIL_OUTLINE_REVIEW', 'SCHOOL_COUNCIL_OUTLINE_REVIEW', 'CHANGES_REQUESTED', 'APPROVED', 'IN_PROGRESS'],
+    example: 'FACULTY_COUNCIL_OUTLINE_REVIEW',
   })
   state: string;
 

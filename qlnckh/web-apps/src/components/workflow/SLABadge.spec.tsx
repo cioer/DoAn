@@ -54,7 +54,7 @@ describe('SLABadge Component', () => {
       const { container } = render(
         <SLABadge
           slaDeadline="2026-01-10T17:00:00Z"
-          currentState="FACULTY_REVIEW"
+          currentState="FACULTY_COUNCIL_OUTLINE_REVIEW"
         />,
       );
 
@@ -79,7 +79,7 @@ describe('SLABadge Component', () => {
       const { container } = render(
         <SLABadge
           slaDeadline="2026-01-10T17:00:00Z"
-          currentState="FACULTY_REVIEW"
+          currentState="FACULTY_COUNCIL_OUTLINE_REVIEW"
         />,
       );
 
@@ -101,7 +101,7 @@ describe('SLABadge Component', () => {
       const { container } = render(
         <SLABadge
           slaDeadline="2026-01-08T17:00:00Z"
-          currentState="FACULTY_REVIEW"
+          currentState="FACULTY_COUNCIL_OUTLINE_REVIEW"
         />,
       );
 
@@ -123,7 +123,7 @@ describe('SLABadge Component', () => {
       const { container } = render(
         <SLABadge
           slaDeadline="2026-01-08T17:00:00Z"
-          currentState="FACULTY_REVIEW"
+          currentState="FACULTY_COUNCIL_OUTLINE_REVIEW"
         />,
       );
 
@@ -145,7 +145,7 @@ describe('SLABadge Component', () => {
       const { container } = render(
         <SLABadge
           slaDeadline="2026-01-07T17:00:00Z"
-          currentState="FACULTY_REVIEW"
+          currentState="FACULTY_COUNCIL_OUTLINE_REVIEW"
         />,
       );
 
@@ -167,7 +167,7 @@ describe('SLABadge Component', () => {
       const { container } = render(
         <SLABadge
           slaDeadline="2026-01-07T17:00:00Z"
-          currentState="FACULTY_REVIEW"
+          currentState="FACULTY_COUNCIL_OUTLINE_REVIEW"
         />,
       );
 
@@ -209,7 +209,7 @@ describe('SLABadge Component', () => {
       const { container } = render(
         <SLABadge
           slaDeadline="2026-01-10T17:00:00Z"
-          currentState="FACULTY_REVIEW"
+          currentState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           slaPausedAt="2026-01-05T10:00:00Z"
         />,
       );
@@ -269,7 +269,7 @@ describe('SLABadge Component', () => {
       const { container } = render(
         <SLABadge
           slaDeadline="2026-01-10T17:00:00Z"
-          currentState="FACULTY_REVIEW"
+          currentState="FACULTY_COUNCIL_OUTLINE_REVIEW"
         />,
       );
 
@@ -298,7 +298,7 @@ describe('SLABadge Component', () => {
       const { container } = render(
         <SLABadge
           slaDeadline="2026-01-08T17:00:00Z"
-          currentState="FACULTY_REVIEW"
+          currentState="FACULTY_COUNCIL_OUTLINE_REVIEW"
         />,
       );
 
@@ -320,7 +320,7 @@ describe('SLABadge Component', () => {
       const { container } = render(
         <SLABadge
           slaDeadline="2026-01-07T17:00:00Z"
-          currentState="FACULTY_REVIEW"
+          currentState="FACULTY_COUNCIL_OUTLINE_REVIEW"
         />,
       );
 
@@ -363,7 +363,7 @@ describe('SLABadge Component', () => {
       render(
         <SLABadge
           slaDeadline="2026-01-10T17:00:00Z"
-          currentState="FACULTY_REVIEW"
+          currentState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           compact
         />,
       );
@@ -420,7 +420,7 @@ describe('SLABadge Component', () => {
       const { container } = render(
         <SLABadge
           slaDeadline="2026-01-10T17:00:00Z"
-          currentState="FACULTY_REVIEW"
+          currentState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           className="custom-class"
         />,
       );
@@ -440,7 +440,7 @@ describe('SLABadge Component', () => {
       const { container } = render(
         <SLABadge
           slaDeadline="2026-01-10T17:00:00Z"
-          currentState="FACULTY_REVIEW"
+          currentState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           compact
         />,
       );

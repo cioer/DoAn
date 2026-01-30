@@ -84,7 +84,7 @@ describe('FullDumpExportService', () => {
       rejectedById: null,
       pauseReason: null,
       prePauseState: null,
-      state: ProjectState.FACULTY_REVIEW,
+      state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       owner: {
         displayName: 'Nguyễn Văn A',
         email: 'nguyenvan@example.com',
@@ -224,7 +224,7 @@ describe('FullDumpExportService', () => {
         pausedAt: new Date('2026-01-19'),
         rejectedById: 'admin-1',
         pauseReason: 'Đang chờ thông tin',
-        prePauseState: ProjectState.FACULTY_REVIEW,
+        prePauseState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       };
 
       mockPrisma.user.findMany.mockResolvedValue(mockUsers);

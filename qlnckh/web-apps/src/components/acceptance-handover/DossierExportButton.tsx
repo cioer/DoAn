@@ -42,12 +42,12 @@ const PACK_TYPE_INFO: Record<
   [DossierPackType.FACULTY_ACCEPTANCE]: {
     label: 'Hồ sơ nghiệm thu Khoa',
     description: 'Kết quả và sản phẩm nghiệm thu cấp Khoa',
-    minState: 'FACULTY_ACCEPTANCE_REVIEW',
+    minState: 'FACULTY_COUNCIL_ACCEPTANCE_REVIEW',
   },
   [DossierPackType.SCHOOL_ACCEPTANCE]: {
     label: 'Hồ sơ nghiệm thu Trường',
     description: 'Kết quả nghiệm thu cấp Trường',
-    minState: 'SCHOOL_ACCEPTANCE_REVIEW',
+    minState: 'SCHOOL_COUNCIL_ACCEPTANCE_REVIEW',
   },
   [DossierPackType.HANDOVER]: {
     label: 'Hồ sơ bàn giao',
@@ -62,8 +62,8 @@ const PACK_TYPE_INFO: Record<
 };
 
 const STATE_ORDER = [
-  'FACULTY_ACCEPTANCE_REVIEW',
-  'SCHOOL_ACCEPTANCE_REVIEW',
+  'FACULTY_COUNCIL_ACCEPTANCE_REVIEW',
+  'SCHOOL_COUNCIL_ACCEPTANCE_REVIEW',
   'HANDOVER',
   'COMPLETED',
 ];

@@ -56,7 +56,7 @@ export interface SchoolSelectionActionsProps {
  * AND proposal is in SCHOOL_SELECTION_REVIEW state
  */
 function canAssignCouncil(proposalState: string, userRole: string): boolean {
-  return proposalState === 'SCHOOL_SELECTION_REVIEW' && userRole === 'PHONG_KHCN';
+  return proposalState === 'SCHOOL_COUNCIL_OUTLINE_REVIEW' && userRole === 'PHONG_KHCN';
 }
 
 /**
@@ -65,7 +65,7 @@ function canAssignCouncil(proposalState: string, userRole: string): boolean {
  * AND proposal is in SCHOOL_SELECTION_REVIEW state
  */
 function canReturnSchoolSelection(proposalState: string, userRole: string): boolean {
-  return proposalState === 'SCHOOL_SELECTION_REVIEW' && userRole === 'PHONG_KHCN';
+  return proposalState === 'SCHOOL_COUNCIL_OUTLINE_REVIEW' && userRole === 'PHONG_KHCN';
 }
 
 /**
@@ -449,7 +449,7 @@ export function SchoolSelectionActions({
         isSubmitting={isReturning}
       />
 
-      {/* Council Assignment Dialog (Story 5.2) */}
+      {/* Council Assignment Dialog (Story 5.2) - For PHONG_KHCN at SCHOOL_COUNCIL_OUTLINE_REVIEW */}
       <CouncilAssignmentDialog
         isOpen={showCouncilDialog}
         onClose={() => {
@@ -459,6 +459,9 @@ export function SchoolSelectionActions({
         onAssign={handleAssignCouncil}
         isSubmitting={isAssigningCouncil}
         proposalId={proposalId}
+        councilType="SCHOOL_OUTLINE"
+        dialogTitle="Phân bổ hội đồng xét duyệt cấp Trường"
+        dialogDescription="Chọn hội đồng cấp Trường và thư ký để đánh giá đề tài này"
       />
     </>
   );

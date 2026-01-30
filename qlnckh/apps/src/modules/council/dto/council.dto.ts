@@ -124,22 +124,27 @@ export class UpdateCouncilDto {
  * Request body for assigning a council to a proposal
  */
 export class AssignCouncilDto {
+  @ApiPropertyOptional({ description: 'Proposal ID (also in path param)' })
+  @IsString()
+  @IsOptional()
+  proposalId?: string;
+
   @ApiProperty()
-  @IsUUID()
+  @IsString()
   councilId: string;
 
   @ApiProperty()
-  @IsUUID()
+  @IsString()
   secretaryId: string;
 
   @ApiPropertyOptional({ type: [String] })
   @IsArray()
-  @IsUUID('4', { each: true })
+  @IsString({ each: true })
   @IsOptional()
   memberIds?: string[];
 
   @ApiPropertyOptional()
-  @IsUUID()
+  @IsString()
   @IsOptional()
   idempotencyKey?: string;
 }
@@ -166,16 +171,16 @@ export interface AssignCouncilResponse {
  */
 export class ChangeCouncilDto {
   @ApiProperty({ description: 'New council ID to assign' })
-  @IsUUID()
+  @IsString()
   councilId: string;
 
   @ApiProperty({ description: 'New secretary user ID' })
-  @IsUUID()
+  @IsString()
   secretaryId: string;
 
   @ApiPropertyOptional({ type: [String], description: 'Optional: new member IDs' })
   @IsArray()
-  @IsUUID('4', { each: true })
+  @IsString({ each: true })
   @IsOptional()
   memberIds?: string[];
 
@@ -185,7 +190,7 @@ export class ChangeCouncilDto {
   reason?: string;
 
   @ApiPropertyOptional()
-  @IsUUID()
+  @IsString()
   @IsOptional()
   idempotencyKey?: string;
 }

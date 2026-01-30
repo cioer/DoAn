@@ -94,12 +94,12 @@ export class FacultyDashboardDataDto {
  * Maps dashboard KPI categories to project states
  */
 export const FACULTY_DASHBOARD_STATE_MAPPING = {
-  pendingReview: [ProjectState.FACULTY_REVIEW],
+  pendingReview: [ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW],
   approved: [
-    ProjectState.SCHOOL_SELECTION_REVIEW,
-    ProjectState.OUTLINE_COUNCIL_REVIEW,
-    ProjectState.FACULTY_ACCEPTANCE_REVIEW,
-    ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+    ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
+    ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
+    ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW,
+    ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW,
   ],
   returned: [ProjectState.CHANGES_REQUESTED],
   inProgress: [ProjectState.DRAFT],

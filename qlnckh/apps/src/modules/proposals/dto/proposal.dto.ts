@@ -97,6 +97,12 @@ export class ProposalWithTemplateDto extends ProposalDto {
     email: string;
     role: string;
   } | null;
+
+  @ApiProperty({ description: 'Whether current user is a member of the assigned council', required: false })
+  isUserCouncilMember?: boolean;
+
+  @ApiProperty({ description: 'Whether current user is the secretary of the assigned council', required: false })
+  isUserCouncilSecretary?: boolean;
 }
 
 /**

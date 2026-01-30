@@ -192,36 +192,18 @@ export class RbacService implements OnModuleInit {
         PrismaPermission.FACULTY_USER_MANAGE,
       ],
 
-      // GIANG_VIEN - Lecturer/PI
+      // GIANG_VIEN - Lecturer/PI + Council Member (merged from THANH_TRUNG, HOI_DONG, THU_KY_HOI_DONG)
       [UserRole.GIANG_VIEN]: [
         PrismaPermission.DASHBOARD_VIEW,
         PrismaPermission.PROPOSAL_CREATE,
         PrismaPermission.PROPOSAL_EDIT,
         PrismaPermission.VIEW_EVALUATION_RESULTS,
         PrismaPermission.EXPORT_PROPOSAL_PDF,
+        PrismaPermission.CALENDAR_MANAGE, // From THU_KY_HOI_DONG
       ],
 
-      // HOI_DONG - Council Member
-      [UserRole.HOI_DONG]: [
-        PrismaPermission.DASHBOARD_VIEW,
-        PrismaPermission.VIEW_EVALUATION_RESULTS,
-      ],
-
-      // THU_KY_HOI_DONG - Council Secretary
-      [UserRole.THU_KY_HOI_DONG]: [
-        PrismaPermission.DASHBOARD_VIEW,
-        PrismaPermission.CALENDAR_MANAGE,
-        PrismaPermission.VIEW_EVALUATION_RESULTS,
-      ],
-
-      // BAN_GIAM_HOC - Board of Directors
+      // BAN_GIAM_HOC - Board of Directors (merged from BGH)
       [UserRole.BAN_GIAM_HOC]: [
-        PrismaPermission.DASHBOARD_VIEW,
-        PrismaPermission.AUDIT_VIEW,
-      ],
-
-      // BGH - Legacy Board of Directors
-      [UserRole.BGH]: [
         PrismaPermission.DASHBOARD_VIEW,
         PrismaPermission.AUDIT_VIEW,
       ],
@@ -231,12 +213,6 @@ export class RbacService implements OnModuleInit {
         PrismaPermission.DASHBOARD_VIEW,
         PrismaPermission.FACULTY_DASHBOARD_VIEW,
         PrismaPermission.PROPOSAL_VIEW_FACULTY,
-      ],
-
-      // THANH_TRUNG - Evaluation Committee
-      [UserRole.THANH_TRUNG]: [
-        PrismaPermission.DASHBOARD_VIEW,
-        PrismaPermission.VIEW_EVALUATION_RESULTS,
       ],
     };
 

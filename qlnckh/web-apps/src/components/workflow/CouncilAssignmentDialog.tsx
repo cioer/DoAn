@@ -55,6 +55,15 @@ export interface UserInfo {
 }
 
 /**
+ * Council type for filtering
+ * - FACULTY_OUTLINE: Hội đồng Khoa - Đề cương (assigned by QUAN_LY_KHOA)
+ * - SCHOOL_OUTLINE: Hội đồng Trường - Đề cương (assigned by PHONG_KHCN)
+ * - FACULTY_ACCEPTANCE: Hội đồng Khoa - Nghiệm thu
+ * - SCHOOL_ACCEPTANCE: Hội đồng Trường - Nghiệm thu
+ */
+export type CouncilTypeFilter = 'FACULTY_OUTLINE' | 'SCHOOL_OUTLINE' | 'FACULTY_ACCEPTANCE' | 'SCHOOL_ACCEPTANCE';
+
+/**
  * Component props
  */
 export interface CouncilAssignmentDialogProps {
@@ -68,6 +77,12 @@ export interface CouncilAssignmentDialogProps {
   }) => Promise<void>;
   isSubmitting?: boolean;
   proposalId: string;
+  /** Filter councils by type. If not provided, shows all councils */
+  councilType?: CouncilTypeFilter;
+  /** Custom dialog title */
+  dialogTitle?: string;
+  /** Custom dialog description */
+  dialogDescription?: string;
 }
 
 /**
@@ -80,6 +95,9 @@ export function CouncilAssignmentDialog({
   onAssign,
   isSubmitting = false,
   proposalId,
+  councilType,
+  dialogTitle = 'Phân bổ hội đồng xét duyệt',
+  dialogDescription = 'Chọn hội đồng và thư ký để đánh giá đề tài này',
 }: CouncilAssignmentDialogProps) {
   const [councils, setCouncils] = useState<Council[]>([]);
   const [selectedCouncil, setSelectedCouncil] = useState<Council | null>(null);
@@ -88,22 +106,24 @@ export function CouncilAssignmentDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch councils when dialog opens
+  // Fetch councils when dialog opens or councilType changes
   useEffect(() => {
     if (isOpen) {
       fetchCouncils();
     }
-  }, [isOpen]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, councilType]);
 
   /**
    * Fetch available councils for dropdown (Story 5.2: AC1)
+   * Filters by councilType if provided
    */
   const fetchCouncils = async () => {
     setLoading(true);
     setError(null);
     try {
-      // Fetch councils from API (only OUTLINE type for council assignment)
-      const response = await councilsApi.getCouncils('OUTLINE');
+      // Fetch councils from API, filtered by type if specified
+      const response = await councilsApi.getCouncils(councilType);
       setCouncils(response.councils);
     } catch (err: unknown) {
       const apiError = err as { response?: { data?: { error?: { message: string } } } };
@@ -188,8 +208,8 @@ export function CouncilAssignmentDialog({
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title="Phân bổ hội đồng xét duyệt"
-      description="Chọn hội đồng và thư ký để đánh giá đề tài này"
+      title={dialogTitle}
+      description={dialogDescription}
       size="lg"
       showCloseButton={!isSubmitting}
       footer={

@@ -180,7 +180,7 @@ describe('AttachmentList Component (Story 2.4)', () => {
     render(
       <AttachmentList
         proposalId="prop-1"
-        proposalState="FACULTY_REVIEW"
+        proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
         attachments={mockAttachments}
         totalSize={3 * 1024 * 1024}
       />

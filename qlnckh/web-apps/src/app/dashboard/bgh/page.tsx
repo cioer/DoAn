@@ -365,7 +365,7 @@ export default function BghDashboardPage() {
                 <ProposalStateDonutChart
                   data={[
                     { state: 'DRAFT', stateName: 'Nháp', count: dashboardData.systemKpi.draft },
-                    { state: 'FACULTY_REVIEW', stateName: 'Xét duyệt Khoa', count: dashboardData.systemKpi.facultyReview },
+                    { state: 'FACULTY_COUNCIL_OUTLINE_REVIEW', stateName: 'Xét duyệt Khoa', count: dashboardData.systemKpi.facultyReview },
                     { state: 'COUNCIL_REVIEW', stateName: 'Xét duyệt Hội đồng', count: dashboardData.systemKpi.councilReview },
                     { state: 'SCHOOL_REVIEW', stateName: 'Xét duyệt Trường', count: dashboardData.systemKpi.schoolSelectionReview },
                     { state: 'APPROVED', stateName: 'Đã duyệt', count: dashboardData.systemKpi.approved },
@@ -674,7 +674,7 @@ export default function BghDashboardPage() {
                           )}
                         </td>
                         <td className="py-4 text-right">
-                          {activeTab === 'pending' && proposal.state === 'SCHOOL_ACCEPTANCE_REVIEW' && (
+                          {activeTab === 'pending' && proposal.state === 'SCHOOL_COUNCIL_ACCEPTANCE_REVIEW' && (
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 onClick={() => handleReturn(proposal.id, proposal.code)}

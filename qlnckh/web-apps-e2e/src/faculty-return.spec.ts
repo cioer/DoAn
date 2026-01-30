@@ -19,19 +19,40 @@ import { test, expect } from '@playwright/test';
  * - AC6: Idempotency key handling
  */
 
+/**
+ * Helper: Login using demo mode dropdown
+ */
+async function loginWithDemoMode(page: any, personaName: string): Promise<void> {
+  await page.goto('/auth/login');
+  await page.waitForLoadState('networkidle');
+
+  // Find demo mode dropdown
+  const personaDropdown = page.locator('select').first();
+  await personaDropdown.waitFor({ state: 'visible', timeout: 10000 });
+
+  // Get all options and find matching persona
+  const options = await personaDropdown.locator('option').all();
+  const optionTexts = await Promise.all(options.map((o: any) => o.textContent()));
+  const matchingOption = optionTexts.find((text: string | null) =>
+    text && text.toLowerCase().includes(personaName.toLowerCase())
+  );
+
+  if (matchingOption) {
+    await personaDropdown.selectOption({ label: matchingOption });
+  } else {
+    throw new Error(`Persona "${personaName}" not found`);
+  }
+
+  await page.waitForTimeout(300);
+  await page.click('button:has-text("Đăng nhập")');
+  await page.waitForURL(/\/(proposals|admin|dashboard)/, { timeout: 15000 });
+  await page.waitForLoadState('networkidle');
+}
+
 test.describe('Faculty Return Dialog Flow', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to login page
-    await page.goto('/');
-
-    // Login as QUAN_LY_KHOA (Faculty Manager)
-    // Note: This assumes demo mode or test user setup
-    await page.fill('input[name="email"]', 'quanly.khoa@demo.vn');
-    await page.fill('input[name="password"]', 'demo123');
-    await page.click('button[type="submit"]');
-
-    // Wait for navigation after login
-    await page.waitForURL('**/proposals');
+    // Login as QUAN_LY_KHOA (Faculty Manager) using demo mode
+    await loginWithDemoMode(page, 'Quản lý Khoa');
   });
 
   test('AC1, AC2: QUAN_LY_KHOA sees "Yêu cầu sửa" button on FACULTY_REVIEW proposal', async ({ page }) => {
@@ -51,12 +72,8 @@ test.describe('Faculty Return Dialog Flow', () => {
   });
 
   test('AC2: "Yêu cầu sửa" button NOT visible for GIANG_VIEN on FACULTY_REVIEW proposal', async ({ page }) => {
-    // Logout and login as GIANG_VIEN
-    await page.click('button[aria-label="Logout"]');
-    await page.fill('input[name="email"]', 'giang.vien@demo.vn');
-    await page.fill('input[name="password"]', 'demo123');
-    await page.click('button[type="submit"]');
-    await page.waitForURL('**/proposals');
+    // Re-login as GIANG_VIEN using demo mode
+    await loginWithDemoMode(page, 'Giảng viên');
 
     // Navigate to a proposal in FACULTY_REVIEW state
     await page.goto('/proposals/demo-faculty-review');

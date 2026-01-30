@@ -251,7 +251,7 @@ describe('AttachmentsService', () => {
       // Arrange
       const nonDraftProposal = {
         ...mockProposal,
-        state: ProjectState.FACULTY_REVIEW,
+        state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       };
 
       mockValidationService.validateFileSize.mockReturnValue(null);
@@ -569,7 +569,7 @@ describe('AttachmentsService', () => {
       // Arrange
       const nonDraftProposal = {
         ...mockProposal,
-        state: ProjectState.FACULTY_REVIEW,
+        state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       };
 
       mockQueryService.getProposalForValidation.mockResolvedValue(nonDraftProposal);
@@ -826,7 +826,7 @@ describe('AttachmentsService', () => {
       // Arrange
       const nonDraftProposal = {
         ...mockProposal,
-        state: ProjectState.FACULTY_REVIEW,
+        state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       };
 
       mockQueryService.getProposalForValidation.mockResolvedValue(nonDraftProposal);

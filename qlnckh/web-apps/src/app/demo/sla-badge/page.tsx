@@ -49,7 +49,7 @@ export default function SLABadgeDemoPage() {
             <div className="flex items-center gap-4">
               <SLABadge
                 slaDeadline={okDeadline.toISOString()}
-                currentState="FACULTY_REVIEW"
+                currentState="FACULTY_COUNCIL_OUTLINE_REVIEW"
               />
             </div>
             <p className="text-xs mt-2 text-muted-foreground">
@@ -66,7 +66,7 @@ export default function SLABadgeDemoPage() {
             <div className="flex items-center gap-4">
               <SLABadge
                 slaDeadline={warningDeadline.toISOString()}
-                currentState="FACULTY_REVIEW"
+                currentState="FACULTY_COUNCIL_OUTLINE_REVIEW"
               />
             </div>
             <p className="text-xs mt-2 text-muted-foreground">
@@ -83,7 +83,7 @@ export default function SLABadgeDemoPage() {
             <div className="flex items-center gap-4">
               <SLABadge
                 slaDeadline={overdueDeadline.toISOString()}
-                currentState="FACULTY_REVIEW"
+                currentState="FACULTY_COUNCIL_OUTLINE_REVIEW"
               />
             </div>
             <p className="text-xs mt-2 text-muted-foreground">
@@ -120,9 +120,9 @@ export default function SLABadgeDemoPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-4">
-          <SLABadge slaDeadline={okDeadline.toISOString()} currentState="FACULTY_REVIEW" />
-          <SLABadge slaDeadline={warningDeadline.toISOString()} currentState="FACULTY_REVIEW" />
-          <SLABadge slaDeadline={overdueDeadline.toISOString()} currentState="FACULTY_REVIEW" />
+          <SLABadge slaDeadline={okDeadline.toISOString()} currentState="FACULTY_COUNCIL_OUTLINE_REVIEW" />
+          <SLABadge slaDeadline={warningDeadline.toISOString()} currentState="FACULTY_COUNCIL_OUTLINE_REVIEW" />
+          <SLABadge slaDeadline={overdueDeadline.toISOString()} currentState="FACULTY_COUNCIL_OUTLINE_REVIEW" />
           <SLABadge slaDeadline={okDeadline.toISOString()} currentState="PAUSED" />
         </div>
       </section>
@@ -134,9 +134,9 @@ export default function SLABadgeDemoPage() {
           Biến thể nhỏ gọn nhưng VẪN có icon + text
         </p>
         <div className="flex flex-wrap gap-4">
-          <SLABadge slaDeadline={okDeadline.toISOString()} currentState="FACULTY_REVIEW" compact />
-          <SLABadge slaDeadline={warningDeadline.toISOString()} currentState="FACULTY_REVIEW" compact />
-          <SLABadge slaDeadline={overdueDeadline.toISOString()} currentState="FACULTY_REVIEW" compact />
+          <SLABadge slaDeadline={okDeadline.toISOString()} currentState="FACULTY_COUNCIL_OUTLINE_REVIEW" compact />
+          <SLABadge slaDeadline={warningDeadline.toISOString()} currentState="FACULTY_COUNCIL_OUTLINE_REVIEW" compact />
+          <SLABadge slaDeadline={overdueDeadline.toISOString()} currentState="FACULTY_COUNCIL_OUTLINE_REVIEW" compact />
           <SLABadge slaDeadline={okDeadline.toISOString()} currentState="PAUSED" compact />
         </div>
       </section>
@@ -164,7 +164,7 @@ export default function SLABadgeDemoPage() {
                 <td className="p-2">Nghiên cứu AI</td>
                 <td className="p-2">FACULTY_REVIEW</td>
                 <td className="p-2">
-                  <SLABadge slaDeadline={okDeadline.toISOString()} currentState="FACULTY_REVIEW" compact />
+                  <SLABadge slaDeadline={okDeadline.toISOString()} currentState="FACULTY_COUNCIL_OUTLINE_REVIEW" compact />
                 </td>
                 <td className="p-2"><button className="text-blue-600">Mở</button></td>
               </tr>
@@ -173,7 +173,7 @@ export default function SLABadgeDemoPage() {
                 <td className="p-2">Phát triển Web</td>
                 <td className="p-2">FACULTY_REVIEW</td>
                 <td className="p-2">
-                  <SLABadge slaDeadline={warningDeadline.toISOString()} currentState="FACULTY_REVIEW" compact />
+                  <SLABadge slaDeadline={warningDeadline.toISOString()} currentState="FACULTY_COUNCIL_OUTLINE_REVIEW" compact />
                 </td>
                 <td className="p-2"><button className="text-blue-600">Mở</button></td>
               </tr>
@@ -182,7 +182,7 @@ export default function SLABadgeDemoPage() {
                 <td className="p-2">Mobile App</td>
                 <td className="p-2">SCHOOL_SELECTION</td>
                 <td className="p-2">
-                  <SLABadge slaDeadline={overdueDeadline.toISOString()} currentState="SCHOOL_SELECTION_REVIEW" compact />
+                  <SLABadge slaDeadline={overdueDeadline.toISOString()} currentState="SCHOOL_COUNCIL_OUTLINE_REVIEW" compact />
                 </td>
                 <td className="p-2"><button className="text-blue-600">Mở</button></td>
               </tr>
@@ -221,7 +221,7 @@ export default function SLABadgeDemoPage() {
             <div className="border rounded px-3 py-2">
               <span className="text-sm text-muted-foreground">SLA:</span>
               <span className="ml-2">
-                <SLABadge slaDeadline={okDeadline.toISOString()} currentState="FACULTY_REVIEW" compact />
+                <SLABadge slaDeadline={okDeadline.toISOString()} currentState="FACULTY_COUNCIL_OUTLINE_REVIEW" compact />
               </span>
             </div>
           </div>

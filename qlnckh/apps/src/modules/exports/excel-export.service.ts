@@ -35,14 +35,13 @@ export class ExcelExportService {
   // State labels in Vietnamese
   private readonly STATE_LABELS: Record<string, string> = {
     DRAFT: 'Nháp',
-    FACULTY_REVIEW: 'Xét duyệt Khoa',
-    SCHOOL_SELECTION_REVIEW: 'Chọn Hội đồng',
-    OUTLINE_COUNCIL_REVIEW: 'Họp Hội đồng',
+    FACULTY_COUNCIL_OUTLINE_REVIEW: 'Hội đồng Khoa - Đề cương',
+    SCHOOL_COUNCIL_OUTLINE_REVIEW: 'Hội đồng Trường - Đề cương',
     CHANGES_REQUESTED: 'Yêu cầu sửa',
     APPROVED: 'Đã duyệt',
     IN_PROGRESS: 'Đang thực hiện',
-    FACULTY_ACCEPTANCE_REVIEW: 'Nghiệm thu Khoa',
-    SCHOOL_ACCEPTANCE_REVIEW: 'Nghiệm thu Trường',
+    FACULTY_COUNCIL_ACCEPTANCE_REVIEW: 'Hội đồng Khoa - Nghiệm thu',
+    SCHOOL_COUNCIL_ACCEPTANCE_REVIEW: 'Hội đồng Trường - Nghiệm thu',
     HANDOVER: 'Bàn giao',
     COMPLETED: 'Hoàn thành',
     REJECTED: 'Từ chối',

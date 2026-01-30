@@ -165,7 +165,7 @@ export class CouncilController {
             id: 'user-uuid',
             displayName: 'Nguyễn Văn A',
             email: 'nguyenvana@example.com',
-            role: 'HOI_DONG',
+            role: 'GIANG_VIEN',
             facultyId: 'faculty-uuid',
           },
         ],
@@ -459,7 +459,7 @@ export class CouncilController {
     }
 
     // Validate state: must be SCHOOL_SELECTION_REVIEW
-    if (proposal.state !== ProjectState.SCHOOL_SELECTION_REVIEW) {
+    if (proposal.state !== ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW) {
       throw new BadRequestException({
         success: false,
         error: {
@@ -480,7 +480,7 @@ export class CouncilController {
     // Then, execute state transition via workflow service
     const result = await this.workflowService.transitionState(
       proposalId,
-      ProjectState.OUTLINE_COUNCIL_REVIEW,
+      ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
       WorkflowAction.ASSIGN_COUNCIL,
       {
         userId: user.id,
@@ -641,7 +641,7 @@ export class CouncilController {
 
     // Optionally validate state - should be in a council review state
     // Allow changing council in any state, just log info if not in typical council review state
-    if (proposal.state !== ProjectState.OUTLINE_COUNCIL_REVIEW) {
+    if (proposal.state !== ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW) {
       console.info(
         `Changing council for proposal ${proposalId} in state ${proposal.state}`,
       );

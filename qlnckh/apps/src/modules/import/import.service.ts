@@ -323,12 +323,11 @@ export class ImportService {
           if (row.state === ProjectState.DRAFT) {
             holderUnit = null; // No holder for draft
           } else if (
-            row.state === ProjectState.FACULTY_REVIEW ||
-            row.state === ProjectState.SCHOOL_SELECTION_REVIEW
+            row.state === ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW
           ) {
             holderUnit = row.facultyId;
           } else if (
-            row.state === ProjectState.OUTLINE_COUNCIL_REVIEW ||
+            row.state === ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW ||
             row.state === ProjectState.APPROVED ||
             row.state === ProjectState.IN_PROGRESS
           ) {

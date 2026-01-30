@@ -270,10 +270,10 @@ describe('BackupService', () => {
             proposalId: 'proposal-1',
             proposalCode: 'DT-001',
             currentState: ProjectState.DRAFT,
-            computedState: ProjectState.FACULTY_REVIEW,
+            computedState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
             lastLog: {
               action: 'SUBMIT',
-              toState: ProjectState.FACULTY_REVIEW,
+              toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
               timestamp: new Date(),
             },
           },
@@ -319,10 +319,10 @@ describe('BackupService', () => {
           proposalId: 'proposal-1',
           proposalCode: 'DT-001',
           currentState: ProjectState.DRAFT,
-          computedState: ProjectState.FACULTY_REVIEW,
+          computedState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           lastLog: {
             action: 'SUBMIT',
-            toState: ProjectState.FACULTY_REVIEW,
+            toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
             timestamp: new Date(),
           },
         },
@@ -415,10 +415,10 @@ describe('BackupService', () => {
           proposalId: 'p1',
           proposalCode: 'DT-001',
           currentState: ProjectState.DRAFT,
-          computedState: ProjectState.FACULTY_REVIEW,
+          computedState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           lastLog: {
             action: 'SUBMIT',
-            toState: ProjectState.FACULTY_REVIEW,
+            toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
             timestamp: new Date(),
           },
         }],
@@ -428,7 +428,7 @@ describe('BackupService', () => {
       const result = await service.verifyStateIntegrity();
 
       expect(result.mismatches[0].currentState).toBe(ProjectState.DRAFT);
-      expect(result.mismatches[0].computedState).toBe(ProjectState.FACULTY_REVIEW);
+      expect(result.mismatches[0].computedState).toBe(ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW);
       expect(typeof result.mismatches[0].currentState).toBe('string');
     });
   });

@@ -58,15 +58,12 @@ export class ProposalsValidationService {
       return;
     }
 
-    // ADMIN, PHONG_KHCN, BAN_GIAM_HOC, BGH, HOI_DONG, THU_KY_HOI_DONG, THANH_TRUNG can access all proposals
+    // ADMIN, PHONG_KHCN, BAN_GIAM_HOC, GIANG_VIEN (council members) can access all proposals
     if (
       user?.role === 'ADMIN' ||
       user?.role === 'PHONG_KHCN' ||
       user?.role === 'BAN_GIAM_HOC' ||
-      user?.role === 'BGH' ||
-      user?.role === 'HOI_DONG' ||
-      user?.role === 'THU_KY_HOI_DONG' ||
-      user?.role === 'THANH_TRUNG'
+      user?.role === 'GIANG_VIEN'
     ) {
       return;
     }

@@ -50,7 +50,7 @@ describe('ExportsService', () => {
       id: 'proposal-1',
       code: 'DT-001',
       title: 'Nghiên cứu AI',
-      state: ProjectState.FACULTY_REVIEW,
+      state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       holderUser: 'user-1',
       slaDeadline: new Date('2026-01-15'),
       createdAt: new Date('2026-01-01'),
@@ -152,12 +152,12 @@ describe('ExportsService', () => {
 
   describe('AC2: Export Excel - With Filter', () => {
     it('should apply state filter', async () => {
-      const dto = { filter: { state: ProjectState.FACULTY_REVIEW } };
+      const dto = { filter: { state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW } };
       await service.exportProposalsExcel(dto, mockContext);
 
       expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith({
         where: expect.objectContaining({
-          state: ProjectState.FACULTY_REVIEW,
+          state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           deletedAt: null,
         }),
         include: expect.any(Object),
@@ -242,7 +242,7 @@ describe('ExportsService', () => {
     it('should use Vietnamese state labels', async () => {
       mockExcelExportService.getStateLabel.mockImplementation((state) => {
         const labels: Record<string, string> = {
-          FACULTY_REVIEW: 'Xét duyệt Khoa',
+          FACULTY_COUNCIL_OUTLINE_REVIEW: 'Xét duyệt Khoa',
           APPROVED: 'Đã duyệt',
         };
         return labels[state] || state;
@@ -251,7 +251,7 @@ describe('ExportsService', () => {
       const dto = { includeAll: true };
       await service.exportProposalsExcel(dto, mockContext);
 
-      expect(mockExcelExportService.getStateLabel).toHaveBeenCalledWith(ProjectState.FACULTY_REVIEW);
+      expect(mockExcelExportService.getStateLabel).toHaveBeenCalledWith(ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW);
       expect(mockExcelExportService.getStateLabel).toHaveBeenCalledWith(ProjectState.APPROVED);
     });
 
@@ -279,7 +279,7 @@ describe('ExportsService', () => {
 
   describe('AC4: Export Excel - Audit Trail', () => {
     it('should log audit event after Excel generation - Separate operation (Epic 7 retro)', async () => {
-      const dto = { filter: { state: ProjectState.FACULTY_REVIEW } };
+      const dto = { filter: { state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW } };
       await service.exportProposalsExcel(dto, mockContext);
 
       expect(mockAuditService.logEvent).toHaveBeenCalledWith({
@@ -290,7 +290,7 @@ describe('ExportsService', () => {
         metadata: {
           filename: expect.any(String),
           rowCount: 2,
-          filter: { state: ProjectState.FACULTY_REVIEW },
+          filter: { state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW },
           includeAll: undefined,
         },
         ip: '127.0.0.1',
@@ -338,7 +338,7 @@ describe('ExportsService', () => {
         id: `proposal-${i}`,
         code: `DT-${i}`,
         title: `Proposal ${i}`,
-        state: ProjectState.FACULTY_REVIEW,
+        state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         holderUser: `user-${i % 10}`,
         slaDeadline: new Date('2026-01-15'),
         createdAt: new Date('2026-01-01'),
@@ -370,7 +370,7 @@ describe('ExportsService', () => {
     });
 
     it('should generate state-based name for state filter', async () => {
-      const dto = { filter: { state: ProjectState.FACULTY_REVIEW } };
+      const dto = { filter: { state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW } };
       await service.exportProposalsExcel(dto, mockContext);
 
       const filename = mockExcelExportService.generateProposalsExcel.mock.calls[0][1];

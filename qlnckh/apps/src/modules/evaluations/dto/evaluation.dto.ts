@@ -56,10 +56,12 @@ export class CreateEvaluationDto {
 export class UpdateEvaluationDto {
   @ApiPropertyOptional()
   @IsObject()
+  @IsOptional()
   formData?: Record<string, unknown>;
 
   @ApiPropertyOptional()
   @IsEnum(EvaluationState, { message: 'State must be one of: DRAFT, FINALIZED' })
+  @IsOptional()
   state?: EvaluationState;
 }
 

@@ -401,7 +401,7 @@ export class EvaluationController {
    */
   @Get(':proposalId/summary')
   @HttpCode(HttpStatus.OK)
-  @RequireRoles(UserRole.BAN_GIAM_HOC, UserRole.BGH)
+  @RequireRoles(UserRole.BAN_GIAM_HOC, UserRole.BAN_GIAM_HOC)
   @ApiOperation({
     summary: 'Lấy tổng kết đánh giá hội đồng',
     description: 'Ban Giám Học xem tổng kết đánh giá của hội đồng trước khi ra quyết định cuối cùng. Hiển thị điểm trung bình, đánh giá chi tiết từng thành viên và kết luận cuối cùng.',

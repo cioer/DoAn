@@ -57,7 +57,7 @@ describe('SchoolSelectionActions', () => {
 
   const defaultProps = {
     proposalId: 'proposal-123',
-    proposalState: 'SCHOOL_SELECTION_REVIEW',
+    proposalState: 'SCHOOL_COUNCIL_OUTLINE_REVIEW',
     currentUser: {
       id: 'user-123',
       role: 'PHONG_KHCN',
@@ -99,7 +99,7 @@ describe('SchoolSelectionActions', () => {
     it('should NOT show buttons when proposal is NOT in SCHOOL_SELECTION_REVIEW state', () => {
       const props = {
         ...defaultProps,
-        proposalState: 'FACULTY_REVIEW',
+        proposalState: 'FACULTY_COUNCIL_OUTLINE_REVIEW',
       };
 
       render(<SchoolSelectionActions {...props} />);
@@ -139,7 +139,7 @@ describe('SchoolSelectionActions', () => {
     it('should call returnFacultyReview API when form is valid', async () => {
       mockReturnFacultyReview.mockResolvedValue({
         proposalId: 'proposal-123',
-        previousState: 'SCHOOL_SELECTION_REVIEW',
+        previousState: 'SCHOOL_COUNCIL_OUTLINE_REVIEW',
         currentState: 'CHANGES_REQUESTED',
       });
 

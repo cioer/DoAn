@@ -1,4 +1,4 @@
-import { UserRole, ProjectState, WorkflowAction, FacultyType } from '@prisma/client';
+import { UserRole, ProjectState, WorkflowAction, FacultyType, CouncilType, CouncilMemberRole } from '@prisma/client';
 
 /**
  * Demo Seed Data Constants
@@ -67,7 +67,7 @@ export const DEMO_USERS: DemoUser[] = [
     email: 'DT-USER-005@demo.qlnckh.edu.vn',
     password: 'Demo@123',
     displayName: 'Hoàng Văn E',
-    role: UserRole.THU_KY_HOI_DONG,
+    role: UserRole.GIANG_VIEN,
     facultyCode: undefined,
   },
   {
@@ -75,7 +75,7 @@ export const DEMO_USERS: DemoUser[] = [
     email: 'DT-USER-006@demo.qlnckh.edu.vn',
     password: 'Demo@123',
     displayName: 'Đặng Thị F',
-    role: UserRole.THANH_TRUNG,
+    role: UserRole.GIANG_VIEN,
     facultyCode: undefined,
   },
   {
@@ -180,7 +180,7 @@ export const DEMO_PROPOSALS: DemoProposal[] = [
   {
     code: 'DT-002',
     title: 'Phát triển hệ thống IoT cho nông nghiệp thông minh',
-    state: ProjectState.FACULTY_REVIEW,
+    state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     ownerId: 'DT-USER-001',
     facultyCode: 'FAC-001',
     holderUnit: 'FAC-001', // Khoa CNTT
@@ -189,7 +189,7 @@ export const DEMO_PROPOSALS: DemoProposal[] = [
       {
         action: WorkflowAction.SUBMIT,
         fromState: ProjectState.DRAFT,
-        toState: ProjectState.FACULTY_REVIEW,
+        toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-001',
         actorName: 'Nguyễn Văn A',
       },
@@ -198,7 +198,7 @@ export const DEMO_PROPOSALS: DemoProposal[] = [
   {
     code: 'DT-003',
     title: 'Nghiên cứu vật liệu nano bền vững',
-    state: ProjectState.FACULTY_REVIEW,
+    state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     ownerId: 'DT-USER-001',
     facultyCode: 'FAC-002',
     holderUnit: 'FAC-002', // Khoa Kinh tế
@@ -207,7 +207,7 @@ export const DEMO_PROPOSALS: DemoProposal[] = [
       {
         action: WorkflowAction.SUBMIT,
         fromState: ProjectState.DRAFT,
-        toState: ProjectState.FACULTY_REVIEW,
+        toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-001',
         actorName: 'Nguyễn Văn A',
       },
@@ -225,15 +225,15 @@ export const DEMO_PROPOSALS: DemoProposal[] = [
       {
         action: WorkflowAction.SUBMIT,
         fromState: ProjectState.DRAFT,
-        toState: ProjectState.FACULTY_REVIEW,
+        toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-001',
         actorName: 'Nguyễn Văn A',
       },
       {
         action: WorkflowAction.RETURN,
-        fromState: ProjectState.FACULTY_REVIEW,
+        fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         toState: ProjectState.CHANGES_REQUESTED,
-        returnTargetState: ProjectState.FACULTY_REVIEW,
+        returnTargetState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         returnTargetHolderUnit: 'FAC-001',
         reasonCode: 'NEED_CLARIFICATION',
         actorId: 'DT-USER-002',
@@ -244,7 +244,7 @@ export const DEMO_PROPOSALS: DemoProposal[] = [
   {
     code: 'DT-005',
     title: 'Nghiên cứu năng lượng tái tạo cho khu vực miền núi',
-    state: ProjectState.SCHOOL_SELECTION_REVIEW,
+    state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
     ownerId: 'DT-USER-001',
     facultyCode: 'FAC-001',
     holderUnit: 'FAC-004', // PKHCN
@@ -253,14 +253,14 @@ export const DEMO_PROPOSALS: DemoProposal[] = [
       {
         action: WorkflowAction.SUBMIT,
         fromState: ProjectState.DRAFT,
-        toState: ProjectState.FACULTY_REVIEW,
+        toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-001',
         actorName: 'Nguyễn Văn A',
       },
       {
         action: WorkflowAction.APPROVE,
-        fromState: ProjectState.FACULTY_REVIEW,
-        toState: ProjectState.SCHOOL_SELECTION_REVIEW,
+        fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+        toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-002',
         actorName: 'Trần Thị B',
       },
@@ -269,7 +269,7 @@ export const DEMO_PROPOSALS: DemoProposal[] = [
   {
     code: 'DT-006',
     title: 'Phân tích dữ liệu lớn y tế Việt Nam',
-    state: ProjectState.OUTLINE_COUNCIL_REVIEW,
+    state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
     ownerId: 'DT-USER-001',
     facultyCode: 'FAC-001',
     holderUnit: 'COUNCIL-001', // Hội đồng
@@ -278,21 +278,21 @@ export const DEMO_PROPOSALS: DemoProposal[] = [
       {
         action: WorkflowAction.SUBMIT,
         fromState: ProjectState.DRAFT,
-        toState: ProjectState.FACULTY_REVIEW,
+        toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-001',
         actorName: 'Nguyễn Văn A',
       },
       {
         action: WorkflowAction.APPROVE,
-        fromState: ProjectState.FACULTY_REVIEW,
-        toState: ProjectState.SCHOOL_SELECTION_REVIEW,
+        fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+        toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-002',
         actorName: 'Trần Thị B',
       },
       {
         action: WorkflowAction.ASSIGN_COUNCIL,
-        fromState: ProjectState.SCHOOL_SELECTION_REVIEW,
-        toState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+        fromState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
+        toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-004',
         actorName: 'Phạm Thị D',
       },
@@ -310,27 +310,27 @@ export const DEMO_PROPOSALS: DemoProposal[] = [
       {
         action: WorkflowAction.SUBMIT,
         fromState: ProjectState.DRAFT,
-        toState: ProjectState.FACULTY_REVIEW,
+        toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-001',
         actorName: 'Nguyễn Văn A',
       },
       {
         action: WorkflowAction.APPROVE,
-        fromState: ProjectState.FACULTY_REVIEW,
-        toState: ProjectState.SCHOOL_SELECTION_REVIEW,
+        fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+        toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-002',
         actorName: 'Trần Thị B',
       },
       {
         action: WorkflowAction.ASSIGN_COUNCIL,
-        fromState: ProjectState.SCHOOL_SELECTION_REVIEW,
-        toState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+        fromState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
+        toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-004',
         actorName: 'Phạm Thị D',
       },
       {
         action: WorkflowAction.FINALIZE,
-        fromState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+        fromState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         toState: ProjectState.APPROVED,
         actorId: 'DT-USER-005',
         actorName: 'Hoàng Văn E',
@@ -349,27 +349,27 @@ export const DEMO_PROPOSALS: DemoProposal[] = [
       {
         action: WorkflowAction.SUBMIT,
         fromState: ProjectState.DRAFT,
-        toState: ProjectState.FACULTY_REVIEW,
+        toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-001',
         actorName: 'Nguyễn Văn A',
       },
       {
         action: WorkflowAction.APPROVE,
-        fromState: ProjectState.FACULTY_REVIEW,
-        toState: ProjectState.SCHOOL_SELECTION_REVIEW,
+        fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+        toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-002',
         actorName: 'Trần Thị B',
       },
       {
         action: WorkflowAction.ASSIGN_COUNCIL,
-        fromState: ProjectState.SCHOOL_SELECTION_REVIEW,
-        toState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+        fromState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
+        toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-004',
         actorName: 'Phạm Thị D',
       },
       {
         action: WorkflowAction.FINALIZE,
-        fromState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+        fromState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         toState: ProjectState.APPROVED,
         actorId: 'DT-USER-005',
         actorName: 'Hoàng Văn E',
@@ -386,7 +386,7 @@ export const DEMO_PROPOSALS: DemoProposal[] = [
   {
     code: 'DT-009',
     title: 'Nền tảng Smart City cho đô thị thông minh',
-    state: ProjectState.FACULTY_ACCEPTANCE_REVIEW,
+    state: ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW,
     ownerId: 'DT-USER-001',
     facultyCode: 'FAC-001',
     holderUnit: 'FAC-001', // Khoa nghiệm thu
@@ -395,27 +395,27 @@ export const DEMO_PROPOSALS: DemoProposal[] = [
       {
         action: WorkflowAction.SUBMIT,
         fromState: ProjectState.DRAFT,
-        toState: ProjectState.FACULTY_REVIEW,
+        toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-001',
         actorName: 'Nguyễn Văn A',
       },
       {
         action: WorkflowAction.APPROVE,
-        fromState: ProjectState.FACULTY_REVIEW,
-        toState: ProjectState.SCHOOL_SELECTION_REVIEW,
+        fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+        toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-002',
         actorName: 'Trần Thị B',
       },
       {
         action: WorkflowAction.ASSIGN_COUNCIL,
-        fromState: ProjectState.SCHOOL_SELECTION_REVIEW,
-        toState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+        fromState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
+        toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-004',
         actorName: 'Phạm Thị D',
       },
       {
         action: WorkflowAction.FINALIZE,
-        fromState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+        fromState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         toState: ProjectState.APPROVED,
         actorId: 'DT-USER-005',
         actorName: 'Hoàng Văn E',
@@ -430,7 +430,7 @@ export const DEMO_PROPOSALS: DemoProposal[] = [
       {
         action: WorkflowAction.SUBMIT_ACCEPTANCE,
         fromState: ProjectState.IN_PROGRESS,
-        toState: ProjectState.FACULTY_ACCEPTANCE_REVIEW,
+        toState: ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW,
         actorId: 'DT-USER-001',
         actorName: 'Nguyễn Văn A',
       },
@@ -439,7 +439,7 @@ export const DEMO_PROPOSALS: DemoProposal[] = [
   {
     code: 'DT-010',
     title: 'Công nghệ 4.0 trong sản xuất nông sản',
-    state: ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+    state: ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW,
     ownerId: 'DT-USER-001',
     facultyCode: 'FAC-001',
     holderUnit: 'FAC-004', // PKHCN/ BGH xem xét
@@ -448,27 +448,27 @@ export const DEMO_PROPOSALS: DemoProposal[] = [
       {
         action: WorkflowAction.SUBMIT,
         fromState: ProjectState.DRAFT,
-        toState: ProjectState.FACULTY_REVIEW,
+        toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-001',
         actorName: 'Nguyễn Văn A',
       },
       {
         action: WorkflowAction.APPROVE,
-        fromState: ProjectState.FACULTY_REVIEW,
-        toState: ProjectState.SCHOOL_SELECTION_REVIEW,
+        fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+        toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-002',
         actorName: 'Trần Thị B',
       },
       {
         action: WorkflowAction.ASSIGN_COUNCIL,
-        fromState: ProjectState.SCHOOL_SELECTION_REVIEW,
-        toState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+        fromState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
+        toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         actorId: 'DT-USER-004',
         actorName: 'Phạm Thị D',
       },
       {
         action: WorkflowAction.FINALIZE,
-        fromState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+        fromState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         toState: ProjectState.APPROVED,
         actorId: 'DT-USER-005',
         actorName: 'Hoàng Văn E',
@@ -483,14 +483,14 @@ export const DEMO_PROPOSALS: DemoProposal[] = [
       {
         action: WorkflowAction.SUBMIT_ACCEPTANCE,
         fromState: ProjectState.IN_PROGRESS,
-        toState: ProjectState.FACULTY_ACCEPTANCE_REVIEW,
+        toState: ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW,
         actorId: 'DT-USER-001',
         actorName: 'Nguyễn Văn A',
       },
       {
         action: WorkflowAction.FACULTY_ACCEPT,
-        fromState: ProjectState.FACULTY_ACCEPTANCE_REVIEW,
-        toState: ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+        fromState: ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW,
+        toState: ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW,
         actorId: 'DT-USER-002',
         actorName: 'Trần Thị B',
       },
@@ -598,10 +598,10 @@ export const DEMO_ROLE_PERMISSIONS: DemoRolePermission[] = [
   { role: UserRole.PHONG_KHCN, permission: 'CALENDAR_MANAGE' },
 
   // THU_KY_HOI_DONG permissions
-  { role: UserRole.THU_KY_HOI_DONG, permission: 'DEMO_SWITCH_PERSONA' },
+  { role: UserRole.GIANG_VIEN, permission: 'DEMO_SWITCH_PERSONA' },
 
   // THANH_TRUNG permissions
-  { role: UserRole.THANH_TRUNG, permission: 'DEMO_SWITCH_PERSONA' },
+  { role: UserRole.GIANG_VIEN, permission: 'DEMO_SWITCH_PERSONA' },
 
   // BAN_GIAM_HOC permissions
   { role: UserRole.BAN_GIAM_HOC, permission: 'DEMO_SWITCH_PERSONA' },
@@ -614,4 +614,86 @@ export const DEMO_ROLE_PERMISSIONS: DemoRolePermission[] = [
   { role: UserRole.ADMIN, permission: 'DASHBOARD_VIEW' },
   { role: UserRole.ADMIN, permission: 'AUDIT_VIEW' },
   { role: UserRole.ADMIN, permission: 'FORM_TEMPLATE_IMPORT' },
+];
+
+// ============================================================
+// COUNCILS (Story 5.2)
+// ============================================================
+
+export interface DemoCouncil {
+  id: string;
+  name: string;
+  type: CouncilType;
+  secretaryId: string;
+}
+
+/**
+ * 4 Councils for demo - one for each council type
+ * These councils will have members assigned to evaluate proposals
+ */
+export const DEMO_COUNCILS: DemoCouncil[] = [
+  {
+    id: 'COUNCIL-001',
+    name: 'Hội đồng Khoa CNTT - Đề cương',
+    type: CouncilType.FACULTY_OUTLINE,
+    secretaryId: 'DT-USER-003', // Lê Văn C - Thư ký Khoa
+  },
+  {
+    id: 'COUNCIL-002',
+    name: 'Hội đồng Trường - Đề cương NCKH',
+    type: CouncilType.SCHOOL_OUTLINE,
+    secretaryId: 'DT-USER-005', // Hoàng Văn E - Giảng viên (thư ký HĐ)
+  },
+  {
+    id: 'COUNCIL-003',
+    name: 'Hội đồng Khoa CNTT - Nghiệm thu',
+    type: CouncilType.FACULTY_ACCEPTANCE,
+    secretaryId: 'DT-USER-003', // Lê Văn C - Thư ký Khoa
+  },
+  {
+    id: 'COUNCIL-004',
+    name: 'Hội đồng Trường - Nghiệm thu NCKH',
+    type: CouncilType.SCHOOL_ACCEPTANCE,
+    secretaryId: 'DT-USER-005', // Hoàng Văn E - Giảng viên (thư ký HĐ)
+  },
+];
+
+// ============================================================
+// COUNCIL MEMBERS
+// ============================================================
+
+export interface DemoCouncilMember {
+  councilId: string;
+  userId: string;
+  role: CouncilMemberRole;
+  isAuthor?: boolean;
+}
+
+/**
+ * Council members for demo councils
+ * Each council has: CHAIR, SECRETARY, and MEMBERs
+ */
+export const DEMO_COUNCIL_MEMBERS: DemoCouncilMember[] = [
+  // COUNCIL-001: Hội đồng Khoa CNTT - Đề cương
+  { councilId: 'COUNCIL-001', userId: 'DT-USER-002', role: CouncilMemberRole.CHAIR },      // Trần Thị B - Quản lý Khoa
+  { councilId: 'COUNCIL-001', userId: 'DT-USER-003', role: CouncilMemberRole.SECRETARY },  // Lê Văn C - Thư ký Khoa
+  { councilId: 'COUNCIL-001', userId: 'DT-USER-005', role: CouncilMemberRole.MEMBER },     // Hoàng Văn E - Giảng viên
+  { councilId: 'COUNCIL-001', userId: 'DT-USER-006', role: CouncilMemberRole.MEMBER },     // Đặng Thị F - Giảng viên
+
+  // COUNCIL-002: Hội đồng Trường - Đề cương NCKH
+  { councilId: 'COUNCIL-002', userId: 'DT-USER-004', role: CouncilMemberRole.CHAIR },      // Phạm Thị D - Phòng KHCN
+  { councilId: 'COUNCIL-002', userId: 'DT-USER-005', role: CouncilMemberRole.SECRETARY },  // Hoàng Văn E - Giảng viên
+  { councilId: 'COUNCIL-002', userId: 'DT-USER-006', role: CouncilMemberRole.MEMBER },     // Đặng Thị F - Giảng viên
+  { councilId: 'COUNCIL-002', userId: 'DT-USER-007', role: CouncilMemberRole.MEMBER },     // Vũ Văn G - Ban Giám Học
+
+  // COUNCIL-003: Hội đồng Khoa CNTT - Nghiệm thu
+  { councilId: 'COUNCIL-003', userId: 'DT-USER-002', role: CouncilMemberRole.CHAIR },      // Trần Thị B - Quản lý Khoa
+  { councilId: 'COUNCIL-003', userId: 'DT-USER-003', role: CouncilMemberRole.SECRETARY },  // Lê Văn C - Thư ký Khoa
+  { councilId: 'COUNCIL-003', userId: 'DT-USER-005', role: CouncilMemberRole.MEMBER },     // Hoàng Văn E - Giảng viên
+
+  // COUNCIL-004: Hội đồng Trường - Nghiệm thu NCKH
+  { councilId: 'COUNCIL-004', userId: 'DT-USER-007', role: CouncilMemberRole.CHAIR },      // Vũ Văn G - Ban Giám Học
+  { councilId: 'COUNCIL-004', userId: 'DT-USER-005', role: CouncilMemberRole.SECRETARY },  // Hoàng Văn E - Giảng viên
+  { councilId: 'COUNCIL-004', userId: 'DT-USER-004', role: CouncilMemberRole.MEMBER },     // Phạm Thị D - Phòng KHCN
+  { councilId: 'COUNCIL-004', userId: 'DT-USER-006', role: CouncilMemberRole.MEMBER },     // Đặng Thị F - Giảng viên
 ];

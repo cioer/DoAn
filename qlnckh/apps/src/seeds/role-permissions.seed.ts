@@ -43,23 +43,7 @@ const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   THU_KY_KHOA: [
     Permission.DEMO_SWITCH_PERSONA,
   ],
-  THU_KY_HOI_DONG: [
-    Permission.DEMO_SWITCH_PERSONA,
-    Permission.DASHBOARD_VIEW, // Council member dashboard
-  ],
-  THANH_TRUNG: [
-    Permission.DEMO_SWITCH_PERSONA,
-  ],
   BAN_GIAM_HOC: [
-    Permission.DEMO_SWITCH_PERSONA,
-    Permission.DASHBOARD_VIEW, // BAN_GIAM_HOC dashboard for school acceptance review
-    Permission.EXPORT_PROPOSAL_PDF, // Export proposals for review
-  ],
-  HOI_DONG: [
-    Permission.DEMO_SWITCH_PERSONA,
-    Permission.DASHBOARD_VIEW, // Council member dashboard
-  ],
-  BGH: [
     Permission.DEMO_SWITCH_PERSONA,
     Permission.DASHBOARD_VIEW, // BAN_GIAM_HOC dashboard for school acceptance review
     Permission.EXPORT_PROPOSAL_PDF, // Export proposals for review

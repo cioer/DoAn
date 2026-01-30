@@ -45,7 +45,7 @@ describe('DashboardService', () => {
       id: 'proposal-1',
       code: 'DT-001',
       title: 'Nghiên cứu AI',
-      state: ProjectState.FACULTY_REVIEW,
+      state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       slaDeadline: new Date('2020-01-01'), // Far in the past
       holder: {
         id: 'user-1',
@@ -57,7 +57,7 @@ describe('DashboardService', () => {
       id: 'proposal-2',
       code: 'DT-002',
       title: 'Nghiên cứu Blockchain',
-      state: ProjectState.SCHOOL_SELECTION_REVIEW,
+      state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
       slaDeadline: new Date('2020-01-05'),
       holder: {
         id: 'user-2',
@@ -69,7 +69,7 @@ describe('DashboardService', () => {
       id: 'proposal-3',
       code: 'DT-003',
       title: 'Nghiên cứu Cloud',
-      state: ProjectState.FACULTY_REVIEW,
+      state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       slaDeadline: new Date('2020-01-10'),
       holder: null, // No holder assigned
     },
@@ -185,11 +185,11 @@ describe('DashboardService', () => {
       // Import from actual file
       const { REVIEW_STATES } = await import('./dto/dashboard.dto');
 
-      expect(REVIEW_STATES).toContain(ProjectState.FACULTY_REVIEW);
-      expect(REVIEW_STATES).toContain(ProjectState.SCHOOL_SELECTION_REVIEW);
-      expect(REVIEW_STATES).toContain(ProjectState.OUTLINE_COUNCIL_REVIEW);
-      expect(REVIEW_STATES).toContain(ProjectState.FACULTY_ACCEPTANCE_REVIEW);
-      expect(REVIEW_STATES).toContain(ProjectState.SCHOOL_ACCEPTANCE_REVIEW);
+      expect(REVIEW_STATES).toContain(ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW);
+      expect(REVIEW_STATES).toContain(ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW);
+      expect(REVIEW_STATES).toContain(ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW);
+      expect(REVIEW_STATES).toContain(ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW);
+      expect(REVIEW_STATES).toContain(ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW);
       expect(REVIEW_STATES).toContain(ProjectState.HANDOVER);
       expect(REVIEW_STATES).toContain(ProjectState.CHANGES_REQUESTED);
     });
@@ -344,7 +344,7 @@ describe('DashboardService', () => {
         id: 'proposal-null',
         code: 'DT-NULL',
         title: 'No Deadline',
-        state: ProjectState.FACULTY_REVIEW,
+        state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         slaDeadline: null,
         holder: {
           id: 'user-1',

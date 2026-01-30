@@ -565,7 +565,7 @@ export const workflowApi = {
   ): Promise<TransitionResult> => {
     const response = await apiClient.post<{ success: true; data: TransitionResult }>(
       `/workflow/${proposalId}/cancel`,
-      { reason },
+      { reason, idempotencyKey },
       {
         headers: {
           'X-Idempotency-Key': idempotencyKey,
@@ -595,7 +595,7 @@ export const workflowApi = {
   ): Promise<TransitionResult> => {
     const response = await apiClient.post<{ success: true; data: TransitionResult }>(
       `/workflow/${proposalId}/withdraw`,
-      { reason },
+      { reason, idempotencyKey },
       {
         headers: {
           'X-Idempotency-Key': idempotencyKey,
@@ -627,7 +627,7 @@ export const workflowApi = {
   ): Promise<TransitionResult> => {
     const response = await apiClient.post<{ success: true; data: TransitionResult }>(
       `/workflow/${proposalId}/reject`,
-      { reasonCode, comment },
+      { reasonCode, comment, idempotencyKey },
       {
         headers: {
           'X-Idempotency-Key': idempotencyKey,
@@ -659,7 +659,7 @@ export const workflowApi = {
   ): Promise<TransitionResult> => {
     const response = await apiClient.post<{ success: true; data: TransitionResult }>(
       `/workflow/${proposalId}/pause`,
-      { reason, expectedResumeAt },
+      { reason, expectedResumeAt, idempotencyKey },
       {
         headers: {
           'X-Idempotency-Key': idempotencyKey,
@@ -687,7 +687,7 @@ export const workflowApi = {
   ): Promise<TransitionResult> => {
     const response = await apiClient.post<{ success: true; data: TransitionResult }>(
       `/workflow/${proposalId}/resume`,
-      {},
+      { idempotencyKey },
       {
         headers: {
           'X-Idempotency-Key': idempotencyKey,

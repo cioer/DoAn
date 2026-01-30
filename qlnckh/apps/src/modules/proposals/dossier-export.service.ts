@@ -233,7 +233,7 @@ export class DossierExportService {
   ): void {
     const isOwner = proposal.ownerId === userId;
     const isFacultyMember = userRole === UserRole.QUAN_LY_KHOA;
-    const isSchoolAdmin = [UserRole.PHONG_KHCN, UserRole.THU_KY_HOI_DONG, UserRole.ADMIN].includes(userRole as any);
+    const isSchoolAdmin = [UserRole.PHONG_KHCN, UserRole.GIANG_VIEN, UserRole.ADMIN].includes(userRole as any);
 
     switch (packType) {
       case DossierPackType.FACULTY_ACCEPTANCE:
@@ -291,8 +291,8 @@ export class DossierExportService {
     switch (packType) {
       case DossierPackType.FACULTY_ACCEPTANCE:
         if (
-          state !== ProjectState.FACULTY_ACCEPTANCE_REVIEW &&
-          state !== ProjectState.SCHOOL_ACCEPTANCE_REVIEW &&
+          state !== ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW &&
+          state !== ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW &&
           state !== ProjectState.HANDOVER &&
           state !== ProjectState.COMPLETED
         ) {
@@ -308,7 +308,7 @@ export class DossierExportService {
 
       case DossierPackType.SCHOOL_ACCEPTANCE:
         if (
-          state !== ProjectState.SCHOOL_ACCEPTANCE_REVIEW &&
+          state !== ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW &&
           state !== ProjectState.HANDOVER &&
           state !== ProjectState.COMPLETED
         ) {
@@ -594,15 +594,14 @@ export class DossierExportService {
   private translateState(state: ProjectState): string {
     const stateMap: Record<ProjectState, string> = {
       [ProjectState.DRAFT]: 'Nháp',
-      [ProjectState.FACULTY_REVIEW]: 'Xét duyệt Khoa',
-      [ProjectState.SCHOOL_SELECTION_REVIEW]: 'Chọn Hội đồng',
-      [ProjectState.OUTLINE_COUNCIL_REVIEW]: 'Họp Hội đồng',
+      [ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW]: 'Hội đồng Khoa - Đề cương',
+      [ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW]: 'Hội đồng Trường - Đề cương',
       [ProjectState.CHANGES_REQUESTED]: 'Yêu cầu sửa',
       [ProjectState.APPROVED]: 'Đã duyệt',
       [ProjectState.REJECTED]: 'Đã từ chối',
       [ProjectState.IN_PROGRESS]: 'Đang thực hiện',
-      [ProjectState.FACULTY_ACCEPTANCE_REVIEW]: 'Nghiệm thu Khoa',
-      [ProjectState.SCHOOL_ACCEPTANCE_REVIEW]: 'Nghiệm thu Trường',
+      [ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW]: 'Hội đồng Khoa - Nghiệm thu',
+      [ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW]: 'Hội đồng Trường - Nghiệm thu',
       [ProjectState.HANDOVER]: 'Bàn giao',
       [ProjectState.COMPLETED]: 'Hoàn thành',
       [ProjectState.CANCELLED]: 'Đã hủy',

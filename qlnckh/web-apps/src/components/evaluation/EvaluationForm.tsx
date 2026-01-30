@@ -159,7 +159,7 @@ export function EvaluationForm({
    * - Proposal state must be OUTLINE_COUNCIL_REVIEW
    * - User must be assigned to the proposal's council
    */
-  const canEvaluate = isCouncilMember && currentState === 'OUTLINE_COUNCIL_REVIEW';
+  const canEvaluate = isCouncilMember && currentState === 'SCHOOL_COUNCIL_OUTLINE_REVIEW';
 
   /**
    * Load evaluation on mount (Story 5.3: AC1)

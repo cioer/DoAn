@@ -125,7 +125,7 @@ export class ProposalsService {
   ): Promise<ProposalWithTemplateDto> {
     await this.validation.validateAccess(id, userId);
 
-    const proposal = await this.crud.findById(id);
+    const proposal = await this.crud.findById(id, userId);
 
     return this.mapToDtoWithTemplate(proposal);
   }
@@ -619,6 +619,10 @@ export class ProposalsService {
         code: proposal.faculty.code,
         name: proposal.faculty.name,
       } : null,
+      // Include council membership status for evaluation form display
+      isUserCouncilMember: proposal.isUserCouncilMember ?? false,
+      // Include council secretary status for finalization section display
+      isUserCouncilSecretary: proposal.isUserCouncilSecretary ?? false,
     };
   }
 }

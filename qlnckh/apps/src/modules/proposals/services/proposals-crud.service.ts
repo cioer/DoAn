@@ -104,7 +104,7 @@ export class ProposalsCrudService {
    * Find proposal by ID
    * Includes holder user information when available
    */
-  async findById(id: string) {
+  async findById(id: string, requestingUserId?: string) {
     const proposal = await this.prisma.proposal.findUnique({
       where: { id },
       include: {
@@ -133,10 +133,28 @@ export class ProposalsCrudService {
       });
     }
 
-    // Return proposal with holder user info
+    // Check if requesting user is a council member for this proposal's council
+    let isUserCouncilMember = false;
+    let isUserCouncilSecretary = false;
+    if (requestingUserId && proposal.councilId) {
+      const councilMembership = await this.prisma.councilMember.findUnique({
+        where: {
+          councilId_userId: {
+            councilId: proposal.councilId,
+            userId: requestingUserId,
+          },
+        },
+      });
+      isUserCouncilMember = !!councilMembership;
+      isUserCouncilSecretary = councilMembership?.role === 'SECRETARY';
+    }
+
+    // Return proposal with holder user info and council membership status
     return {
       ...proposal,
       holderUserInfo,
+      isUserCouncilMember,
+      isUserCouncilSecretary,
     };
   }
 

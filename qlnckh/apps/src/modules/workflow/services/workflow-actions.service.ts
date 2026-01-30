@@ -33,7 +33,7 @@ export class WorkflowActionsService {
   ): Promise<TransitionResult> {
     return this.stateMachine.executeTransition(
       proposalId,
-      ProjectState.FACULTY_REVIEW,
+      ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       WorkflowAction.SUBMIT,
       context,
       { slaDays: 3, slaCutoffHour: 17 },
@@ -49,7 +49,7 @@ export class WorkflowActionsService {
   ): Promise<TransitionResult> {
     return this.stateMachine.executeTransition(
       proposalId,
-      ProjectState.SCHOOL_SELECTION_REVIEW,
+      ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
       WorkflowAction.APPROVE,
       context,
       { slaDays: 3, slaCutoffHour: 17 },
@@ -79,7 +79,7 @@ export class WorkflowActionsService {
     return this.stateMachine.executeReturnTransition(
       proposalId,
       ProjectState.CHANGES_REQUESTED,
-      ProjectState.FACULTY_REVIEW, // Return to faculty review
+      ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW, // Return to faculty review
       proposal.facultyId, // Return to reviewing faculty
       context,
       { reason, reasonCode, reasonSections },
@@ -138,7 +138,7 @@ export class WorkflowActionsService {
     return this.stateMachine.executeReturnTransition(
       proposalId,
       ProjectState.CHANGES_REQUESTED,
-      ProjectState.OUTLINE_COUNCIL_REVIEW, // Return to council review
+      ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW, // Return to council review
       proposal.councilId, // Return to reviewing council
       context,
       { reason },
@@ -172,7 +172,7 @@ export class WorkflowActionsService {
     return this.stateMachine.executeReturnTransition(
       proposalId,
       ProjectState.CHANGES_REQUESTED,
-      ProjectState.SCHOOL_ACCEPTANCE_REVIEW, // Return to school review
+      ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW, // Return to school review
       'PHONG_KHCN', // Return to PHONG_KHCN
       context,
       { reason },

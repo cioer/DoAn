@@ -52,7 +52,7 @@ export interface CouncilReviewApprovalActionsProps {
  * AND proposal is in OUTLINE_COUNCIL_REVIEW state
  */
 function canApproveCouncil(proposalState: string, userRole: string): boolean {
-  return proposalState === 'OUTLINE_COUNCIL_REVIEW' && userRole === 'BAN_GIAM_HOC';
+  return proposalState === 'SCHOOL_COUNCIL_OUTLINE_REVIEW' && userRole === 'BAN_GIAM_HOC';
 }
 
 /**

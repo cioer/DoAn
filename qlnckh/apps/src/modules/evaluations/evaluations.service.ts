@@ -178,7 +178,7 @@ export class EvaluationService {
     }
 
     // Validate state must be OUTLINE_COUNCIL_REVIEW
-    if (proposal.state !== ProjectState.OUTLINE_COUNCIL_REVIEW) {
+    if (proposal.state !== ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW) {
       throw new BadRequestException({
         success: false,
         error: {
@@ -415,7 +415,7 @@ export class EvaluationService {
     }
 
     // Validate proposal state must be OUTLINE_COUNCIL_REVIEW
-    if (evaluation.proposal.state !== ProjectState.OUTLINE_COUNCIL_REVIEW) {
+    if (evaluation.proposal.state !== ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW) {
       throw new BadRequestException({
         success: false,
         error: {
@@ -501,8 +501,17 @@ export class EvaluationService {
       });
     }
 
-    // Verify user is the secretary for this proposal
-    if (proposal.holderUser !== secretaryId) {
+    // Verify user is the secretary for this proposal's council
+    const councilMembership = await this.prisma.councilMember.findUnique({
+      where: {
+        councilId_userId: {
+          councilId: proposal.councilId,
+          userId: secretaryId,
+        },
+      },
+    });
+
+    if (!councilMembership || councilMembership.role !== 'SECRETARY') {
       throw new ForbiddenException({
         success: false,
         error: {
@@ -643,7 +652,7 @@ export class EvaluationService {
     }
 
     // Verify state
-    if (proposal.state !== ProjectState.OUTLINE_COUNCIL_REVIEW) {
+    if (proposal.state !== ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW) {
       throw new BadRequestException({
         success: false,
         error: {
@@ -726,7 +735,7 @@ export class EvaluationService {
         data: {
           proposalId,
           action: PrismaWorkflowAction.EVALUATION_SUBMITTED, // Use existing action
-          fromState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+          fromState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
           toState: targetState,
           actorId: secretaryId,
           actorName: 'Thư ký Hội đồng',
@@ -842,7 +851,7 @@ export class EvaluationService {
     userRole: string,
   ) {
     // Verify user has required role
-    if (userRole !== 'BAN_GIAM_HOC' && userRole !== 'BGH') {
+    if (userRole !== 'BAN_GIAM_HOC' && userRole !== 'BAN_GIAM_HOC') {
       throw new ForbiddenException({
         success: false,
         error: {

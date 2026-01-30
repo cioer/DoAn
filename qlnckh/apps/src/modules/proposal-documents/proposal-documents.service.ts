@@ -115,16 +115,12 @@ const STATUS_FORM_MAPPING: Record<ProjectState, { required: FormType[]; optional
     required: [FormType.FORM_1B],
     optional: [FormType.FORM_PL1],
   },
-  FACULTY_REVIEW: {
+  FACULTY_COUNCIL_OUTLINE_REVIEW: {
     required: [FormType.FORM_1B, FormType.FORM_PL1, FormType.FORM_2B, FormType.FORM_3B],
     optional: [FormType.FORM_4B],
   },
-  SCHOOL_SELECTION_REVIEW: {
-    required: [FormType.FORM_5B],
-    optional: [],
-  },
-  OUTLINE_COUNCIL_REVIEW: {
-    required: [FormType.FORM_6B, FormType.FORM_7B],
+  SCHOOL_COUNCIL_OUTLINE_REVIEW: {
+    required: [FormType.FORM_5B, FormType.FORM_6B, FormType.FORM_7B],
     optional: [],
   },
   CHANGES_REQUESTED: {
@@ -139,11 +135,11 @@ const STATUS_FORM_MAPPING: Record<ProjectState, { required: FormType[]; optional
     required: [],
     optional: [FormType.FORM_18B],
   },
-  FACULTY_ACCEPTANCE_REVIEW: {
+  FACULTY_COUNCIL_ACCEPTANCE_REVIEW: {
     required: [FormType.FORM_8B, FormType.FORM_9B, FormType.FORM_10B, FormType.FORM_11B, FormType.FORM_PL2],
     optional: [],
   },
-  SCHOOL_ACCEPTANCE_REVIEW: {
+  SCHOOL_COUNCIL_ACCEPTANCE_REVIEW: {
     required: [FormType.FORM_12B, FormType.FORM_13B, FormType.FORM_14B, FormType.FORM_15B, FormType.FORM_16B],
     optional: [FormType.FORM_PL3],
   },
@@ -211,6 +207,7 @@ const ROLE_FORM_PERMISSIONS: Record<UserRole, FormType[]> = {
   // Phòng KH&CN - tạo forms cấp Trường
   PHONG_KHCN: [
     FormType.FORM_5B,   // Biên bản xét chọn sơ bộ
+    FormType.FORM_6B,   // Biên bản Hội đồng tư vấn (merged from THU_KY_HOI_DONG)
     FormType.FORM_12B,  // Nhận xét phản biện
     FormType.FORM_13B,  // Đề nghị lập HĐ NT Trường
     FormType.FORM_14B,  // Phiếu đánh giá NT Trường
@@ -219,18 +216,6 @@ const ROLE_FORM_PERMISSIONS: Record<UserRole, FormType[]> = {
     FormType.FORM_PL3,  // Nhận xét phản biện chi tiết
     FormType.FORM_17B,  // Biên bản giao nhận sản phẩm
   ],
-
-  // Thư ký Hội đồng - tạo biên bản hội đồng
-  THU_KY_HOI_DONG: [
-    FormType.FORM_6B,   // Biên bản Hội đồng tư vấn
-    FormType.FORM_12B,  // Nhận xét phản biện
-    FormType.FORM_14B,  // Phiếu đánh giá NT Trường
-    FormType.FORM_15B,  // Biên bản họp NT Trường
-    FormType.FORM_16B,  // Báo cáo hoàn thiện NT Trường
-  ],
-
-  // Thành viên Hội đồng - chỉ xem, không tạo forms
-  THANH_TRUNG: [],
 
   // Ban Giám học - có thể tạo forms cấp Trường và nghiệm thu
   BAN_GIAM_HOC: [
@@ -241,13 +226,6 @@ const ROLE_FORM_PERMISSIONS: Record<UserRole, FormType[]> = {
     FormType.FORM_14B,  // Phiếu đánh giá NT Trường
     FormType.FORM_15B,  // Biên bản họp NT Trường
     FormType.FORM_16B,  // Báo cáo hoàn thiện NT Trường
-  ],
-
-  // Legacy roles
-  HOI_DONG: [],
-  BGH: [
-    FormType.FORM_5B,
-    FormType.FORM_6B,
   ],
 
   // Admin - có thể tạo tất cả forms

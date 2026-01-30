@@ -9,13 +9,13 @@ import { getStateBadge, getStateBadgeClasses, getStateLabel, isPKHCNQueueState, 
 describe('States Constants (Story 5.1)', () => {
   describe('SCHOOL_SELECTION_REVIEW State Badge', () => {
     it('should have correct Vietnamese label "Đang xét (Trường)"', () => {
-      const badge = getStateBadge('SCHOOL_SELECTION_REVIEW');
+      const badge = getStateBadge('SCHOOL_COUNCIL_OUTLINE_REVIEW');
 
       expect(badge.label).toBe('Đang xét (Trường)');
     });
 
     it('should have Clock icon for pending state', () => {
-      const badge = getStateBadge('SCHOOL_SELECTION_REVIEW');
+      const badge = getStateBadge('SCHOOL_COUNCIL_OUTLINE_REVIEW');
 
       // Lucide icons are React components, just verify the icon is defined
       expect(badge.icon).toBeDefined();
@@ -23,7 +23,7 @@ describe('States Constants (Story 5.1)', () => {
     });
 
     it('should have warning variant (amber/yellow for pending)', () => {
-      const badge = getStateBadge('SCHOOL_SELECTION_REVIEW');
+      const badge = getStateBadge('SCHOOL_COUNCIL_OUTLINE_REVIEW');
 
       expect(badge.variant).toBe('warning');
     });
@@ -33,15 +33,15 @@ describe('States Constants (Story 5.1)', () => {
     it('should have badge configuration for all project states', () => {
       const states = [
         'DRAFT',
-        'FACULTY_REVIEW',
-        'SCHOOL_SELECTION_REVIEW',
-        'OUTLINE_COUNCIL_REVIEW',
+        'FACULTY_COUNCIL_OUTLINE_REVIEW',
+        'SCHOOL_COUNCIL_OUTLINE_REVIEW',
+        'SCHOOL_COUNCIL_OUTLINE_REVIEW',
         'CHANGES_REQUESTED',
         'APPROVED',
         'IN_PROGRESS',
         'PAUSED',
-        'FACULTY_ACCEPTANCE_REVIEW',
-        'SCHOOL_ACCEPTANCE_REVIEW',
+        'FACULTY_COUNCIL_ACCEPTANCE_REVIEW',
+        'SCHOOL_COUNCIL_ACCEPTANCE_REVIEW',
         'REJECTED',
         'WITHDRAWN',
         'CANCELLED',
@@ -62,8 +62,8 @@ describe('States Constants (Story 5.1)', () => {
   describe('Vietnamese Localization', () => {
     it('should provide Vietnamese labels for all states', () => {
       expect(getStateLabel('DRAFT')).toBe('Nháp');
-      expect(getStateLabel('FACULTY_REVIEW')).toBe('Đang xét (Khoa)');
-      expect(getStateLabel('SCHOOL_SELECTION_REVIEW')).toBe('Đang xét (Trường)');
+      expect(getStateLabel('FACULTY_COUNCIL_OUTLINE_REVIEW')).toBe('Đang xét (Khoa)');
+      expect(getStateLabel('SCHOOL_COUNCIL_OUTLINE_REVIEW')).toBe('Đang xét (Trường)');
       expect(getStateLabel('CHANGES_REQUESTED')).toBe('Yêu cầu sửa');
       expect(getStateLabel('APPROVED')).toBe('Đã duyệt');
       expect(getStateLabel('REJECTED')).toBe('Từ chối');
@@ -96,11 +96,11 @@ describe('States Constants (Story 5.1)', () => {
 
   describe('PKHCN Queue States', () => {
     it('should identify SCHOOL_SELECTION_REVIEW as PKHCN queue state', () => {
-      expect(isPKHCNQueueState('SCHOOL_SELECTION_REVIEW')).toBe(true);
+      expect(isPKHCNQueueState('SCHOOL_COUNCIL_OUTLINE_REVIEW')).toBe(true);
     });
 
     it('should identify SCHOOL_ACCEPTANCE_REVIEW as PKHCN queue state', () => {
-      expect(isPKHCNQueueState('SCHOOL_ACCEPTANCE_REVIEW')).toBe(true);
+      expect(isPKHCNQueueState('SCHOOL_COUNCIL_ACCEPTANCE_REVIEW')).toBe(true);
     });
 
     it('should identify PAUSED as PKHCN queue state', () => {
@@ -108,7 +108,7 @@ describe('States Constants (Story 5.1)', () => {
     });
 
     it('should NOT identify FACULTY_REVIEW as PKHCN queue state', () => {
-      expect(isPKHCNQueueState('FACULTY_REVIEW')).toBe(false);
+      expect(isPKHCNQueueState('FACULTY_COUNCIL_OUTLINE_REVIEW')).toBe(false);
     });
 
     it('should NOT identify DRAFT as PKHCN queue state', () => {

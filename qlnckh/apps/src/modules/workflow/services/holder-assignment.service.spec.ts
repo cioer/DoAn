@@ -43,14 +43,14 @@ describe('HolderAssignmentService', () => {
       });
 
       it('FACULTY_REVIEW should assign to faculty', () => {
-        const result = service.getHolderForState(ProjectState.FACULTY_REVIEW, mockProposal);
+        const result = service.getHolderForState(ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW, mockProposal);
 
         expect(result.holderUnit).toBe('KHOA.CNTT');
         expect(result.holderUser).toBeNull(); // Any QUAN_LY_KHOA can act
       });
 
       it('SCHOOL_SELECTION_REVIEW should assign to PHONG_KHCN', () => {
-        const result = service.getHolderForState(ProjectState.SCHOOL_SELECTION_REVIEW, mockProposal);
+        const result = service.getHolderForState(ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW, mockProposal);
 
         expect(result.holderUnit).toBe('PHONG_KHCN');
         expect(result.holderUser).toBeNull();
@@ -63,7 +63,7 @@ describe('HolderAssignmentService', () => {
           holderUser: 'council-secretary',
         };
 
-        const result = service.getHolderForState(ProjectState.OUTLINE_COUNCIL_REVIEW, proposalWithCouncil);
+        const result = service.getHolderForState(ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW, proposalWithCouncil);
 
         expect(result.holderUnit).toBe('COUNCIL-123');
         expect(result.holderUser).toBe('council-secretary');
@@ -95,14 +95,14 @@ describe('HolderAssignmentService', () => {
 
     describe('Phase C: Acceptance & Handover', () => {
       it('FACULTY_ACCEPTANCE_REVIEW should assign to faculty', () => {
-        const result = service.getHolderForState(ProjectState.FACULTY_ACCEPTANCE_REVIEW, mockProposal);
+        const result = service.getHolderForState(ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW, mockProposal);
 
         expect(result.holderUnit).toBe('KHOA.CNTT');
         expect(result.holderUser).toBeNull();
       });
 
       it('SCHOOL_ACCEPTANCE_REVIEW should assign to PHONG_KHCN', () => {
-        const result = service.getHolderForState(ProjectState.SCHOOL_ACCEPTANCE_REVIEW, mockProposal);
+        const result = service.getHolderForState(ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW, mockProposal);
 
         expect(result.holderUnit).toBe('PHONG_KHCN');
         expect(result.holderUser).toBeNull();
@@ -168,7 +168,7 @@ describe('HolderAssignmentService', () => {
     const mockProposal: Pick<Proposal, 'holderUnit' | 'holderUser' | 'state' | 'ownerId'> = {
       holderUnit: 'KHOA.CNTT',
       holderUser: null,
-      state: ProjectState.FACULTY_REVIEW,
+      state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       ownerId: 'owner-123',
     };
 
@@ -274,7 +274,7 @@ describe('HolderAssignmentService', () => {
     it('should return false for non-terminal states', () => {
       const nonTerminalStates = [
         ProjectState.DRAFT,
-        ProjectState.FACULTY_REVIEW,
+        ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         ProjectState.APPROVED,
         ProjectState.IN_PROGRESS,
         ProjectState.PAUSED,

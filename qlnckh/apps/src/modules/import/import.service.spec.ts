@@ -352,7 +352,7 @@ describe('ImportService', () => {
           ownerId: 'test@example.com',
           title: 'Test Proposal',
           facultyCode: 'FAC-001',
-          state: ProjectState.FACULTY_REVIEW,
+          state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           _lineNumber: 2,
         },
       ]);
@@ -377,7 +377,7 @@ describe('ImportService', () => {
           ownerId: 'test@example.com',
           title: 'Test Proposal',
           facultyCode: 'FAC-001',
-          state: ProjectState.OUTLINE_COUNCIL_REVIEW,
+          state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
           _lineNumber: 2,
         },
       ]);

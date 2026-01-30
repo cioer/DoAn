@@ -52,7 +52,7 @@ export interface SchoolAcceptanceActionsProps {
  * AND proposal is in SCHOOL_ACCEPTANCE_REVIEW state
  */
 function canAcceptSchool(proposalState: string, userRole: string): boolean {
-  return proposalState === 'SCHOOL_ACCEPTANCE_REVIEW' &&
+  return proposalState === 'SCHOOL_COUNCIL_ACCEPTANCE_REVIEW' &&
          (userRole === 'BAN_GIAM_HOC' || userRole === 'BGH');
 }
 

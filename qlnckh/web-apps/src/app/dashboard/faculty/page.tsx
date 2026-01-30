@@ -36,7 +36,7 @@ import {
 
 type ProposalStatus =
   | 'DRAFT'
-  | 'FACULTY_REVIEW'
+  | 'FACULTY_COUNCIL_OUTLINE_REVIEW'
   | 'SCHOOL_REVIEW'
   | 'COUNCIL_REVIEW'
   | 'APPROVED'
@@ -44,8 +44,8 @@ type ProposalStatus =
   | 'CHANGES_REQUESTED'
   | 'CANCELLED'
   | 'WITHDRAWN'
-  | 'FACULTY_ACCEPTANCE_REVIEW'
-  | 'SCHOOL_ACCEPTANCE_REVIEW';
+  | 'FACULTY_COUNCIL_ACCEPTANCE_REVIEW'
+  | 'SCHOOL_COUNCIL_ACCEPTANCE_REVIEW';
 
 interface FacultyDashboardKpi {
   totalProposals: number;
@@ -372,7 +372,7 @@ export default function FacultyDashboardPage() {
               value={kpi.pendingReview}
               color="amber"
               size="large"
-              onClick={() => handleViewByState('FACULTY_REVIEW')}
+              onClick={() => handleViewByState('FACULTY_COUNCIL_OUTLINE_REVIEW')}
             />
             <StatCard
               icon={AlertCircle}
@@ -388,7 +388,7 @@ export default function FacultyDashboardPage() {
               value={kpi.pendingAcceptance}
               color="cyan"
               size="large"
-              onClick={() => handleViewByState('FACULTY_ACCEPTANCE_REVIEW')}
+              onClick={() => handleViewByState('FACULTY_COUNCIL_ACCEPTANCE_REVIEW')}
             />
             <StatCard
               icon={CheckCircle2}
@@ -396,7 +396,7 @@ export default function FacultyDashboardPage() {
               value={kpi.acceptedByFaculty}
               color="green"
               size="large"
-              onClick={() => handleViewByState('SCHOOL_ACCEPTANCE_REVIEW')}
+              onClick={() => handleViewByState('SCHOOL_COUNCIL_ACCEPTANCE_REVIEW')}
             />
           </div>
         </div>

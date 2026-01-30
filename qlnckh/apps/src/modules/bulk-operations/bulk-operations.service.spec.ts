@@ -39,13 +39,13 @@ describe('BulkOperationsService', () => {
     {
       id: 'proposal-1',
       code: 'DT-001',
-      state: ProjectState.FACULTY_REVIEW,
+      state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       holderUser: null,
     },
     {
       id: 'proposal-2',
       code: 'DT-002',
-      state: ProjectState.SCHOOL_SELECTION_REVIEW,
+      state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
       holderUser: null,
     },
     {

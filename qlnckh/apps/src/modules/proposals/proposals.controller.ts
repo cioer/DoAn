@@ -890,7 +890,7 @@ export class ProposalsController {
    */
   @Post(':id/school-acceptance-decision')
   @HttpCode(HttpStatus.OK)
-  @RequireRoles(UserRole.PHONG_KHCN, UserRole.THU_KY_HOI_DONG, UserRole.ADMIN)
+  @RequireRoles(UserRole.PHONG_KHCN, UserRole.GIANG_VIEN, UserRole.ADMIN)
   @ApiOperation({
     summary: 'Nghiệm thu cấp Trường',
     description: 'Phòng KHCN/Thư ký Hội đồng duyệt/không duyệt nghiệm thu. Nếu đạt → chuyển sang Bàn giao. Nếu không đạt → trả về chủ nhiệm.',

@@ -216,7 +216,7 @@ describe('ProposalsCrudService - Faculty Isolation', () => {
 
     it('should apply state filter along with faculty filter for QUAN_LY_KHOA', async () => {
       const mockProposals = [
-        { id: 'prop-1', title: 'Proposal 1', state: ProjectState.FACULTY_REVIEW, facultyId: 'faculty-cntt' },
+        { id: 'prop-1', title: 'Proposal 1', state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW, facultyId: 'faculty-cntt' },
       ];
 
       mockPrisma.proposal.findMany.mockResolvedValue(mockProposals);
@@ -225,7 +225,7 @@ describe('ProposalsCrudService - Faculty Isolation', () => {
       const result = await service.findAll({
         skip: 0,
         take: 20,
-        state: ProjectState.FACULTY_REVIEW,
+        state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         user: quanLyKhoaUser,
       });
 
@@ -233,7 +233,7 @@ describe('ProposalsCrudService - Faculty Isolation', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             facultyId: 'faculty-cntt',
-            state: ProjectState.FACULTY_REVIEW,
+            state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           }),
         })
       );

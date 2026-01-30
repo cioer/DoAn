@@ -454,7 +454,7 @@ export class DashboardController {
    */
   @Get('council')
   @HttpCode(HttpStatus.OK)
-  @RequireRoles(UserRole.HOI_DONG, UserRole.THU_KY_HOI_DONG)
+  @RequireRoles(UserRole.GIANG_VIEN, UserRole.GIANG_VIEN)
   @RequirePermissions(Permission.DASHBOARD_VIEW)
   @ApiOperation({
     summary: 'Lấy dữ liệu dashboard thành viên hội đồng',
@@ -574,7 +574,7 @@ export class DashboardController {
    */
   @Get('bgh')
   @HttpCode(HttpStatus.OK)
-  @RequireRoles(UserRole.BAN_GIAM_HOC, UserRole.BGH)
+  @RequireRoles(UserRole.BAN_GIAM_HOC, UserRole.BAN_GIAM_HOC)
   @RequirePermissions(Permission.DASHBOARD_VIEW)
   @ApiOperation({
     summary: 'Lấy dữ liệu dashboard Hiệu trưởng',

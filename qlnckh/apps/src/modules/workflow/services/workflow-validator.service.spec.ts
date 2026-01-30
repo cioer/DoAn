@@ -147,7 +147,7 @@ describe('WorkflowValidatorService', () => {
     });
 
     it('should throw BadRequestException when state does not match', () => {
-      const proposalInReview = { ...mockProposal, state: ProjectState.FACULTY_REVIEW };
+      const proposalInReview = { ...mockProposal, state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW };
 
       expect(() => {
         service.validateProposalState(
@@ -349,7 +349,7 @@ describe('WorkflowValidatorService', () => {
 
   describe('validateApprovalAction', () => {
     it('should allow KHOA to approve FACULTY_REVIEW proposal', () => {
-      const facultyReviewProposal = { ...mockProposal, state: ProjectState.FACULTY_REVIEW };
+      const facultyReviewProposal = { ...mockProposal, state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW };
 
       expect(() => {
         service.validateApprovalAction(
@@ -378,7 +378,7 @@ describe('WorkflowValidatorService', () => {
     });
 
     it('should allow PHONG_KHCN to approve SCHOOL_SELECTION_REVIEW', () => {
-      const schoolReviewProposal = { ...mockProposal, state: ProjectState.SCHOOL_SELECTION_REVIEW };
+      const schoolReviewProposal = { ...mockProposal, state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW };
 
       expect(() => {
         service.validateApprovalAction(
@@ -390,7 +390,7 @@ describe('WorkflowValidatorService', () => {
     });
 
     it('should allow PHONG_KHCN to approve OUTLINE_COUNCIL_REVIEW', () => {
-      const councilReviewProposal = { ...mockProposal, state: ProjectState.OUTLINE_COUNCIL_REVIEW };
+      const councilReviewProposal = { ...mockProposal, state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW };
 
       expect(() => {
         service.validateApprovalAction(

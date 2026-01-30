@@ -27,8 +27,8 @@ const mockWorkflowLogs: WorkflowLog[] = [
     id: 'log-2',
     proposalId: 'proposal-1',
     action: WorkflowAction.APPROVE,
-    fromState: ProjectState.FACULTY_REVIEW,
-    toState: ProjectState.SCHOOL_SELECTION_REVIEW,
+    fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+    toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
     actorId: 'user-2',
     actorName: 'Trần Văn B',
     returnTargetState: null,
@@ -42,7 +42,7 @@ const mockWorkflowLogs: WorkflowLog[] = [
     proposalId: 'proposal-1',
     action: WorkflowAction.SUBMIT,
     fromState: ProjectState.DRAFT,
-    toState: ProjectState.FACULTY_REVIEW,
+    toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     actorId: 'user-1',
     actorName: 'Nguyễn Văn A',
     returnTargetState: null,
@@ -58,7 +58,7 @@ const mockProposals = [
     id: 'proposal-1',
     code: 'DT-2024-001',
     title: 'Nghiên cứu ứng dụng AI',
-    state: ProjectState.FACULTY_REVIEW,
+    state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     holderUnit: 'faculty-1',
     holderUser: null,
     slaDeadline: new Date('2026-01-10T17:00:00.000Z'),
@@ -217,11 +217,11 @@ describe('WorkflowController', () => {
         id: 'log-3',
         proposalId: 'proposal-1',
         action: WorkflowAction.RETURN,
-        fromState: ProjectState.FACULTY_REVIEW,
+        fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         toState: ProjectState.CHANGES_REQUESTED,
         actorId: 'user-2',
         actorName: 'Trần Văn B',
-        returnTargetState: ProjectState.FACULTY_REVIEW,
+        returnTargetState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         returnTargetHolderUnit: 'KHOA.CNTT',
         reasonCode: 'MISSING_DOCUMENTS',
         comment: 'Cần bổ sung tài liệu',
@@ -234,7 +234,7 @@ describe('WorkflowController', () => {
 
       const log = result.data[0];
       expect(log.action).toBe(WorkflowAction.RETURN);
-      expect(log.returnTargetState).toBe(ProjectState.FACULTY_REVIEW);
+      expect(log.returnTargetState).toBe(ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW);
       expect(log.returnTargetHolderUnit).toBe('KHOA.CNTT');
       expect(log.reasonCode).toBe('MISSING_DOCUMENTS');
       expect(log.comment).toBe('Cần bổ sung tài liệu');
@@ -796,7 +796,7 @@ describe('WorkflowController', () => {
           id: 'proposal-1',
           code: 'DT-2024-001',
           title: 'Nghiên cứu ứng dụng AI',
-          state: ProjectState.FACULTY_REVIEW,
+          state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           holderUnit: 'faculty-1',
           slaDeadline: expect.any(Date),
           slaStartDate: expect.any(Date),
@@ -817,14 +817,14 @@ describe('WorkflowController', () => {
 
     const mockFacultyReviewProposal = {
       id: mockProposalId,
-      state: ProjectState.FACULTY_REVIEW,
+      state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     };
 
     const mockSchoolSelectionProposal = {
       id: mockProposalId,
       code: 'DT-001',
       title: 'Test Proposal',
-      state: ProjectState.SCHOOL_SELECTION_REVIEW,
+      state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
       ownerId: 'user-1',
       facultyId: 'faculty-1',
       holderUnit: 'PHONG_KHCN',
@@ -843,8 +843,8 @@ describe('WorkflowController', () => {
       id: 'test-log-id',
       proposalId: mockProposalId,
       action: 'APPROVE' as const,
-      fromState: ProjectState.FACULTY_REVIEW,
-      toState: ProjectState.SCHOOL_SELECTION_REVIEW,
+      fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+      toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
       actorId: 'user-2',
       actorName: 'Test User',
       returnTargetState: null,
@@ -857,8 +857,8 @@ describe('WorkflowController', () => {
     const mockTransitionResult = {
       proposal: mockSchoolSelectionProposal,
       workflowLog: mockWorkflowLog,
-      previousState: ProjectState.FACULTY_REVIEW,
-      currentState: ProjectState.SCHOOL_SELECTION_REVIEW,
+      previousState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+      currentState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
       holderUnit: 'PHONG_KHCN',
       holderUser: null,
     };
@@ -883,8 +883,8 @@ describe('WorkflowController', () => {
         );
 
         expect(result.success).toBe(true);
-        expect(result.data.previousState).toBe('FACULTY_REVIEW');
-        expect(result.data.currentState).toBe('SCHOOL_SELECTION_REVIEW');
+        expect(result.data.previousState).toBe('FACULTY_COUNCIL_OUTLINE_REVIEW');
+        expect(result.data.currentState).toBe('SCHOOL_COUNCIL_OUTLINE_REVIEW');
       });
 
       it('should set holder_unit to PHONG_KHCN', async () => {
@@ -987,7 +987,7 @@ describe('WorkflowController', () => {
 
     const mockFacultyReviewProposal = {
       id: mockProposalId,
-      state: ProjectState.FACULTY_REVIEW,
+      state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     };
 
     const mockChangesRequestedProposal = {
@@ -1013,11 +1013,11 @@ describe('WorkflowController', () => {
       id: 'test-log-id',
       proposalId: mockProposalId,
       action: 'RETURN' as const,
-      fromState: ProjectState.FACULTY_REVIEW,
+      fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       toState: ProjectState.CHANGES_REQUESTED,
       actorId: 'user-2',
       actorName: 'Test User',
-      returnTargetState: ProjectState.FACULTY_REVIEW,
+      returnTargetState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       returnTargetHolderUnit: 'faculty-1',
       reasonCode: 'THIEU_TAI_LIEU',
       comment: '{"reason":"Cần bổ sung tài liệu","revisionSections":["SEC_BUDGET"]}',
@@ -1027,7 +1027,7 @@ describe('WorkflowController', () => {
     const mockReturnTransitionResult = {
       proposal: mockChangesRequestedProposal,
       workflowLog: mockReturnWorkflowLog,
-      previousState: ProjectState.FACULTY_REVIEW,
+      previousState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       currentState: ProjectState.CHANGES_REQUESTED,
       holderUnit: 'faculty-1',
       holderUser: 'user-1',
@@ -1059,7 +1059,7 @@ describe('WorkflowController', () => {
         );
 
         expect(result.success).toBe(true);
-        expect(result.data.previousState).toBe('FACULTY_REVIEW');
+        expect(result.data.previousState).toBe('FACULTY_COUNCIL_OUTLINE_REVIEW');
         expect(result.data.currentState).toBe('CHANGES_REQUESTED');
         expect(result.data.action).toBe('RETURN');
       });

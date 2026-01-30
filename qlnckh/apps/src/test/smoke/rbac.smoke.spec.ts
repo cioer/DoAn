@@ -41,8 +41,8 @@ describe('RBAC: Smoke Tests', () => {
         'QUAN_LY_KHOA',
         'THU_KY_KHOA',
         'PHONG_KHCN',
-        'THU_KY_HOI_DONG',
-        'THANH_TRUNG',
+        'GIANG_VIEN',
+        'GIANG_VIEN',
         'BAN_GIAM_HOC',
         'ADMIN',
       ];

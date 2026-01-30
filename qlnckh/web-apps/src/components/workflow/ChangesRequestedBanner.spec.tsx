@@ -43,11 +43,11 @@ const mockReturnLog: WorkflowLog = {
   id: 'log-1',
   proposalId: mockProposalId,
   action: 'RETURN',
-  fromState: 'FACULTY_REVIEW',
+  fromState: 'FACULTY_COUNCIL_OUTLINE_REVIEW',
   toState: 'CHANGES_REQUESTED',
   actorId: 'user-2',
   actorName: 'Trần Văn B',
-  returnTargetState: 'FACULTY_REVIEW',
+  returnTargetState: 'FACULTY_COUNCIL_OUTLINE_REVIEW',
   returnTargetHolderUnit: 'CNTT-KHOA',
   reasonCode: 'THIEU_TAI_LIEU',
   comment: JSON.stringify({
@@ -82,7 +82,7 @@ describe('ChangesRequestedBanner (Story 4.3)', () => {
       render(
         <ChangesRequestedBanner
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
         />,
       );
 

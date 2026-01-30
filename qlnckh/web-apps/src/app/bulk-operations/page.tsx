@@ -29,9 +29,9 @@ import type { UserListItem } from '../../shared/types/users';
 const stateOptions: SelectOption[] = [
   { value: '', label: 'Tất cả trạng thái' },
   { value: 'DRAFT', label: 'Nháp' },
-  { value: 'FACULTY_REVIEW', label: 'Đang xét (Khoa)' },
-  { value: 'SCHOOL_SELECTION_REVIEW', label: 'Đang xét (Trường)' },
-  { value: 'OUTLINE_COUNCIL_REVIEW', label: 'Đang xét (Hội đồng)' },
+  { value: 'FACULTY_COUNCIL_OUTLINE_REVIEW', label: 'Đang xét (Khoa)' },
+  { value: 'SCHOOL_COUNCIL_OUTLINE_REVIEW', label: 'Đang xét (Trường)' },
+  { value: 'SCHOOL_COUNCIL_OUTLINE_REVIEW', label: 'Đang xét (Hội đồng)' },
   { value: 'CHANGES_REQUESTED', label: 'Yêu cầu sửa' },
   { value: 'APPROVED', label: 'Đã duyệt' },
   { value: 'IN_PROGRESS', label: 'Đang thực hiện' },

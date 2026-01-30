@@ -398,8 +398,8 @@ export class DemoService {
         UserRole.QUAN_LY_KHOA,
         UserRole.THU_KY_KHOA,
         UserRole.PHONG_KHCN,
-        UserRole.THU_KY_HOI_DONG,
-        UserRole.THANH_TRUNG,
+        UserRole.GIANG_VIEN,
+        UserRole.GIANG_VIEN,
         UserRole.BAN_GIAM_HOC,
         UserRole.ADMIN,
       ];

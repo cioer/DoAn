@@ -38,7 +38,7 @@ describe('StateVerificationService', () => {
     {
       id: 'proposal-2',
       code: 'DT-002',
-      state: ProjectState.FACULTY_REVIEW,
+      state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     },
     {
       id: 'proposal-3',
@@ -58,13 +58,13 @@ describe('StateVerificationService', () => {
       proposalId: 'proposal-2',
       action: WorkflowAction.SUBMIT,
       fromState: ProjectState.DRAFT,
-      toState: ProjectState.FACULTY_REVIEW,
+      toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       timestamp: new Date('2026-01-02'),
     },
     {
       proposalId: 'proposal-3',
       action: WorkflowAction.APPROVE,
-      fromState: ProjectState.FACULTY_REVIEW,
+      fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       toState: ProjectState.APPROVED,
       timestamp: new Date('2026-01-03'),
     },
@@ -157,13 +157,13 @@ describe('StateVerificationService', () => {
           proposalId: 'proposal-1',
           action: WorkflowAction.SUBMIT,
           fromState: ProjectState.DRAFT,
-          toState: ProjectState.FACULTY_REVIEW,
+          toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           timestamp: new Date('2026-01-02'),
         },
         {
           proposalId: 'proposal-1',
           action: WorkflowAction.APPROVE,
-          fromState: ProjectState.FACULTY_REVIEW,
+          fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           toState: ProjectState.APPROVED,
           timestamp: new Date('2026-01-03'),
         },
@@ -180,14 +180,14 @@ describe('StateVerificationService', () => {
           proposalId: 'proposal-1',
           action: WorkflowAction.CREATE,
           fromState: null,
-          toState: ProjectState.FACULTY_REVIEW,
+          toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           timestamp: new Date('2026-01-01'),
         },
       ]);
 
       const state = await service.computeExpectedState('proposal-1');
 
-      expect(state).toBe(ProjectState.FACULTY_REVIEW);
+      expect(state).toBe(ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW);
     });
   });
 
@@ -202,10 +202,10 @@ describe('StateVerificationService', () => {
           proposalId: 'proposal-1',
           proposalCode: 'DT-001',
           currentState: ProjectState.DRAFT,
-          computedState: ProjectState.FACULTY_REVIEW,
+          computedState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           lastLog: {
             action: WorkflowAction.SUBMIT,
-            toState: ProjectState.FACULTY_REVIEW,
+            toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
             timestamp: new Date(),
           },
         },
@@ -236,10 +236,10 @@ describe('StateVerificationService', () => {
           proposalId: 'proposal-1',
           proposalCode: 'DT-001',
           currentState: ProjectState.DRAFT,
-          computedState: ProjectState.FACULTY_REVIEW,
+          computedState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           lastLog: {
             action: 'SUBMIT',
-            toState: ProjectState.FACULTY_REVIEW,
+            toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
             timestamp: new Date(),
           },
         },
@@ -249,7 +249,7 @@ describe('StateVerificationService', () => {
 
       expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
         where: { id: 'proposal-1' },
-        data: { state: ProjectState.FACULTY_REVIEW },
+        data: { state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW },
       });
     });
 
@@ -263,10 +263,10 @@ describe('StateVerificationService', () => {
           proposalId: 'proposal-1',
           proposalCode: 'DT-001',
           currentState: ProjectState.DRAFT,
-          computedState: ProjectState.FACULTY_REVIEW,
+          computedState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           lastLog: {
             action: WorkflowAction.SUBMIT,
-            toState: ProjectState.FACULTY_REVIEW,
+            toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
             timestamp: new Date(),
           },
         },
@@ -352,10 +352,10 @@ describe('StateVerificationService', () => {
           proposalId: 'proposal-1',
           proposalCode: 'DT-001',
           currentState: ProjectState.DRAFT,
-          computedState: ProjectState.FACULTY_REVIEW,
+          computedState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           lastLog: {
             action: 'SUBMIT' as any,
-            toState: ProjectState.FACULTY_REVIEW,
+            toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
             timestamp: new Date(),
           },
         },
@@ -364,7 +364,7 @@ describe('StateVerificationService', () => {
       await service.autoCorrectStates(mismatches);
 
       const updateCall = mockPrisma.proposal.update.mock.calls[0][0];
-      expect(updateCall.data.state).toBe(ProjectState.FACULTY_REVIEW);
+      expect(updateCall.data.state).toBe(ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW);
       expect(typeof updateCall.data.state).toBe('string');
     });
 
@@ -398,7 +398,7 @@ describe('StateVerificationService', () => {
         {
           proposalId: 'proposal-1',
           action: WorkflowAction.SUBMIT,
-          toState: ProjectState.FACULTY_REVIEW,
+          toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           timestamp,
         },
       ]);
@@ -406,7 +406,7 @@ describe('StateVerificationService', () => {
       const state = await service.computeExpectedState('proposal-1');
 
       // Should use last log (FACULTY_REVIEW)
-      expect(state).toBe(ProjectState.FACULTY_REVIEW);
+      expect(state).toBe(ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW);
     });
 
     it('should handle large number of proposals', async () => {

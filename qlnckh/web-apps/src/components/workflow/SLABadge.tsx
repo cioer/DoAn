@@ -67,7 +67,7 @@ const ICONS = {
  * ```tsx
  * <SLABadge
  *   slaDeadline="2026-01-10T17:00:00Z"
- *   currentState="FACULTY_REVIEW"
+ *   currentState="FACULTY_COUNCIL_OUTLINE_REVIEW"
  *   compact
  * />
  * ```

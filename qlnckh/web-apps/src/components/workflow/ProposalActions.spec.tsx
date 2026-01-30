@@ -65,7 +65,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'QUAN_LY_KHOA' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -80,7 +80,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'THU_KY_KHOA' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -94,7 +94,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'GIANG_VIEN' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -124,7 +124,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'QUAN_LY_KHOA' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -139,7 +139,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'THU_KY_KHOA' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -153,7 +153,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'GIANG_VIEN' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -183,7 +183,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'QUAN_LY_KHOA' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -199,7 +199,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'QUAN_LY_KHOA' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -220,7 +220,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'QUAN_LY_KHOA' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -241,7 +241,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'QUAN_LY_KHOA' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -257,7 +257,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'QUAN_LY_KHOA' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -273,7 +273,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'QUAN_LY_KHOA' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -295,7 +295,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'QUAN_LY_KHOA' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -320,7 +320,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
     it('should call returnFacultyReview API with correct data when submitted', async () => {
       const mockResult = {
         proposalId: mockProposalId,
-        previousState: 'FACULTY_REVIEW',
+        previousState: 'FACULTY_COUNCIL_OUTLINE_REVIEW',
         currentState: 'CHANGES_REQUESTED',
         action: 'RETURN',
         holderUnit: 'faculty-1',
@@ -333,7 +333,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'QUAN_LY_KHOA' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -369,7 +369,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'QUAN_LY_KHOA' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -386,7 +386,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'QUAN_LY_KHOA' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -411,7 +411,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'QUAN_LY_KHOA' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -437,7 +437,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'QUAN_LY_KHOA' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -456,8 +456,8 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
     it('should call approve API with idempotency key when confirmed', async () => {
       const mockResult = {
         proposalId: mockProposalId,
-        previousState: 'FACULTY_REVIEW',
-        currentState: 'SCHOOL_SELECTION_REVIEW',
+        previousState: 'FACULTY_COUNCIL_OUTLINE_REVIEW',
+        currentState: 'SCHOOL_COUNCIL_OUTLINE_REVIEW',
         action: 'APPROVE',
         holderUnit: 'PHONG_KHCN',
         holderUser: null,
@@ -469,7 +469,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'QUAN_LY_KHOA' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -491,7 +491,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'QUAN_LY_KHOA' }}
           onActionSuccess={mockOnSuccess}
         />,
@@ -541,7 +541,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'QUAN_LY_KHOA' }}
           onActionError={mockOnError}
         />,
@@ -583,7 +583,7 @@ describe('ProposalActions Component (Story 4.1 + Story 4.2)', () => {
       render(
         <ProposalActions
           proposalId={mockProposalId}
-          proposalState="FACULTY_REVIEW"
+          proposalState="FACULTY_COUNCIL_OUTLINE_REVIEW"
           currentUser={{ id: 'user-1', role: 'QUAN_LY_KHOA' }}
           onActionError={mockOnError}
         />,

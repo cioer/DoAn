@@ -205,14 +205,13 @@ export class AiChatService {
     const formData = proposal.formData || {};
     const stateLabels: Record<string, string> = {
       DRAFT: 'Nháp',
-      FACULTY_REVIEW: 'Chờ duyệt (Khoa)',
-      SCHOOL_SELECTION_REVIEW: 'Chờ duyệt (Trường)',
-      OUTLINE_COUNCIL_REVIEW: 'Chờ xét duyệt (Hội đồng)',
+      FACULTY_COUNCIL_OUTLINE_REVIEW: 'Hội đồng Khoa - Đề cương',
+      SCHOOL_COUNCIL_OUTLINE_REVIEW: 'Hội đồng Trường - Đề cương',
       CHANGES_REQUESTED: 'Yêu cầu chỉnh sửa',
       APPROVED: 'Đã duyệt',
       IN_PROGRESS: 'Đang thực hiện',
-      FACULTY_ACCEPTANCE_REVIEW: 'Nghiệm thu (Khoa)',
-      SCHOOL_ACCEPTANCE_REVIEW: 'Nghiệm thu (Trường)',
+      FACULTY_COUNCIL_ACCEPTANCE_REVIEW: 'Hội đồng Khoa - Nghiệm thu',
+      SCHOOL_COUNCIL_ACCEPTANCE_REVIEW: 'Hội đồng Trường - Nghiệm thu',
       HANDOVER: 'Bàn giao',
       COMPLETED: 'Hoàn thành',
       CANCELLED: 'Đã hủy',

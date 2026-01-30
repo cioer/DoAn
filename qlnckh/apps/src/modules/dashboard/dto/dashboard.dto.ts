@@ -96,11 +96,11 @@ export interface KpiCardFilter {
  * Review states (waiting for action)
  */
 export const REVIEW_STATES: ProjectState[] = [
-  ProjectState.FACULTY_REVIEW,
-  ProjectState.SCHOOL_SELECTION_REVIEW,
-  ProjectState.OUTLINE_COUNCIL_REVIEW,
-  ProjectState.FACULTY_ACCEPTANCE_REVIEW,
-  ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+  ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+  ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
+  ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
+  ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW,
+  ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW,
   ProjectState.HANDOVER,
   ProjectState.CHANGES_REQUESTED,
 ];

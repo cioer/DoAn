@@ -37,7 +37,7 @@ export class WorkflowLogDto {
   @ApiProperty({
     description: 'Trạng thái sau khi chuyển',
     enum: ProjectState,
-    example: ProjectState.FACULTY_REVIEW,
+    example: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
   })
   toState: ProjectState;
 

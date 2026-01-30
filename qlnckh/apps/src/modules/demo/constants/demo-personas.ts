@@ -43,18 +43,18 @@ export const DEMO_PERSONAS: DemoPersona[] = [
   {
     id: 'DT-USER-005',
     name: 'Thư ký HĐ',
-    role: UserRole.THU_KY_HOI_DONG,
+    role: UserRole.GIANG_VIEN,
     description: 'Thư ký Hội đồng',
   },
   {
     id: 'DT-USER-006',
     name: 'Thành viên HĐ',
-    role: UserRole.THANH_TRUNG,
+    role: UserRole.GIANG_VIEN,
     description: 'Thành viên Hội đồng',
   },
   {
     id: 'DT-USER-007',
-    name: 'BGH',
+    name: 'BAN_GIAM_HOC',
     role: UserRole.BAN_GIAM_HOC,
     description: 'Ban Giám học',
   },

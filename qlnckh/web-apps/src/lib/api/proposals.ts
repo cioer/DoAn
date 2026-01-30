@@ -44,6 +44,10 @@ export interface Proposal {
     email: string;
     role: string;
   } | null;
+  /** Whether current user is a member of the assigned council */
+  isUserCouncilMember?: boolean;
+  /** Whether current user is the secretary of the assigned council */
+  isUserCouncilSecretary?: boolean;
 }
 
 export interface CreateProposalRequest {

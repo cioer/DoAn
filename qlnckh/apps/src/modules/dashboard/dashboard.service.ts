@@ -243,10 +243,10 @@ export class DashboardService {
     ] = await Promise.all([
       this.prisma.proposal.count({ where: { deletedAt: null } }),
       this.prisma.proposal.count({ where: { state: ProjectState.DRAFT, deletedAt: null } }),
-      this.prisma.proposal.count({ where: { state: ProjectState.FACULTY_REVIEW, deletedAt: null } }),
-      this.prisma.proposal.count({ where: { state: ProjectState.SCHOOL_SELECTION_REVIEW, deletedAt: null } }),
-      this.prisma.proposal.count({ where: { state: ProjectState.OUTLINE_COUNCIL_REVIEW, deletedAt: null } }),
-      this.prisma.proposal.count({ where: { state: ProjectState.SCHOOL_ACCEPTANCE_REVIEW, deletedAt: null } }),
+      this.prisma.proposal.count({ where: { state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW, deletedAt: null } }),
+      this.prisma.proposal.count({ where: { state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW, deletedAt: null } }),
+      this.prisma.proposal.count({ where: { state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW, deletedAt: null } }),
+      this.prisma.proposal.count({ where: { state: ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW, deletedAt: null } }),
       this.prisma.proposal.count({ where: { state: ProjectState.APPROVED, deletedAt: null } }),
       this.prisma.proposal.count({ where: { state: ProjectState.REJECTED, deletedAt: null } }),
       this.prisma.proposal.count({ where: { state: ProjectState.CHANGES_REQUESTED, deletedAt: null } }),
@@ -460,7 +460,7 @@ export class DashboardService {
       this.prisma.proposal.count({
         where: {
           facultyId,
-          state: ProjectState.FACULTY_ACCEPTANCE_REVIEW,
+          state: ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW,
           deletedAt: null,
         },
       }),
@@ -468,7 +468,7 @@ export class DashboardService {
       this.prisma.proposal.count({
         where: {
           facultyId,
-          state: ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+          state: ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW,
           deletedAt: null,
         },
       }),
@@ -674,9 +674,9 @@ export class DashboardService {
 
     // Under review - proposals in review states
     const REVIEW_STATES: ProjectState[] = [
-      ProjectState.FACULTY_REVIEW,
-      ProjectState.SCHOOL_SELECTION_REVIEW,
-      ProjectState.OUTLINE_COUNCIL_REVIEW,
+      ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+      ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
+      ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
     ];
 
     const underReview = await this.prisma.proposal.count({
@@ -765,7 +765,7 @@ export class DashboardService {
     userRole: string,
   ): Promise<CouncilDashboardDataDto> {
     const now = new Date();
-    const isSecretary = userRole === 'THU_KY_HOI_DONG';
+    const isSecretary = userRole === 'GIANG_VIEN';
 
     // Get all councils where user is a member
     const councilMembers = await this.prisma.councilMember.findMany({
@@ -781,7 +781,7 @@ export class DashboardService {
     const secretaryProposals = await this.prisma.proposal.findMany({
       where: {
         holderUser: userId,
-        state: ProjectState.OUTLINE_COUNCIL_REVIEW,
+        state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
       },
       select: { councilId: true },
     });
@@ -797,7 +797,7 @@ export class DashboardService {
     // Get proposals in council review state for these councils
     const proposals = await this.prisma.proposal.findMany({
       where: {
-        state: ProjectState.OUTLINE_COUNCIL_REVIEW,
+        state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         councilId: { in: councilIds },
         deletedAt: null,
       },
@@ -948,7 +948,7 @@ export class DashboardService {
     // Get proposals in SCHOOL_ACCEPTANCE_REVIEW state
     const pendingProposals = await this.prisma.proposal.findMany({
       where: {
-        state: ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+        state: ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW,
         deletedAt: null,
       },
       include: {
@@ -1097,10 +1097,10 @@ export class DashboardService {
     ] = await Promise.all([
       this.prisma.proposal.count({ where: { deletedAt: null } }),
       this.prisma.proposal.count({ where: { state: ProjectState.DRAFT, deletedAt: null } }),
-      this.prisma.proposal.count({ where: { state: ProjectState.FACULTY_REVIEW, deletedAt: null } }),
-      this.prisma.proposal.count({ where: { state: ProjectState.SCHOOL_SELECTION_REVIEW, deletedAt: null } }),
-      this.prisma.proposal.count({ where: { state: ProjectState.OUTLINE_COUNCIL_REVIEW, deletedAt: null } }),
-      this.prisma.proposal.count({ where: { state: ProjectState.SCHOOL_ACCEPTANCE_REVIEW, deletedAt: null } }),
+      this.prisma.proposal.count({ where: { state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW, deletedAt: null } }),
+      this.prisma.proposal.count({ where: { state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW, deletedAt: null } }),
+      this.prisma.proposal.count({ where: { state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW, deletedAt: null } }),
+      this.prisma.proposal.count({ where: { state: ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW, deletedAt: null } }),
       this.prisma.proposal.count({ where: { state: ProjectState.APPROVED, deletedAt: null } }),
       this.prisma.proposal.count({ where: { state: ProjectState.REJECTED, deletedAt: null } }),
       this.prisma.proposal.count({ where: { state: ProjectState.CHANGES_REQUESTED, deletedAt: null } }),
@@ -1115,10 +1115,10 @@ export class DashboardService {
 
     // Count overdue proposals (in review states with SLA deadline past)
     const reviewStates = [
-      ProjectState.FACULTY_REVIEW,
-      ProjectState.SCHOOL_SELECTION_REVIEW,
-      ProjectState.OUTLINE_COUNCIL_REVIEW,
-      ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+      ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+      ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
+      ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
+      ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW,
     ];
     const overdueCount = await this.prisma.proposal.count({
       where: {
@@ -1260,10 +1260,10 @@ export class DashboardService {
       await Promise.all([
         this.prisma.user.count({ where: { role: 'GIANG_VIEN' } }),
         this.prisma.user.count({ where: { role: 'QUAN_LY_KHOA' } }),
-        this.prisma.user.count({ where: { role: 'HOI_DONG' } }),
-        this.prisma.user.count({ where: { role: 'THU_KY_HOI_DONG' } }),
+        this.prisma.user.count({ where: { role: 'GIANG_VIEN' } }),
+        this.prisma.user.count({ where: { role: 'GIANG_VIEN' } }),
         this.prisma.user.count({ where: { role: 'PHONG_KHCN' } }),
-        this.prisma.user.count({ where: { role: { in: ['BAN_GIAM_HOC', 'BGH'] } } }),
+        this.prisma.user.count({ where: { role: { in: ['BAN_GIAM_HOC', 'BAN_GIAM_HOC'] } } }),
         this.prisma.user.count({ where: { role: 'ADMIN' } }),
       ]);
 
@@ -1284,7 +1284,7 @@ export class DashboardService {
       this.prisma.councilMember.count(),
       this.prisma.proposal.count({
         where: {
-          state: ProjectState.OUTLINE_COUNCIL_REVIEW,
+          state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
           councilId: { not: null },
           deletedAt: null,
         },
@@ -1296,7 +1296,7 @@ export class DashboardService {
       where: {
         proposals: {
           some: {
-            state: ProjectState.OUTLINE_COUNCIL_REVIEW,
+            state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
           },
         },
       },
@@ -1339,10 +1339,10 @@ export class DashboardService {
       await Promise.all([
         this.prisma.user.count({ where: { role: 'GIANG_VIEN', deletedAt: null } }),
         this.prisma.user.count({ where: { role: 'QUAN_LY_KHOA', deletedAt: null } }),
-        this.prisma.user.count({ where: { role: 'HOI_DONG', deletedAt: null } }),
-        this.prisma.user.count({ where: { role: 'THU_KY_HOI_DONG', deletedAt: null } }),
+        this.prisma.user.count({ where: { role: 'GIANG_VIEN', deletedAt: null } }),
+        this.prisma.user.count({ where: { role: 'GIANG_VIEN', deletedAt: null } }),
         this.prisma.user.count({ where: { role: 'PHONG_KHCN', deletedAt: null } }),
-        this.prisma.user.count({ where: { role: { in: ['BAN_GIAM_HOC', 'BGH'] }, deletedAt: null } }),
+        this.prisma.user.count({ where: { role: { in: ['BAN_GIAM_HOC', 'BAN_GIAM_HOC'] }, deletedAt: null } }),
         this.prisma.user.count({ where: { role: 'ADMIN', deletedAt: null } }),
       ]);
 

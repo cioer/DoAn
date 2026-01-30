@@ -21,6 +21,7 @@ import {
   Send,
   Play,
   FileCheck,
+  Users,
 } from 'lucide-react';
 import {
   workflowApi,
@@ -29,6 +30,7 @@ import {
 } from '../../lib/api/workflow';
 import { Button, Dialog, DialogFooter, Alert, Textarea } from '../ui';
 import { ReturnChangesDialog } from './exception-actions';
+import { CouncilAssignmentDialog } from './CouncilAssignmentDialog';
 
 /**
  * User role from JWT token
@@ -64,7 +66,7 @@ type ApprovalRole = typeof APPROVAL_ROLES[number];
  */
 function canApprove(proposalState: string, userRole: string): boolean {
   return (
-    proposalState === 'FACULTY_REVIEW' && APPROVAL_ROLES.includes(userRole as ApprovalRole)
+    proposalState === 'FACULTY_COUNCIL_OUTLINE_REVIEW' && APPROVAL_ROLES.includes(userRole as ApprovalRole)
   );
 }
 
@@ -75,7 +77,7 @@ function canApprove(proposalState: string, userRole: string): boolean {
  */
 function canReturn(proposalState: string, userRole: string): boolean {
   return (
-    proposalState === 'FACULTY_REVIEW' && APPROVAL_ROLES.includes(userRole as ApprovalRole)
+    proposalState === 'FACULTY_COUNCIL_OUTLINE_REVIEW' && APPROVAL_ROLES.includes(userRole as ApprovalRole)
   );
 }
 
@@ -116,7 +118,7 @@ function canSubmitAcceptance(proposalState: string, userId: string, ownerId?: st
  */
 function canAcceptFacultyAcceptance(proposalState: string, userRole: string): boolean {
   return (
-    proposalState === 'FACULTY_ACCEPTANCE_REVIEW' && APPROVAL_ROLES.includes(userRole as ApprovalRole)
+    proposalState === 'FACULTY_COUNCIL_ACCEPTANCE_REVIEW' && APPROVAL_ROLES.includes(userRole as ApprovalRole)
   );
 }
 
@@ -127,7 +129,20 @@ function canAcceptFacultyAcceptance(proposalState: string, userRole: string): bo
  */
 function canReturnFacultyAcceptance(proposalState: string, userRole: string): boolean {
   return (
-    proposalState === 'FACULTY_ACCEPTANCE_REVIEW' && APPROVAL_ROLES.includes(userRole as ApprovalRole)
+    proposalState === 'FACULTY_COUNCIL_ACCEPTANCE_REVIEW' && APPROVAL_ROLES.includes(userRole as ApprovalRole)
+  );
+}
+
+/**
+ * Faculty Council Assignment: Can Assign Faculty Council check
+ * Returns true if user has QUAN_LY_KHOA role
+ * AND proposal is in FACULTY_COUNCIL_OUTLINE_REVIEW state
+ *
+ * Note: Trưởng Khoa chỉ định thành viên hội đồng xét duyệt cấp Khoa
+ */
+function canAssignFacultyCouncil(proposalState: string, userRole: string): boolean {
+  return (
+    proposalState === 'FACULTY_COUNCIL_OUTLINE_REVIEW' && userRole === 'QUAN_LY_KHOA'
   );
 }
 
@@ -156,7 +171,9 @@ export function ProposalActions({
   const [isSubmittingAcceptance, setIsSubmittingAcceptance] = useState(false);
   const [isAcceptingFacultyAcceptance, setIsAcceptingFacultyAcceptance] = useState(false);
   const [isReturningFacultyAcceptance, setIsReturningFacultyAcceptance] = useState(false);
+  const [isAssigningFacultyCouncil, setIsAssigningFacultyCouncil] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [showFacultyCouncilDialog, setShowFacultyCouncilDialog] = useState(false);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [showStartConfirm, setShowStartConfirm] = useState(false);
@@ -183,6 +200,7 @@ export function ProposalActions({
   const showSubmitAcceptanceButton = canSubmitAcceptance(proposalState, currentUser?.id || '', ownerId);
   const showAcceptFacultyAcceptanceButton = canAcceptFacultyAcceptance(proposalState, currentUser?.role || '');
   const showReturnFacultyAcceptanceButton = canReturnFacultyAcceptance(proposalState, currentUser?.role || '');
+  const showAssignFacultyCouncilButton = canAssignFacultyCouncil(proposalState, currentUser?.role || '');
 
   /**
    * Story 4.1: AC3 & AC5 - Execute approve action
@@ -423,6 +441,52 @@ export function ProposalActions({
   };
 
   /**
+   * Faculty Council Assignment: Assign Faculty Council
+   * Assigns a faculty-level council to review the proposal
+   * Trưởng Khoa chỉ định thành viên hội đồng xét duyệt cấp Khoa
+   */
+  const handleAssignFacultyCouncil = async (data: {
+    councilId: string;
+    secretaryId: string;
+    memberIds?: string[];
+    idempotencyKey: string;
+  }) => {
+    setIsAssigningFacultyCouncil(true);
+    setError(null);
+
+    try {
+      await workflowApi.assignCouncil(
+        proposalId,
+        data.councilId,
+        data.secretaryId,
+        data.memberIds,
+        data.idempotencyKey,
+      );
+
+      setShowFacultyCouncilDialog(false);
+
+      if (onActionSuccess) {
+        onActionSuccess();
+      }
+    } catch (err: unknown) {
+      const apiError = err as {
+        response?: { data?: { success: false; error: { code: string; message: string } } };
+      };
+
+      const errorData =
+        apiError.response?.data?.error || { code: 'UNKNOWN_ERROR', message: 'Lỗi không xác định' };
+      setError(errorData);
+
+      if (onActionError) {
+        onActionError(errorData);
+      }
+      throw err; // Re-throw to let dialog handle the error
+    } finally {
+      setIsAssigningFacultyCouncil(false);
+    }
+  };
+
+  /**
    * Faculty Acceptance: Return Faculty Acceptance Action
    * Transitions FACULTY_ACCEPTANCE_REVIEW → CHANGES_REQUESTED
    */
@@ -468,7 +532,7 @@ export function ProposalActions({
   };
 
   // AC2: Buttons hidden for wrong role/state
-  if (!showApproveButton && !showReturnButton && !showSubmitButton && !showStartButton && !showSubmitAcceptanceButton && !showAcceptFacultyAcceptanceButton && !showReturnFacultyAcceptanceButton) {
+  if (!showApproveButton && !showReturnButton && !showSubmitButton && !showStartButton && !showSubmitAcceptanceButton && !showAcceptFacultyAcceptanceButton && !showReturnFacultyAcceptanceButton && !showAssignFacultyCouncilButton) {
     return null;
   }
 
@@ -485,6 +549,19 @@ export function ProposalActions({
             className="rounded-xl"
           >
             Yêu cầu sửa
+          </Button>
+        )}
+
+        {/* Faculty Council Assignment: "Chỉ định hội đồng" button for QUAN_LY_KHOA */}
+        {showAssignFacultyCouncilButton && (
+          <Button
+            variant="primary"
+            onClick={() => setShowFacultyCouncilDialog(true)}
+            isLoading={isAssigningFacultyCouncil}
+            leftIcon={<Users className="w-4 h-4" />}
+            className="rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+          >
+            Chỉ định hội đồng
           </Button>
         )}
 
@@ -877,6 +954,21 @@ export function ProposalActions({
         isSubmitting={isReturning}
         title="Yêu cầu chỉnh sửa hồ sơ"
         description="Chọn lý do và các phần cần sửa để gửi về cho giảng viên"
+      />
+
+      {/* Faculty Council Assignment Dialog - For QUAN_LY_KHOA at FACULTY_COUNCIL_OUTLINE_REVIEW */}
+      <CouncilAssignmentDialog
+        isOpen={showFacultyCouncilDialog}
+        onClose={() => {
+          setShowFacultyCouncilDialog(false);
+          setError(null);
+        }}
+        onAssign={handleAssignFacultyCouncil}
+        isSubmitting={isAssigningFacultyCouncil}
+        proposalId={proposalId}
+        councilType="FACULTY_OUTLINE"
+        dialogTitle="Chỉ định hội đồng xét duyệt cấp Khoa"
+        dialogDescription="Chọn hội đồng và thành viên để xét duyệt đề tài tại cấp Khoa"
       />
     </>
   );

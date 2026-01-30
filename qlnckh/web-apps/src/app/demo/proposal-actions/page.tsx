@@ -45,7 +45,7 @@ const MOCK_PROPOSALS = {
     id: 'proposal-001',
     code: 'DT-2024-001',
     title: 'Nghiên cứu ứng dụng AI trong giáo dục',
-    state: 'FACULTY_REVIEW',
+    state: 'FACULTY_COUNCIL_OUTLINE_REVIEW',
     slaDeadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days from now
   },
   draft: {
@@ -59,7 +59,7 @@ const MOCK_PROPOSALS = {
     id: 'proposal-003',
     code: 'DT-2024-003',
     title: 'Mobile App Development',
-    state: 'SCHOOL_SELECTION_REVIEW',
+    state: 'SCHOOL_COUNCIL_OUTLINE_REVIEW',
     slaDeadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
   },
 };
@@ -178,12 +178,12 @@ export default function ProposalActionsDemoPage() {
           <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm">
             <strong>AC2: Button Visibility Rule</strong>
             <p className="mt-1">
-              Button hiển thị khi: <code>state === 'FACULTY_REVIEW'</code> AND role in{' '}
+              Button hiển thị khi: <code>state === 'FACULTY_COUNCIL_OUTLINE_REVIEW'</code> AND role in{' '}
               <code>['QUAN_LY_KHOA', 'THU_KY_KHOA']</code>
             </p>
             <p className="mt-1">
               Current: state = <strong>{selectedProposal.state}</strong>, role = <strong>{currentUser.role}</strong> →{' '}
-              {selectedProposal.state === 'FACULTY_REVIEW' &&
+              {selectedProposal.state === 'FACULTY_COUNCIL_OUTLINE_REVIEW' &&
               ['QUAN_LY_KHOA', 'THU_KY_KHOA'].includes(currentUser.role) ? (
                 <span className="text-green-700">✅ Button hiển thị</span>
               ) : (

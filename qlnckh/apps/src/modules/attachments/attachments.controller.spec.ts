@@ -161,7 +161,7 @@ describe('Attachments Upload Flow (Integration Tests)', () => {
       // Update proposal to FACULTY_REVIEW state
       await prisma.proposal.update({
         where: { id: testProposalId },
-        data: { state: ProjectState.FACULTY_REVIEW },
+        data: { state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW },
       });
 
       const testFile = Buffer.from('Test content');

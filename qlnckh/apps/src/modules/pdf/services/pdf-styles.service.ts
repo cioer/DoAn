@@ -21,21 +21,15 @@ export class PdfStylesService {
       icon: '📝',
       css: 'background: #fef3c7; color: #92400e;',
     },
-    FACULTY_REVIEW: {
+    FACULTY_COUNCIL_OUTLINE_REVIEW: {
       label: 'Đang xét (Khoa)',
       className: 'status-faculty_review',
       icon: '⏳',
       css: 'background: #dbeafe; color: #1e40af;',
     },
-    SCHOOL_SELECTION_REVIEW: {
-      label: 'Đang xét (PKHCN)',
-      className: 'status-school_selection_review',
-      icon: '⏳',
-      css: 'background: #e0e7ff; color: #3730a3;',
-    },
-    OUTLINE_COUNCIL_REVIEW: {
-      label: 'Đang xét (HĐĐ)',
-      className: 'status-outline_council_review',
+    SCHOOL_COUNCIL_OUTLINE_REVIEW: {
+      label: 'Hội đồng Trường - Đề cương',
+      className: 'status-school_council_outline_review',
       icon: '⏳',
       css: 'background: #f3e8ff; color: #6b21a8;',
     },
@@ -63,13 +57,13 @@ export class PdfStylesService {
       icon: '⏸️',
       css: 'background: #e5e7eb; color: #374151;',
     },
-    FACULTY_ACCEPTANCE_REVIEW: {
+    FACULTY_COUNCIL_ACCEPTANCE_REVIEW: {
       label: 'Nghiệm thu (Khoa)',
       className: 'status-faculty_acceptance_review',
       icon: '📋',
       css: 'background: #fef3c7; color: #92400e;',
     },
-    SCHOOL_ACCEPTANCE_REVIEW: {
+    SCHOOL_COUNCIL_ACCEPTANCE_REVIEW: {
       label: 'Nghiệm thu (Trường)',
       className: 'status-school_acceptance_review',
       icon: '📋',

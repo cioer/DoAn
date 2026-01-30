@@ -153,7 +153,7 @@ export class CouncilService {
     const users = await this.prisma.user.findMany({
       where: {
         role: {
-          in: ['HOI_DONG', 'THANH_TRUNG'],
+          in: ['GIANG_VIEN', 'GIANG_VIEN'],
         },
         deletedAt: null,
       },

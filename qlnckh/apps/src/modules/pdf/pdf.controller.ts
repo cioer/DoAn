@@ -247,7 +247,7 @@ export class PdfController {
    */
   @Get(':id/evaluation-pdf')
   @UseGuards(RolesGuard) // Story 5.6: Enable RBAC check for evaluation PDF export
-  @RequireRoles(UserRole.THU_KY_HOI_DONG, UserRole.PHONG_KHCN, UserRole.ADMIN)
+  @RequireRoles(UserRole.GIANG_VIEN, UserRole.PHONG_KHCN, UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Xuất PDF đánh giá',

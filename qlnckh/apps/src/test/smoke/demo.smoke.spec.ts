@@ -18,9 +18,9 @@ describe('Demo: Smoke Tests', () => {
         { id: 'DT-USER-002', name: 'Quản lý Khoa', role: UserRole.QUAN_LY_KHOA },
         { id: 'DT-USER-003', name: 'Thư ký Khoa', role: UserRole.THU_KY_KHOA },
         { id: 'DT-USER-004', name: 'PKHCN', role: UserRole.PHONG_KHCN },
-        { id: 'DT-USER-005', name: 'Thư ký HĐ', role: UserRole.THU_KY_HOI_DONG },
-        { id: 'DT-USER-006', name: 'Thành viên HĐ', role: UserRole.THANH_TRUNG },
-        { id: 'DT-USER-007', name: 'BGH', role: UserRole.BAN_GIAM_HOC },
+        { id: 'DT-USER-005', name: 'Thư ký HĐ', role: UserRole.GIANG_VIEN },
+        { id: 'DT-USER-006', name: 'Thành viên HĐ', role: UserRole.GIANG_VIEN },
+        { id: 'DT-USER-007', name: 'BAN_GIAM_HOC', role: UserRole.BAN_GIAM_HOC },
         { id: 'DT-USER-008', name: 'Admin', role: UserRole.ADMIN },
       ];
 
