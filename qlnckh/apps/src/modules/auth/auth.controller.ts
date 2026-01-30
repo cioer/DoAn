@@ -12,6 +12,14 @@ import {
 import { Request, Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+  ApiBearerAuth,
+  ApiCookieAuth,
+} from '@nestjs/swagger';
 import { AuthService, AuditContext } from './auth.service';
 import { LoginDto } from './dto';
 import { JwtRefreshGuard, JwtAuthGuard } from './guards';
@@ -29,6 +37,7 @@ interface AuthRequest extends Request {
   };
 }
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -41,6 +50,31 @@ export class AuthController {
    * Login with email and password
    */
   @Post('login')
+  @ApiOperation({
+    summary: 'Đăng nhập',
+    description: 'Đăng nhập bằng email và mật khẩu. Trả về thông tin user và set cookies chứa JWT tokens.',
+  })
+  @ApiBody({ type: LoginDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Đăng nhập thành công',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          user: {
+            id: 'uuid',
+            email: 'user@example.com',
+            name: 'Nguyễn Văn A',
+            role: 'GIANG_VIEN',
+          },
+          permissions: ['PROPOSAL_CREATE', 'PROPOSAL_EDIT'],
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Email hoặc mật khẩu không đúng' })
+  @ApiResponse({ status: 429, description: 'Quá nhiều lần thử, vui lòng đợi' })
   @UseGuards(AuthGuard('local'))
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
   @HttpCode(HttpStatus.OK)
@@ -80,6 +114,14 @@ export class AuthController {
    * Logout and revoke refresh token
    */
   @Post('logout')
+  @ApiOperation({
+    summary: 'Đăng xuất',
+    description: 'Đăng xuất và hủy refresh token. Xóa cookies chứa JWT tokens.',
+  })
+  @ApiBearerAuth('JWT-auth')
+  @ApiCookieAuth()
+  @ApiResponse({ status: 200, description: 'Đăng xuất thành công' })
+  @ApiResponse({ status: 401, description: 'Chưa đăng nhập' })
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async logout(@Req() req: AuthRequest, @Res() res: Response): Promise<void> {
@@ -109,6 +151,13 @@ export class AuthController {
    * Refresh access token using refresh token
    */
   @Post('refresh')
+  @ApiOperation({
+    summary: 'Làm mới token',
+    description: 'Sử dụng refresh token để lấy access token mới.',
+  })
+  @ApiCookieAuth()
+  @ApiResponse({ status: 200, description: 'Token đã được làm mới' })
+  @ApiResponse({ status: 401, description: 'Refresh token không hợp lệ hoặc hết hạn' })
   @UseGuards(JwtRefreshGuard)
   @HttpCode(HttpStatus.OK)
   async refresh(@Req() req: AuthRequest, @Res() res: Response): Promise<void> {
@@ -142,6 +191,32 @@ export class AuthController {
    * In demo mode, includes actingAs user when user is impersonating a persona
    */
   @Get('me')
+  @ApiOperation({
+    summary: 'Lấy thông tin người dùng hiện tại',
+    description: 'Trả về thông tin user đang đăng nhập. Trong demo mode, bao gồm cả thông tin persona đang giả lập.',
+  })
+  @ApiBearerAuth('JWT-auth')
+  @ApiCookieAuth()
+  @ApiResponse({
+    status: 200,
+    description: 'Thông tin người dùng',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          user: {
+            id: 'uuid',
+            email: 'user@example.com',
+            name: 'Nguyễn Văn A',
+            role: 'GIANG_VIEN',
+            facultyId: 'faculty-uuid',
+            permissions: ['PROPOSAL_CREATE', 'PROPOSAL_EDIT'],
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Chưa đăng nhập' })
   @UseGuards(JwtAuthGuard)
   async getMe(@Req() req: AuthRequest, @Res() res: Response): Promise<void> {
     const userId = req.user?.id;
