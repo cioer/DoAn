@@ -95,21 +95,26 @@ const mockValidator = {
     }
 
     // Role-based permission check (simplified for tests)
+    // Must match ACTION_ROLE_PERMISSIONS in workflow.constants.ts
     const canRolePerformAction = (action: WorkflowAction, role: string) => {
       const actionPermissions: Record<string, string[]> = {
-        SUBMIT: ['GIANG_VIEN', 'SINH_VIEN'],
-        APPROVE: ['QUAN_LY_KHOA', 'PHONG_KHCN', 'KHOA', 'PKHCN', 'THU_KY_KHOA', 'THU_KY_HOI_DONG', 'BAN_GIAM_HOC'],
-        RETURN: ['QUAN_LY_KHOA', 'PHONG_KHCN', 'KHOA', 'PKHCN', 'THU_KY_KHOA', 'THU_KY_HOI_DONG', 'BAN_GIAM_HOC'],
-        REQUEST_CHANGES: ['QUAN_LY_KHOA', 'PHONG_KHCN', 'KHOA', 'PKHCN'],
-        WITHDRAW: ['GIANG_VIEN', 'SINH_VIEN'],
-        RESUBMIT: ['GIANG_VIEN', 'SINH_VIEN'],
-        CANCEL: ['GIANG_VIEN', 'SINH_VIEN'],
-        REJECT: ['QUAN_LY_KHOA', 'PHONG_KHCN', 'PKHCN', 'THU_KY_HOI_DONG', 'THANH_TRUNG', 'BAN_GIAM_HOC'],
-        PAUSE: ['PHONG_KHCN', 'PKHCN'],
-        RESUME: ['PHONG_KHCN', 'PKHCN'],
-        ACCEPT: ['KHOA', 'PHONG_KHCN', 'BAN_GIAM_HOC'],
-        START_PROJECT: ['GIANG_VIEN', 'SINH_VIEN'],
-        COMPLETE_HANDOVER: ['GIANG_VIEN', 'SINH_VIEN'],
+        SUBMIT: ['GIANG_VIEN'],
+        APPROVE: ['QUAN_LY_KHOA', 'THU_KY_KHOA', 'BAN_GIAM_HOC'],
+        RETURN: ['QUAN_LY_KHOA', 'THU_KY_KHOA', 'BAN_GIAM_HOC'],
+        REQUEST_CHANGES: ['QUAN_LY_KHOA', 'PHONG_KHCN'],
+        WITHDRAW: ['GIANG_VIEN'],
+        RESUBMIT: ['GIANG_VIEN'],
+        CANCEL: ['GIANG_VIEN'],
+        REJECT: ['QUAN_LY_KHOA', 'PHONG_KHCN', 'BAN_GIAM_HOC'],
+        PAUSE: ['PHONG_KHCN'],
+        RESUME: ['PHONG_KHCN'],
+        ACCEPT: ['PHONG_KHCN', 'BAN_GIAM_HOC'],
+        START_PROJECT: ['GIANG_VIEN', 'PHONG_KHCN'],
+        SUBMIT_ACCEPTANCE: ['GIANG_VIEN'],
+        FACULTY_ACCEPT: ['QUAN_LY_KHOA', 'THU_KY_KHOA'],
+        FINALIZE: ['PHONG_KHCN', 'GIANG_VIEN'],
+        ASSIGN_COUNCIL: ['PHONG_KHCN'],
+        HANDOVER_COMPLETE: ['GIANG_VIEN', 'PHONG_KHCN'],
       };
       return actionPermissions[action]?.includes(role) ?? false;
     };
@@ -132,9 +137,9 @@ const mockValidator = {
     // State transition check for APPROVE action
     if (action === WorkflowAction.APPROVE) {
       const validStates = [
-        ProjectState.FACULTY_REVIEW,
-        ProjectState.SCHOOL_SELECTION_REVIEW,
-        ProjectState.OUTLINE_COUNCIL_REVIEW,
+        ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+        ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
+        ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
       ];
       if (!validStates.includes(proposal.state)) {
         const { BadRequestException } = await import('@nestjs/common');
@@ -315,11 +320,11 @@ describe('WorkflowService', () => {
     describe('AC1: Enum ProjectState has 15 canonical states', () => {
       it('should have all Phase A states (Proposal)', () => {
         const phaseA = STATE_PHASES.PHASE_A_PROPOSAL;
-        expect(phaseA).toHaveLength(4);
+        expect(phaseA).toHaveLength(3);
         expect(phaseA).toContain(ProjectState.DRAFT);
-        expect(phaseA).toContain(ProjectState.FACULTY_REVIEW);
-        expect(phaseA).toContain(ProjectState.SCHOOL_SELECTION_REVIEW);
-        expect(phaseA).toContain(ProjectState.OUTLINE_COUNCIL_REVIEW);
+        expect(phaseA).toContain(ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW);
+        expect(phaseA).toContain(ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW);
+        expect(phaseA).toContain(ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW);
       });
 
       it('should have all Phase B states (Changes & Approval)', () => {
@@ -333,8 +338,8 @@ describe('WorkflowService', () => {
       it('should have all Phase C states (Acceptance & Handover)', () => {
         const phaseC = STATE_PHASES.PHASE_C_ACCEPTANCE_HANDOVER;
         expect(phaseC).toHaveLength(4);
-        expect(phaseC).toContain(ProjectState.FACULTY_ACCEPTANCE_REVIEW);
-        expect(phaseC).toContain(ProjectState.SCHOOL_ACCEPTANCE_REVIEW);
+        expect(phaseC).toContain(ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW);
+        expect(phaseC).toContain(ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW);
         expect(phaseC).toContain(ProjectState.HANDOVER);
         expect(phaseC).toContain(ProjectState.COMPLETED);
       });
@@ -348,7 +353,7 @@ describe('WorkflowService', () => {
         expect(exceptions).toContain(ProjectState.WITHDRAWN);
       });
 
-      it('should have exactly 15 total states', () => {
+      it('should have exactly 14 total states', () => {
         const allStates = [
           ...STATE_PHASES.PHASE_A_PROPOSAL,
           ...STATE_PHASES.PHASE_B_CHANGES_APPROVAL,
@@ -356,7 +361,7 @@ describe('WorkflowService', () => {
           ...STATE_PHASES.EXCEPTION_STATES,
         ];
         const uniqueStates = new Set(allStates);
-        expect(uniqueStates.size).toBe(15);
+        expect(uniqueStates.size).toBe(14);
       });
     });
 
@@ -369,7 +374,7 @@ describe('WorkflowService', () => {
       it('should validate DRAFT → FACULTY_REVIEW directly (not through SUBMITTED)', () => {
         const isValid = isValidTransition(
           ProjectState.DRAFT,
-          ProjectState.FACULTY_REVIEW,
+          ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           WorkflowAction.SUBMIT,
         );
         expect(isValid).toBe(true);
@@ -414,7 +419,7 @@ describe('WorkflowService', () => {
           expect(
             isValidTransition(
               ProjectState.DRAFT,
-              ProjectState.FACULTY_REVIEW,
+              ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
               WorkflowAction.SUBMIT,
             ),
           ).toBe(true);
@@ -445,8 +450,8 @@ describe('WorkflowService', () => {
         it('should allow FACULTY_REVIEW → SCHOOL_SELECTION_REVIEW with APPROVE', () => {
           expect(
             isValidTransition(
-              ProjectState.FACULTY_REVIEW,
-              ProjectState.SCHOOL_SELECTION_REVIEW,
+              ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+              ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
               WorkflowAction.APPROVE,
             ),
           ).toBe(true);
@@ -455,7 +460,7 @@ describe('WorkflowService', () => {
         it('should allow FACULTY_REVIEW → CHANGES_REQUESTED with RETURN', () => {
           expect(
             isValidTransition(
-              ProjectState.FACULTY_REVIEW,
+              ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
               ProjectState.CHANGES_REQUESTED,
               WorkflowAction.RETURN,
             ),
@@ -464,10 +469,10 @@ describe('WorkflowService', () => {
 
         it('should get valid next states for FACULTY_REVIEW + APPROVE', () => {
           const nextStates = getValidNextStates(
-            ProjectState.FACULTY_REVIEW,
+            ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
             WorkflowAction.APPROVE,
           );
-          expect(nextStates).toEqual([ProjectState.SCHOOL_SELECTION_REVIEW]);
+          expect(nextStates).toEqual([ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW]);
         });
       });
 
@@ -476,7 +481,7 @@ describe('WorkflowService', () => {
           expect(
             isValidTransition(
               ProjectState.CHANGES_REQUESTED,
-              ProjectState.FACULTY_REVIEW,
+              ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
               WorkflowAction.RESUBMIT,
             ),
           ).toBe(true);
@@ -486,7 +491,7 @@ describe('WorkflowService', () => {
           expect(
             isValidTransition(
               ProjectState.CHANGES_REQUESTED,
-              ProjectState.SCHOOL_SELECTION_REVIEW,
+              ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
               WorkflowAction.RESUBMIT,
             ),
           ).toBe(true);
@@ -497,7 +502,7 @@ describe('WorkflowService', () => {
     describe('Holder Assignment Rules', () => {
       it('should assign holder to faculty for FACULTY_REVIEW state', () => {
         const holder = getHolderForState(
-          ProjectState.FACULTY_REVIEW,
+          ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           mockProposal,
         );
         expect(holder.holderUnit).toBe('faculty-1');
@@ -506,7 +511,7 @@ describe('WorkflowService', () => {
 
       it('should assign holder to PHONG_KHCN for SCHOOL_SELECTION_REVIEW', () => {
         const holder = getHolderForState(
-          ProjectState.SCHOOL_SELECTION_REVIEW,
+          ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
           mockProposal,
         );
         expect(holder.holderUnit).toBe('PHONG_KHCN');
@@ -548,7 +553,7 @@ describe('WorkflowService', () => {
         // Simulate transaction - mockPrisma methods should return expected values
         mockPrisma.proposal.update.mockResolvedValue({
           ...mockProposal,
-          state: ProjectState.FACULTY_REVIEW,
+          state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           holderUnit: 'faculty-1',
           slaStartDate: new Date('2026-01-06T10:00:00'),
           slaDeadline: new Date('2026-01-10T17:00:00'),
@@ -558,7 +563,7 @@ describe('WorkflowService', () => {
           proposalId: 'proposal-1',
           action: WorkflowAction.SUBMIT,
           fromState: ProjectState.DRAFT,
-          toState: ProjectState.FACULTY_REVIEW,
+          toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           actorId: 'user-1',
           actorName: 'GIANG_VIEN',
           timestamp: new Date(),
@@ -571,13 +576,13 @@ describe('WorkflowService', () => {
       const result = await service.submitProposal('proposal-1', mockContext);
 
       expect(result.previousState).toBe(ProjectState.DRAFT);
-      expect(result.currentState).toBe(ProjectState.FACULTY_REVIEW);
+      expect(result.currentState).toBe(ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW);
       expect(result.holderUnit).toBe('faculty-1');
 
       // Phase 1 Refactor: Verify transaction service was called with correct params
       expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
         expect.objectContaining({
-          toState: ProjectState.FACULTY_REVIEW,
+          toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           holderUnit: 'faculty-1',
           holderUser: null,
           slaStartDate: expect.any(Date),
@@ -594,7 +599,7 @@ describe('WorkflowService', () => {
         expect.objectContaining({
           action: WorkflowAction.SUBMIT,
           fromState: ProjectState.DRAFT,
-          toState: ProjectState.FACULTY_REVIEW,
+          toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         }),
       );
     });
@@ -645,7 +650,7 @@ describe('WorkflowService', () => {
   describe('Task 5: Approve Faculty Review (FACULTY_REVIEW → SCHOOL_SELECTION_REVIEW)', () => {
     const facultyReviewProposal = {
       ...mockProposal,
-      state: ProjectState.FACULTY_REVIEW,
+      state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     };
 
     // Use proper role for APPROVE action (QUAN_LY_KHOA)
@@ -659,15 +664,15 @@ describe('WorkflowService', () => {
       mockPrisma.$transaction.mockImplementation(async (callback) => {
         mockPrisma.proposal.update.mockResolvedValue({
           ...facultyReviewProposal,
-          state: ProjectState.SCHOOL_SELECTION_REVIEW,
+          state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
           holderUnit: 'PHONG_KHCN',
         });
         mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-2',
           proposalId: 'proposal-1',
           action: WorkflowAction.APPROVE,
-          fromState: ProjectState.FACULTY_REVIEW,
-          toState: ProjectState.SCHOOL_SELECTION_REVIEW,
+          fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+          toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
           actorId: 'user-1',
           actorName: 'QUAN_LY_KHOA',
           timestamp: new Date(),
@@ -682,8 +687,8 @@ describe('WorkflowService', () => {
         facultyContext,
       );
 
-      expect(result.previousState).toBe(ProjectState.FACULTY_REVIEW);
-      expect(result.currentState).toBe(ProjectState.SCHOOL_SELECTION_REVIEW);
+      expect(result.previousState).toBe(ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW);
+      expect(result.currentState).toBe(ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW);
       expect(result.holderUnit).toBe('PHONG_KHCN');
     });
 
@@ -694,8 +699,8 @@ describe('WorkflowService', () => {
       expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
         expect.objectContaining({
           action: WorkflowAction.APPROVE,
-          fromState: ProjectState.FACULTY_REVIEW,
-          toState: ProjectState.SCHOOL_SELECTION_REVIEW,
+          fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+          toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         }),
       );
     });
@@ -712,7 +717,7 @@ describe('WorkflowService', () => {
   describe('Task 6: Return Faculty Review (FACULTY_REVIEW → CHANGES_REQUESTED)', () => {
     const facultyReviewProposal = {
       ...mockProposal,
-      state: ProjectState.FACULTY_REVIEW,
+      state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     };
 
     // Use proper role for RETURN action (QUAN_LY_KHOA)
@@ -734,11 +739,11 @@ describe('WorkflowService', () => {
           id: 'log-3',
           proposalId: 'proposal-1',
           action: WorkflowAction.RETURN,
-          fromState: ProjectState.FACULTY_REVIEW,
+          fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           toState: ProjectState.CHANGES_REQUESTED,
           actorId: 'user-1',
           actorName: 'QUAN_LY_KHOA',
-          returnTargetState: ProjectState.FACULTY_REVIEW,
+          returnTargetState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           returnTargetHolderUnit: 'faculty-1',
           reasonCode: 'MISSING_DOCUMENTS',
           comment: 'Cần bổ sung tài liệu',
@@ -757,7 +762,7 @@ describe('WorkflowService', () => {
         facultyContext,
       );
 
-      expect(result.previousState).toBe(ProjectState.FACULTY_REVIEW);
+      expect(result.previousState).toBe(ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW);
       expect(result.currentState).toBe(ProjectState.CHANGES_REQUESTED);
       expect(result.holderUnit).toBe('faculty-1'); // owner's faculty
       expect(result.holderUser).toBe('user-1'); // owner
@@ -778,7 +783,7 @@ describe('WorkflowService', () => {
           action: WorkflowAction.RETURN,
           toState: ProjectState.CHANGES_REQUESTED,
           metadata: expect.objectContaining({
-            returnTargetState: ProjectState.FACULTY_REVIEW,
+            returnTargetState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
             returnTargetHolderUnit: 'faculty-1',
           }),
         }),
@@ -864,14 +869,14 @@ describe('WorkflowService', () => {
       mockPrisma.$transaction.mockImplementation(async (callback) => {
         mockPrisma.proposal.update.mockResolvedValue({
           ...mockProposal,
-          state: ProjectState.FACULTY_REVIEW,
+          state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         });
         mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-1',
           proposalId: 'proposal-1',
           action: WorkflowAction.SUBMIT,
           fromState: ProjectState.DRAFT,
-          toState: ProjectState.FACULTY_REVIEW,
+          toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           actorId: 'user-1',
           actorName: 'Test User',
           timestamp: new Date(),
@@ -887,7 +892,7 @@ describe('WorkflowService', () => {
     it('should reject approve when user role lacks permission', async () => {
       const facultyReviewProposal = {
         ...mockProposal,
-        state: ProjectState.FACULTY_REVIEW,
+        state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       };
       const wrongRoleContext = {
         ...mockContext,
@@ -897,14 +902,14 @@ describe('WorkflowService', () => {
       mockPrisma.$transaction.mockImplementation(async (callback) => {
         mockPrisma.proposal.update.mockResolvedValue({
           ...facultyReviewProposal,
-          state: ProjectState.SCHOOL_SELECTION_REVIEW,
+          state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         });
         mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-2',
           proposalId: 'proposal-1',
           action: WorkflowAction.APPROVE,
-          fromState: ProjectState.FACULTY_REVIEW,
-          toState: ProjectState.SCHOOL_SELECTION_REVIEW,
+          fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+          toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
           actorId: 'user-1',
           actorName: 'Test User',
           timestamp: new Date(),
@@ -920,7 +925,7 @@ describe('WorkflowService', () => {
     it('should reject return when user role lacks permission', async () => {
       const facultyReviewProposal = {
         ...mockProposal,
-        state: ProjectState.FACULTY_REVIEW,
+        state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       };
       const wrongRoleContext = {
         ...mockContext,
@@ -936,7 +941,7 @@ describe('WorkflowService', () => {
           id: 'log-3',
           proposalId: 'proposal-1',
           action: WorkflowAction.RETURN,
-          fromState: ProjectState.FACULTY_REVIEW,
+          fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           toState: ProjectState.CHANGES_REQUESTED,
           actorId: 'user-1',
           actorName: 'Test User',
@@ -963,14 +968,14 @@ describe('WorkflowService', () => {
       mockPrisma.$transaction.mockImplementation(async (callback) => {
         mockPrisma.proposal.update.mockResolvedValue({
           ...mockProposal,
-          state: ProjectState.FACULTY_REVIEW,
+          state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         });
         mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-1',
           proposalId: 'proposal-1',
           action: WorkflowAction.SUBMIT,
           fromState: ProjectState.DRAFT,
-          toState: ProjectState.FACULTY_REVIEW,
+          toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           actorId: 'user-1',
           actorName: 'Test User',
           timestamp: new Date(),
@@ -1000,14 +1005,14 @@ describe('WorkflowService', () => {
       mockPrisma.$transaction.mockImplementation(async (callback) => {
         mockPrisma.proposal.update.mockResolvedValue({
           ...mockProposal,
-          state: ProjectState.FACULTY_REVIEW,
+          state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         });
         mockPrisma.workflowLog.create.mockResolvedValue({
           id: 'log-1',
           proposalId: 'proposal-1',
           action: WorkflowAction.SUBMIT,
           fromState: ProjectState.DRAFT,
-          toState: ProjectState.FACULTY_REVIEW,
+          toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           actorId: 'user-1',
           actorName: 'user-1', // Fallback to userId
           timestamp: new Date(),
@@ -1035,13 +1040,13 @@ describe('WorkflowService', () => {
       });
 
       it('should return correct holder for FACULTY_REVIEW state', () => {
-        const result = getHolderForState(ProjectState.FACULTY_REVIEW, mockProposal);
+        const result = getHolderForState(ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW, mockProposal);
         expect(result.holderUnit).toBe('faculty-1');
         expect(result.holderUser).toBeNull();
       });
 
       it('should return correct holder for SCHOOL_SELECTION_REVIEW state', () => {
-        const result = getHolderForState(ProjectState.SCHOOL_SELECTION_REVIEW, mockProposal);
+        const result = getHolderForState(ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW, mockProposal);
         expect(result.holderUnit).toBe('PHONG_KHCN');
         expect(result.holderUser).toBeNull();
       });
@@ -1052,7 +1057,7 @@ describe('WorkflowService', () => {
           holderUnit: 'council-1',
           holderUser: 'secretary-1',
         };
-        const result = getHolderForState(ProjectState.OUTLINE_COUNCIL_REVIEW, proposalWithCouncil);
+        const result = getHolderForState(ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW, proposalWithCouncil);
         expect(result.holderUnit).toBe('council-1');
         expect(result.holderUser).toBe('secretary-1');
       });
@@ -1076,13 +1081,13 @@ describe('WorkflowService', () => {
       });
 
       it('should return correct holder for FACULTY_ACCEPTANCE_REVIEW state', () => {
-        const result = getHolderForState(ProjectState.FACULTY_ACCEPTANCE_REVIEW, mockProposal);
+        const result = getHolderForState(ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW, mockProposal);
         expect(result.holderUnit).toBe('faculty-1');
         expect(result.holderUser).toBeNull();
       });
 
       it('should return correct holder for SCHOOL_ACCEPTANCE_REVIEW state', () => {
-        const result = getHolderForState(ProjectState.SCHOOL_ACCEPTANCE_REVIEW, mockProposal);
+        const result = getHolderForState(ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW, mockProposal);
         expect(result.holderUnit).toBe('PHONG_KHCN');
         expect(result.holderUser).toBeNull();
       });
@@ -1159,7 +1164,7 @@ describe('WorkflowService', () => {
       it('should return true for users in matching faculty when holderUnit is faculty', () => {
         const facultyProposal = {
           ...mockProposal,
-          state: ProjectState.FACULTY_REVIEW,
+          state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           holderUnit: 'faculty-1',
           holderUser: null,
         };
@@ -1170,7 +1175,7 @@ describe('WorkflowService', () => {
       it('should return true for PHONG_KHCN role when holderUnit is PHONG_KHCN', () => {
         const phongKHNCProposal = {
           ...mockProposal,
-          state: ProjectState.SCHOOL_SELECTION_REVIEW,
+          state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
           holderUnit: 'PHONG_KHCN',
           holderUser: null,
         };
@@ -1190,7 +1195,7 @@ describe('WorkflowService', () => {
 
         it('should return false for non-terminal states', () => {
           expect(isTerminalQueueState(ProjectState.DRAFT)).toBe(false);
-          expect(isTerminalQueueState(ProjectState.FACULTY_REVIEW)).toBe(false);
+          expect(isTerminalQueueState(ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW)).toBe(false);
           expect(isTerminalQueueState(ProjectState.IN_PROGRESS)).toBe(false);
           expect(isTerminalQueueState(ProjectState.PAUSED)).toBe(false);
         });
@@ -1262,7 +1267,7 @@ describe('WorkflowService', () => {
       mockPrisma.$transaction.mockImplementation(async (callback) => {
         mockPrisma.proposal.update.mockResolvedValue({
           ...mockProposal,
-          state: ProjectState.FACULTY_REVIEW,
+          state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           holderUnit: 'faculty-1',
           slaStartDate: new Date('2026-01-06T10:00:00'),
           slaDeadline: new Date('2026-01-10T17:00:00'),
@@ -1272,7 +1277,7 @@ describe('WorkflowService', () => {
           proposalId: 'proposal-1',
           action: WorkflowAction.SUBMIT,
           fromState: ProjectState.DRAFT,
-          toState: ProjectState.FACULTY_REVIEW,
+          toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           actorId: 'user-1',
           actorName: 'Test User',
           timestamp: new Date(),
@@ -1365,7 +1370,7 @@ describe('WorkflowService', () => {
       mockPrisma.$transaction.mockImplementation(async (callback) => {
         mockPrisma.proposal.update.mockResolvedValue({
           ...mockProposal,
-          state: ProjectState.FACULTY_REVIEW,
+          state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           holderUnit: 'faculty-1',
           slaStartDate: new Date('2026-01-03T17:00:00'),
           slaDeadline: expectedDeadline,
@@ -1375,7 +1380,7 @@ describe('WorkflowService', () => {
           proposalId: 'proposal-1',
           action: WorkflowAction.SUBMIT,
           fromState: ProjectState.DRAFT,
-          toState: ProjectState.FACULTY_REVIEW,
+          toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           actorId: 'user-1',
           actorName: 'Test User',
           timestamp: new Date(),
@@ -1405,7 +1410,7 @@ describe('WorkflowService', () => {
       mockTransaction.updateProposalWithLog.mockResolvedValueOnce({
         proposal: {
           ...mockProposal,
-          state: ProjectState.FACULTY_REVIEW,
+          state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           holderUnit: 'faculty-1',
           slaStartDate: submitDate,
           slaDeadline: expectedDeadline,
@@ -1415,7 +1420,7 @@ describe('WorkflowService', () => {
           proposalId: 'proposal-1',
           action: WorkflowAction.SUBMIT,
           fromState: ProjectState.DRAFT,
-          toState: ProjectState.FACULTY_REVIEW,
+          toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           actorId: 'user-1',
           actorName: 'Test User',
           timestamp: new Date(),
@@ -1436,7 +1441,7 @@ describe('WorkflowService', () => {
       mockPrisma.$transaction.mockImplementation(async (callback) => {
         mockPrisma.proposal.update.mockResolvedValue({
           ...mockProposal,
-          state: ProjectState.FACULTY_REVIEW,
+          state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           holderUnit: 'faculty-1',
           slaStartDate: submitDate,
           slaDeadline: expectedDeadline,
@@ -1446,7 +1451,7 @@ describe('WorkflowService', () => {
           proposalId: 'proposal-1',
           action: WorkflowAction.SUBMIT,
           fromState: ProjectState.DRAFT,
-          toState: ProjectState.FACULTY_REVIEW,
+          toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           actorId: 'user-1',
           actorName: 'Test User',
           timestamp: new Date(),
@@ -1561,7 +1566,7 @@ describe('WorkflowService', () => {
       // This test is skipped as it's covered by validator.service.spec.ts
       const nonDraftProposal = {
         ...mockProposal,
-        state: ProjectState.FACULTY_REVIEW,
+        state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       };
       mockPrisma.proposal.findUnique.mockResolvedValue(nonDraftProposal);
 
@@ -1590,7 +1595,7 @@ describe('WorkflowService', () => {
   describe('Story 9.1: Withdraw Proposal (Review states → WITHDRAWN)', () => {
     const facultyReviewProposal = {
       ...mockProposal,
-      state: ProjectState.FACULTY_REVIEW,
+      state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
       holderUnit: 'faculty-1',
     };
 
@@ -1614,7 +1619,7 @@ describe('WorkflowService', () => {
           id: 'log-withdraw',
           proposalId: 'proposal-1',
           action: WorkflowAction.WITHDRAW,
-          fromState: ProjectState.FACULTY_REVIEW,
+          fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           toState: ProjectState.WITHDRAWN,
           actorId: 'user-1',
           actorName: 'Test User',
@@ -1632,13 +1637,13 @@ describe('WorkflowService', () => {
       const result = await service.withdrawProposal('proposal-1', undefined, ownerContext);
 
       expect(result.currentState).toBe(ProjectState.WITHDRAWN);
-      expect(result.previousState).toBe(ProjectState.FACULTY_REVIEW);
+      expect(result.previousState).toBe(ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW);
     });
 
     it('AC2: should withdraw from SCHOOL_SELECTION_REVIEW successfully', async () => {
       const schoolReviewProposal = {
         ...mockProposal,
-        state: ProjectState.SCHOOL_SELECTION_REVIEW,
+        state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         holderUnit: 'PHONG_KHCN',
       };
       mockPrisma.proposal.findUnique.mockResolvedValue(schoolReviewProposal);
@@ -1646,13 +1651,13 @@ describe('WorkflowService', () => {
       const result = await service.withdrawProposal('proposal-1', undefined, ownerContext);
 
       expect(result.currentState).toBe(ProjectState.WITHDRAWN);
-      expect(result.previousState).toBe(ProjectState.SCHOOL_SELECTION_REVIEW);
+      expect(result.previousState).toBe(ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW);
     });
 
     it('AC3: should withdraw from OUTLINE_COUNCIL_REVIEW successfully', async () => {
       const councilReviewProposal = {
         ...mockProposal,
-        state: ProjectState.OUTLINE_COUNCIL_REVIEW,
+        state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
         holderUnit: 'council-1',
       };
       mockPrisma.proposal.findUnique.mockResolvedValue(councilReviewProposal);
@@ -1660,7 +1665,7 @@ describe('WorkflowService', () => {
       const result = await service.withdrawProposal('proposal-1', undefined, ownerContext);
 
       expect(result.currentState).toBe(ProjectState.WITHDRAWN);
-      expect(result.previousState).toBe(ProjectState.OUTLINE_COUNCIL_REVIEW);
+      expect(result.previousState).toBe(ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW);
     });
 
     it('AC4: should withdraw from CHANGES_REQUESTED successfully', async () => {
@@ -1737,7 +1742,7 @@ describe('WorkflowService', () => {
   describe('Story 9.2: Reject Proposal (Review states → REJECTED)', () => {
     const facultyReviewProposal = {
       ...mockProposal,
-      state: ProjectState.FACULTY_REVIEW,
+      state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     };
 
     const managerContext: TransitionContext = {
@@ -1761,7 +1766,7 @@ describe('WorkflowService', () => {
           id: 'log-reject',
           proposalId: 'proposal-1',
           action: WorkflowAction.REJECT,
-          fromState: ProjectState.FACULTY_REVIEW,
+          fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           toState: ProjectState.REJECTED,
           actorId: 'manager-1',
           actorName: 'Manager',
@@ -1785,7 +1790,7 @@ describe('WorkflowService', () => {
       );
 
       expect(result.currentState).toBe(ProjectState.REJECTED);
-      expect(result.previousState).toBe(ProjectState.FACULTY_REVIEW);
+      expect(result.previousState).toBe(ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW);
     });
 
     it('AC2: PHONG_KHCN can reject from FACULTY_REVIEW', async () => {
@@ -1813,7 +1818,7 @@ describe('WorkflowService', () => {
       // Test OUTLINE_COUNCIL_REVIEW
       const councilReviewProposal = {
         ...mockProposal,
-        state: ProjectState.OUTLINE_COUNCIL_REVIEW,
+        state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
       };
       mockPrisma.proposal.findUnique.mockResolvedValue(councilReviewProposal);
 
@@ -1827,16 +1832,16 @@ describe('WorkflowService', () => {
       expect(result.currentState).toBe(ProjectState.REJECTED);
     });
 
-    it('AC4: THU_KY_HOI_DONG can reject from OUTLINE_COUNCIL_REVIEW', async () => {
+    it('AC4: PHONG_KHCN can reject from OUTLINE_COUNCIL_REVIEW', async () => {
       const councilReviewProposal = {
         ...mockProposal,
-        state: ProjectState.OUTLINE_COUNCIL_REVIEW,
+        state: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
       };
       mockPrisma.proposal.findUnique.mockResolvedValue(councilReviewProposal);
 
       const secretaryContext: TransitionContext = {
         ...managerContext,
-        userRole: 'THU_KY_HOI_DONG',
+        userRole: 'PHONG_KHCN',
       };
 
       const result = await service.rejectProposal(
@@ -1968,7 +1973,7 @@ describe('WorkflowService', () => {
           holderUser: null,
           pausedAt: new Date(),
           pauseReason: 'Tạm dừng để kiểm tra',
-          expectedResumeAt: new Date('2026-01-15T00:00:00'),
+          expectedResumeAt: new Date('2026-02-15T00:00:00'),
           prePauseState: ProjectState.IN_PROGRESS,
           prePauseHolderUnit: 'faculty-1',
           prePauseHolderUser: 'user-1',
@@ -1995,7 +2000,7 @@ describe('WorkflowService', () => {
       const result = await service.pauseProposal(
         'proposal-1',
         'Tạm dừng để kiểm tra',
-        new Date('2026-01-15T00:00:00'),
+        new Date('2026-02-15T00:00:00'),
         phongKHNCContext,
       );
 
@@ -2042,7 +2047,7 @@ describe('WorkflowService', () => {
     });
 
     it('AC4: should store expectedResumeAt if provided', async () => {
-      const expectedDate = new Date('2026-01-15T00:00:00');
+      const expectedDate = new Date('2026-02-15T00:00:00');
       await service.pauseProposal(
         'proposal-1',
         'Tạm dừng',
@@ -2124,7 +2129,7 @@ describe('WorkflowService', () => {
     });
 
     it('AC9: should build pause comment with expected resume date', async () => {
-      const expectedDate = new Date('2026-01-15T00:00:00');
+      const expectedDate = new Date('2026-02-15T00:00:00');
       await service.pauseProposal(
         'proposal-1',
         'Tạm dừng',
@@ -2135,7 +2140,7 @@ describe('WorkflowService', () => {
       // Phase 1 Refactor: Verify transaction service was called with pause comment
       expect(mockTransaction.updateProposalWithLog).toHaveBeenCalledWith(
         expect.objectContaining({
-          comment: expect.stringContaining('15/1/2026'),
+          comment: expect.stringContaining('15/2/2026'),
         }),
       );
     });
@@ -2395,7 +2400,7 @@ describe('WorkflowService', () => {
     it('AC11: should handle different pre-pause states', async () => {
       const pausedFromFacultyReview = {
         ...pausedProposal,
-        prePauseState: ProjectState.FACULTY_REVIEW,
+        prePauseState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
         prePauseHolderUnit: 'faculty-1',
         prePauseHolderUser: null,
       };
@@ -2403,7 +2408,7 @@ describe('WorkflowService', () => {
       mockPrisma.$transaction.mockImplementation(async (callback) => {
         mockPrisma.proposal.update.mockResolvedValue({
           ...pausedFromFacultyReview,
-          state: ProjectState.FACULTY_REVIEW,
+          state: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           holderUnit: 'faculty-1',
           holderUser: null,
         });
@@ -2412,7 +2417,7 @@ describe('WorkflowService', () => {
           proposalId: 'proposal-1',
           action: WorkflowAction.RESUME,
           fromState: ProjectState.PAUSED,
-          toState: ProjectState.FACULTY_REVIEW,
+          toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
           actorId: 'pkhcn-1',
           actorName: 'PKHCN User',
           comment: 'Tiếp tục',
@@ -2427,7 +2432,7 @@ describe('WorkflowService', () => {
         phongKHNCContext,
       );
 
-      expect(result.currentState).toBe(ProjectState.FACULTY_REVIEW);
+      expect(result.currentState).toBe(ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW);
     });
   });
 });

@@ -15,9 +15,9 @@ export interface HolderAssignment {
  *
  * Based on Epic 3 holder rules:
  * - DRAFT: null, null (not assigned yet)
- * - FACULTY_REVIEW: faculty_id, null (faculty reviews)
- * - SCHOOL_SELECTION_REVIEW: "PHONG_KHCN", null (PKHCN assigns council)
- * - OUTLINE_COUNCIL_REVIEW: council_id, council_secretary_id
+ * - FACULTY_COUNCIL_OUTLINE_REVIEW: faculty_id, null (faculty reviews)
+ * - SCHOOL_COUNCIL_OUTLINE_REVIEW: "PHONG_KHCN", null (PKHCN assigns council)
+ * - SCHOOL_COUNCIL_OUTLINE_REVIEW: council_id, council_secretary_id
  * - CHANGES_REQUESTED: owner_faculty_id, owner_id (back to PI)
  * - APPROVED: owner_faculty_id, owner_id (PI to implement)
  * - IN_PROGRESS: owner_faculty_id, owner_id (PI working)
@@ -45,26 +45,25 @@ export function getHolderForState(
       // Not assigned - still with owner
       return { holderUnit: null, holderUser: null };
 
-    case ProjectState.FACULTY_REVIEW:
+    case ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW:
       // Assigned to faculty for review
       return {
         holderUnit: proposal.facultyId,
         holderUser: null, // Anyone with QUAN_LY_KHOA role can act
       };
 
-    case ProjectState.SCHOOL_SELECTION_REVIEW:
-      // PKHCN assigns council
+    case ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW:
+      // If council already assigned (via ASSIGN_COUNCIL action), keep it
+      // Otherwise, PKHCN handles assignment
+      if (proposal.holderUnit && proposal.holderUnit !== SPECIAL_UNIT_CODES.PHONG_KHCN) {
+        return {
+          holderUnit: proposal.holderUnit,
+          holderUser: proposal.holderUser || null,
+        };
+      }
       return {
         holderUnit: SPECIAL_UNIT_CODES.PHONG_KHCN,
         holderUser: null,
-      };
-
-    case ProjectState.OUTLINE_COUNCIL_REVIEW:
-      // Assigned to council - holderUnit should be council_id
-      // This will be set by the ASSIGN_COUNCIL action
-      return {
-        holderUnit: proposal.holderUnit || null, // Keep existing if set
-        holderUser: proposal.holderUser || null,
       };
 
     // Phase B: Changes & Approval
@@ -84,14 +83,14 @@ export function getHolderForState(
       };
 
     // Phase C: Acceptance & Handover
-    case ProjectState.FACULTY_ACCEPTANCE_REVIEW:
+    case ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW:
       // Faculty reviews acceptance
       return {
         holderUnit: proposal.facultyId,
         holderUser: null, // Anyone with QUAN_LY_KHOA role
       };
 
-    case ProjectState.SCHOOL_ACCEPTANCE_REVIEW:
+    case ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW:
       // PKHCN or BGH reviews
       return {
         holderUnit: SPECIAL_UNIT_CODES.PHONG_KHCN,

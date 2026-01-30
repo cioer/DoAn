@@ -166,6 +166,8 @@ export class WorkflowValidatorService {
       WorkflowAction.SUBMIT,
       WorkflowAction.WITHDRAW,
       WorkflowAction.RESUBMIT,
+      WorkflowAction.CANCEL,
+      WorkflowAction.SUBMIT_ACCEPTANCE,
     ];
 
     if (ownershipRequiredActions.includes(action)) {
@@ -175,6 +177,10 @@ export class WorkflowValidatorService {
             ? 'Chỉ chủ nhiệm đề tài mới có thể nộp hồ sơ'
             : action === WorkflowAction.WITHDRAW
             ? 'Chỉ chủ nhiệm đề tài mới có thể rút hồ sơ'
+            : action === WorkflowAction.CANCEL
+            ? 'Chỉ chủ nhiệm đề tài mới có thể hủy đề tài'
+            : action === WorkflowAction.SUBMIT_ACCEPTANCE
+            ? 'Chỉ chủ nhiệm đề tài mới có thể nộp nghiệm thu'
             : 'Chỉ chủ nhiệm đề tài mới có thể nộp lại hồ sơ',
         );
       }
@@ -284,17 +290,17 @@ export class WorkflowValidatorService {
     action: WorkflowAction,
     userRole: string,
   ): void {
-    // PAUSE action: Only PKHCN can pause
-    if (action === WorkflowAction.PAUSE && userRole !== 'PKHCN') {
+    // PAUSE action: Only PHONG_KHCN can pause
+    if (action === WorkflowAction.PAUSE && userRole !== 'PHONG_KHCN') {
       throw new ForbiddenException(
-        'Chỉ PKHCN mới có thể tạm dừng đề tài',
+        'Chỉ Phòng KHCN mới có thể tạm dừng đề tài',
       );
     }
 
-    // RESUME action: Only PKHCN can resume
-    if (action === WorkflowAction.RESUME && userRole !== 'PKHCN') {
+    // RESUME action: Only PHONG_KHCN can resume
+    if (action === WorkflowAction.RESUME && userRole !== 'PHONG_KHCN') {
       throw new ForbiddenException(
-        'Chỉ PKHCN mới có thể tiếp tục đề tài đã tạm dừng',
+        'Chỉ Phòng KHCN mới có thể tiếp tục đề tài đã tạm dừng',
       );
     }
 
@@ -329,7 +335,7 @@ export class WorkflowValidatorService {
   ): void {
     // Faculty approval
     if (action === WorkflowAction.APPROVE && userRole === 'KHOA') {
-      if (proposal.state !== ProjectState.FACULTY_REVIEW) {
+      if (proposal.state !== ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW) {
         throw new BadRequestException(
           'Chỉ có thể duyệt khi đề tài đang được Khoa xem xét',
         );
@@ -338,12 +344,9 @@ export class WorkflowValidatorService {
 
     // School approval
     if (action === WorkflowAction.APPROVE && userRole === 'PHONG_KHCN') {
-      if (
-        proposal.state !== ProjectState.SCHOOL_SELECTION_REVIEW &&
-        proposal.state !== ProjectState.OUTLINE_COUNCIL_REVIEW
-      ) {
+      if (proposal.state !== ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW) {
         throw new BadRequestException(
-          'Chỉ có thể duyệt khi đề tài đang được Phòng KHCN xem xét',
+          'Chỉ có thể duyệt khi đề tài đang được xét duyệt bởi Hội đồng Trường',
         );
       }
     }

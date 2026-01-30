@@ -39,70 +39,59 @@ export interface StateTransition {
  * - workflow_logs.action = SUBMIT records the event
  */
 export const VALID_TRANSITIONS: StateTransition[] = [
-  // Phase A: Proposal Submission & Review
+  // Phase A: Proposal Submission & Council Reviews
+  // DRAFT → Faculty Council Outline Review
   {
     fromState: ProjectState.DRAFT,
-    toState: ProjectState.FACULTY_REVIEW,
+    toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     action: WorkflowAction.SUBMIT,
     allowedRoles: ['GIANG_VIEN'],
   },
+
+  // Faculty Council Outline Review Outcomes
   {
-    fromState: ProjectState.FACULTY_REVIEW,
-    toState: ProjectState.SCHOOL_SELECTION_REVIEW,
+    fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+    toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
     action: WorkflowAction.APPROVE,
-    allowedRoles: ['QUAN_LY_KHOA', 'THU_KY_KHOA'],
+    allowedRoles: ['QUAN_LY_KHOA', 'GIANG_VIEN'], // Council chair and members
   },
   {
-    fromState: ProjectState.FACULTY_REVIEW,
+    fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     toState: ProjectState.CHANGES_REQUESTED,
     action: WorkflowAction.RETURN,
-    allowedRoles: ['QUAN_LY_KHOA', 'THU_KY_KHOA'],
+    allowedRoles: ['QUAN_LY_KHOA', 'GIANG_VIEN'], // Council chair and members
   },
 
-  // School Selection → Council Assignment
+  // School Council Outline Review Outcomes
   {
-    fromState: ProjectState.SCHOOL_SELECTION_REVIEW,
-    toState: ProjectState.OUTLINE_COUNCIL_REVIEW,
-    action: WorkflowAction.ASSIGN_COUNCIL,
-    allowedRoles: ['PHONG_KHCN'],
-  },
-
-  // Council Review Outcomes
-  {
-    fromState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+    fromState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
     toState: ProjectState.APPROVED,
     action: WorkflowAction.APPROVE,
-    allowedRoles: ['THU_KY_HOI_DONG', 'BAN_GIAM_HOC'],
+    allowedRoles: ['BAN_GIAM_HOC', 'GIANG_VIEN', 'QUAN_LY_KHOA'], // Council chair and members
   },
   {
-    fromState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+    fromState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
     toState: ProjectState.CHANGES_REQUESTED,
     action: WorkflowAction.RETURN,
-    allowedRoles: ['THU_KY_HOI_DONG', 'BAN_GIAM_HOC'],
+    allowedRoles: ['BAN_GIAM_HOC', 'GIANG_VIEN', 'QUAN_LY_KHOA'], // Council chair and members
   },
   {
-    fromState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+    fromState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
     toState: ProjectState.REJECTED,
     action: WorkflowAction.REJECT,
-    allowedRoles: ['BAN_GIAM_HOC'],
+    allowedRoles: ['BAN_GIAM_HOC'], // Only council chair can reject
   },
 
   // Changes Requested → Resubmit
   {
     fromState: ProjectState.CHANGES_REQUESTED,
-    toState: ProjectState.FACULTY_REVIEW,
+    toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     action: WorkflowAction.RESUBMIT,
     allowedRoles: ['GIANG_VIEN'],
   },
   {
     fromState: ProjectState.CHANGES_REQUESTED,
-    toState: ProjectState.SCHOOL_SELECTION_REVIEW,
-    action: WorkflowAction.RESUBMIT,
-    allowedRoles: ['GIANG_VIEN'],
-  },
-  {
-    fromState: ProjectState.CHANGES_REQUESTED,
-    toState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+    toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
     action: WorkflowAction.RESUBMIT,
     allowedRoles: ['GIANG_VIEN'],
   },
@@ -115,40 +104,40 @@ export const VALID_TRANSITIONS: StateTransition[] = [
     allowedRoles: ['GIANG_VIEN', 'PHONG_KHCN'],
   },
 
-  // In Progress → Acceptance Review
+  // In Progress → Faculty Council Acceptance Review
   {
     fromState: ProjectState.IN_PROGRESS,
-    toState: ProjectState.FACULTY_ACCEPTANCE_REVIEW,
+    toState: ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW,
     action: WorkflowAction.SUBMIT_ACCEPTANCE,
     allowedRoles: ['GIANG_VIEN'],
   },
 
-  // Faculty Acceptance Outcomes
+  // Faculty Council Acceptance Review Outcomes
   {
-    fromState: ProjectState.FACULTY_ACCEPTANCE_REVIEW,
-    toState: ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+    fromState: ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW,
+    toState: ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW,
     action: WorkflowAction.FACULTY_ACCEPT,
-    allowedRoles: ['QUAN_LY_KHOA', 'THU_KY_KHOA'],
+    allowedRoles: ['QUAN_LY_KHOA', 'GIANG_VIEN'], // Council chair and members
   },
   {
-    fromState: ProjectState.FACULTY_ACCEPTANCE_REVIEW,
+    fromState: ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW,
     toState: ProjectState.CHANGES_REQUESTED,
     action: WorkflowAction.RETURN,
-    allowedRoles: ['QUAN_LY_KHOA', 'THU_KY_KHOA'],
+    allowedRoles: ['QUAN_LY_KHOA', 'GIANG_VIEN'], // Council chair and members
   },
 
-  // School Acceptance Outcomes
+  // School Council Acceptance Review Outcomes
   {
-    fromState: ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+    fromState: ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW,
     toState: ProjectState.HANDOVER,
     action: WorkflowAction.ACCEPT,
-    allowedRoles: ['PHONG_KHCN', 'BAN_GIAM_HOC'],
+    allowedRoles: ['BAN_GIAM_HOC', 'GIANG_VIEN', 'QUAN_LY_KHOA'], // Council chair and members
   },
   {
-    fromState: ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+    fromState: ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW,
     toState: ProjectState.CHANGES_REQUESTED,
     action: WorkflowAction.RETURN,
-    allowedRoles: ['PHONG_KHCN', 'BAN_GIAM_HOC'],
+    allowedRoles: ['BAN_GIAM_HOC', 'GIANG_VIEN', 'QUAN_LY_KHOA'], // Council chair and members
   },
 
   // Handover → Completed
@@ -175,22 +164,23 @@ export const VALID_TRANSITIONS: StateTransition[] = [
     action: WorkflowAction.CANCEL,
     allowedRoles: ['GIANG_VIEN'],
   },
+  // Cancel: PAUSED → CANCELLED (Story 9.1 - owner can cancel paused proposals)
+  {
+    fromState: ProjectState.PAUSED,
+    toState: ProjectState.CANCELLED,
+    action: WorkflowAction.CANCEL,
+    allowedRoles: ['GIANG_VIEN'],
+  },
 
   // Withdraw: Review states → WITHDRAWN (Story 9.1)
   {
-    fromState: ProjectState.FACULTY_REVIEW,
+    fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     toState: ProjectState.WITHDRAWN,
     action: WorkflowAction.WITHDRAW,
     allowedRoles: ['GIANG_VIEN'],
   },
   {
-    fromState: ProjectState.SCHOOL_SELECTION_REVIEW,
-    toState: ProjectState.WITHDRAWN,
-    action: WorkflowAction.WITHDRAW,
-    allowedRoles: ['GIANG_VIEN'],
-  },
-  {
-    fromState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+    fromState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
     toState: ProjectState.WITHDRAWN,
     action: WorkflowAction.WITHDRAW,
     allowedRoles: ['GIANG_VIEN'],
@@ -204,45 +194,33 @@ export const VALID_TRANSITIONS: StateTransition[] = [
 
   // Reject: Review states → REJECTED (Story 9.2)
   {
-    fromState: ProjectState.FACULTY_REVIEW,
+    fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     toState: ProjectState.REJECTED,
     action: WorkflowAction.REJECT,
-    allowedRoles: ['QUAN_LY_KHOA', 'PHONG_KHCN', 'BAN_GIAM_HOC'],
+    allowedRoles: ['QUAN_LY_KHOA', 'BAN_GIAM_HOC'],
   },
   {
-    fromState: ProjectState.SCHOOL_SELECTION_REVIEW,
+    fromState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
     toState: ProjectState.REJECTED,
     action: WorkflowAction.REJECT,
-    allowedRoles: ['PHONG_KHCN', 'BAN_GIAM_HOC'],
-  },
-  {
-    fromState: ProjectState.OUTLINE_COUNCIL_REVIEW,
-    toState: ProjectState.REJECTED,
-    action: WorkflowAction.REJECT,
-    allowedRoles: ['THU_KY_HOI_DONG', 'THANH_TRUNG', 'BAN_GIAM_HOC'],
+    allowedRoles: ['BAN_GIAM_HOC'],
   },
   {
     fromState: ProjectState.CHANGES_REQUESTED,
     toState: ProjectState.REJECTED,
     action: WorkflowAction.REJECT,
-    allowedRoles: ['QUAN_LY_KHOA', 'PHONG_KHCN', 'BAN_GIAM_HOC'],
+    allowedRoles: ['QUAN_LY_KHOA', 'BAN_GIAM_HOC'],
   },
 
   // Pause: Non-terminal states → PAUSED (Story 9.3, PHONG_KHCN only)
   {
-    fromState: ProjectState.FACULTY_REVIEW,
+    fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     toState: ProjectState.PAUSED,
     action: WorkflowAction.PAUSE,
     allowedRoles: ['PHONG_KHCN'],
   },
   {
-    fromState: ProjectState.SCHOOL_SELECTION_REVIEW,
-    toState: ProjectState.PAUSED,
-    action: WorkflowAction.PAUSE,
-    allowedRoles: ['PHONG_KHCN'],
-  },
-  {
-    fromState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+    fromState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
     toState: ProjectState.PAUSED,
     action: WorkflowAction.PAUSE,
     allowedRoles: ['PHONG_KHCN'],
@@ -266,13 +244,13 @@ export const VALID_TRANSITIONS: StateTransition[] = [
     allowedRoles: ['PHONG_KHCN'],
   },
   {
-    fromState: ProjectState.FACULTY_ACCEPTANCE_REVIEW,
+    fromState: ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW,
     toState: ProjectState.PAUSED,
     action: WorkflowAction.PAUSE,
     allowedRoles: ['PHONG_KHCN'],
   },
   {
-    fromState: ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+    fromState: ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW,
     toState: ProjectState.PAUSED,
     action: WorkflowAction.PAUSE,
     allowedRoles: ['PHONG_KHCN'],
@@ -289,19 +267,13 @@ export const VALID_TRANSITIONS: StateTransition[] = [
   // The service layer handles this dynamically
   {
     fromState: ProjectState.PAUSED,
-    toState: ProjectState.FACULTY_REVIEW,
+    toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     action: WorkflowAction.RESUME,
     allowedRoles: ['PHONG_KHCN'],
   },
   {
     fromState: ProjectState.PAUSED,
-    toState: ProjectState.SCHOOL_SELECTION_REVIEW,
-    action: WorkflowAction.RESUME,
-    allowedRoles: ['PHONG_KHCN'],
-  },
-  {
-    fromState: ProjectState.PAUSED,
-    toState: ProjectState.OUTLINE_COUNCIL_REVIEW,
+    toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
     action: WorkflowAction.RESUME,
     allowedRoles: ['PHONG_KHCN'],
   },
@@ -325,13 +297,13 @@ export const VALID_TRANSITIONS: StateTransition[] = [
   },
   {
     fromState: ProjectState.PAUSED,
-    toState: ProjectState.FACULTY_ACCEPTANCE_REVIEW,
+    toState: ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW,
     action: WorkflowAction.RESUME,
     allowedRoles: ['PHONG_KHCN'],
   },
   {
     fromState: ProjectState.PAUSED,
-    toState: ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+    toState: ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW,
     action: WorkflowAction.RESUME,
     allowedRoles: ['PHONG_KHCN'],
   },
@@ -350,9 +322,8 @@ export const VALID_TRANSITIONS: StateTransition[] = [
 export const STATE_PHASES = {
   PHASE_A_PROPOSAL: [
     ProjectState.DRAFT,
-    ProjectState.FACULTY_REVIEW,
-    ProjectState.SCHOOL_SELECTION_REVIEW,
-    ProjectState.OUTLINE_COUNCIL_REVIEW,
+    ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
+    ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
   ],
   PHASE_B_CHANGES_APPROVAL: [
     ProjectState.CHANGES_REQUESTED,
@@ -360,8 +331,8 @@ export const STATE_PHASES = {
     ProjectState.IN_PROGRESS,
   ],
   PHASE_C_ACCEPTANCE_HANDOVER: [
-    ProjectState.FACULTY_ACCEPTANCE_REVIEW,
-    ProjectState.SCHOOL_ACCEPTANCE_REVIEW,
+    ProjectState.FACULTY_COUNCIL_ACCEPTANCE_REVIEW,
+    ProjectState.SCHOOL_COUNCIL_ACCEPTANCE_REVIEW,
     ProjectState.HANDOVER,
     ProjectState.COMPLETED,
   ],

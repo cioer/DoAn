@@ -126,8 +126,8 @@ export class WorkflowController {
             id: 'log-uuid-2',
             proposalId: 'proposal-uuid',
             action: 'APPROVE',
-            fromState: 'FACULTY_REVIEW',
-            toState: 'SCHOOL_SELECTION_REVIEW',
+            fromState: 'FACULTY_COUNCIL_OUTLINE_REVIEW',
+            toState: 'SCHOOL_COUNCIL_OUTLINE_REVIEW',
             actorId: 'user-uuid',
             actorName: 'Trần Văn B',
             returnTargetState: null,
@@ -141,7 +141,7 @@ export class WorkflowController {
             proposalId: 'proposal-uuid',
             action: 'SUBMIT',
             fromState: 'DRAFT',
-            toState: 'FACULTY_REVIEW',
+            toState: 'FACULTY_COUNCIL_OUTLINE_REVIEW',
             actorId: 'user-uuid',
             actorName: 'Nguyễn Văn A',
             returnTargetState: null,
@@ -271,7 +271,7 @@ export class WorkflowController {
             id: 'proposal-uuid',
             code: 'DT-2024-001',
             title: 'Nghiên cứu ứng dụng AI trong giáo dục',
-            state: 'FACULTY_REVIEW',
+            state: 'FACULTY_COUNCIL_OUTLINE_REVIEW',
             holderUnit: 'faculty-uuid',
             slaDeadline: '2026-01-10T17:00:00.000Z',
             slaStartDate: '2026-01-06T10:00:00.000Z',
@@ -389,7 +389,7 @@ export class WorkflowController {
     }
 
     // Add search filter if provided
-    if (search && search.trim()) {
+    if (search && typeof search === 'string' && search.trim()) {
       const searchTerm = search.trim();
       whereClause = {
         AND: [
@@ -475,7 +475,7 @@ export class WorkflowController {
         data: {
           proposalId: 'proposal-uuid',
           previousState: 'DRAFT',
-          currentState: 'FACULTY_REVIEW',
+          currentState: 'FACULTY_COUNCIL_OUTLINE_REVIEW',
           action: 'SUBMIT',
           holderUnit: 'faculty-id',
           holderUser: null,
@@ -753,7 +753,7 @@ export class WorkflowController {
         data: {
           proposalId: 'proposal-uuid',
           previousState: 'IN_PROGRESS',
-          currentState: 'FACULTY_ACCEPTANCE_REVIEW',
+          currentState: 'FACULTY_COUNCIL_ACCEPTANCE_REVIEW',
           action: 'SUBMIT_ACCEPTANCE',
           holderUnit: 'faculty-id',
           holderUser: null,
@@ -889,8 +889,8 @@ export class WorkflowController {
         success: true,
         data: {
           proposalId: 'proposal-uuid',
-          previousState: 'FACULTY_ACCEPTANCE_REVIEW',
-          currentState: 'SCHOOL_ACCEPTANCE_REVIEW',
+          previousState: 'FACULTY_COUNCIL_ACCEPTANCE_REVIEW',
+          currentState: 'SCHOOL_COUNCIL_ACCEPTANCE_REVIEW',
           action: 'FACULTY_ACCEPT',
           holderUnit: 'PHONG_KHCN',
           holderUser: null,
@@ -983,7 +983,7 @@ export class WorkflowController {
         success: true,
         data: {
           proposalId: 'proposal-uuid',
-          previousState: 'FACULTY_ACCEPTANCE_REVIEW',
+          previousState: 'FACULTY_COUNCIL_ACCEPTANCE_REVIEW',
           currentState: 'CHANGES_REQUESTED',
           action: 'RETURN',
           holderUnit: 'faculty-id',
@@ -1080,8 +1080,8 @@ export class WorkflowController {
         success: true,
         data: {
           proposalId: 'proposal-uuid',
-          previousState: 'FACULTY_REVIEW',
-          currentState: 'SCHOOL_SELECTION_REVIEW',
+          previousState: 'FACULTY_COUNCIL_OUTLINE_REVIEW',
+          currentState: 'SCHOOL_COUNCIL_OUTLINE_REVIEW',
           action: 'APPROVE',
           holderUnit: 'PHONG_KHCN',
           holderUser: null,
@@ -1167,7 +1167,7 @@ export class WorkflowController {
     }
 
     // Validate state: must be FACULTY_REVIEW
-    if (proposal.state !== ProjectState.FACULTY_REVIEW) {
+    if (proposal.state !== ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW) {
       throw new BadRequestException({
         success: false,
         error: {
@@ -1237,12 +1237,12 @@ export class WorkflowController {
         success: true,
         data: {
           proposalId: 'proposal-uuid',
-          previousState: 'FACULTY_REVIEW',
+          previousState: 'FACULTY_COUNCIL_OUTLINE_REVIEW',
           currentState: 'CHANGES_REQUESTED',
           action: 'RETURN',
           holderUnit: 'faculty-uuid',
           holderUser: 'user-uuid',
-          returnTargetState: 'FACULTY_REVIEW',
+          returnTargetState: 'FACULTY_COUNCIL_OUTLINE_REVIEW',
           returnTargetHolderUnit: 'faculty-uuid',
           workflowLogId: 'log-uuid',
         },
@@ -1326,7 +1326,7 @@ export class WorkflowController {
     }
 
     // Validate state: must be FACULTY_REVIEW
-    if (proposal.state !== ProjectState.FACULTY_REVIEW) {
+    if (proposal.state !== ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW) {
       throw new BadRequestException({
         success: false,
         error: {
@@ -1401,7 +1401,7 @@ export class WorkflowController {
         data: {
           proposalId: 'proposal-uuid',
           previousState: 'CHANGES_REQUESTED',
-          currentState: 'FACULTY_REVIEW',
+          currentState: 'FACULTY_COUNCIL_OUTLINE_REVIEW',
           action: 'RESUBMIT',
           holderUnit: 'faculty-uuid',
           holderUser: 'reviewer-uuid',
@@ -1650,7 +1650,7 @@ export class WorkflowController {
         success: true,
         data: {
           proposalId: 'proposal-uuid',
-          previousState: 'FACULTY_REVIEW',
+          previousState: 'FACULTY_COUNCIL_OUTLINE_REVIEW',
           currentState: 'WITHDRAWN',
           action: 'WITHDRAW',
           withdrawnAt: '2026-01-07T10:00:00.000Z',
@@ -1718,8 +1718,8 @@ export class WorkflowController {
   @RequireRoles(
     UserRole.QUAN_LY_KHOA,
     UserRole.PHONG_KHCN,
-    UserRole.THU_KY_HOI_DONG,
-    UserRole.THANH_TRUNG,
+    UserRole.GIANG_VIEN,
+    UserRole.GIANG_VIEN,
     UserRole.BAN_GIAM_HOC,
   )
   @ApiOperation({
@@ -1740,7 +1740,7 @@ export class WorkflowController {
         success: true,
         data: {
           proposalId: 'proposal-uuid',
-          previousState: 'FACULTY_REVIEW',
+          previousState: 'FACULTY_COUNCIL_OUTLINE_REVIEW',
           currentState: 'REJECTED',
           action: 'REJECT',
           rejectedAt: '2026-01-07T10:00:00.000Z',
@@ -1986,7 +1986,7 @@ export class WorkflowController {
    */
   @Post(':proposalId/approve-council')
   @HttpCode(HttpStatus.OK)
-  @RequireRoles(UserRole.BAN_GIAM_HOC, UserRole.BGH)
+  @RequireRoles(UserRole.BAN_GIAM_HOC, UserRole.BAN_GIAM_HOC)
   @ApiOperation({
     summary: 'Duyệt đề tài ở cấp Hội đồng',
     description:
@@ -2005,7 +2005,7 @@ export class WorkflowController {
         success: true,
         data: {
           proposalId: 'proposal-uuid',
-          previousState: 'OUTLINE_COUNCIL_REVIEW',
+          previousState: 'SCHOOL_COUNCIL_OUTLINE_REVIEW',
           currentState: 'APPROVED',
           action: 'APPROVE',
           holderUnit: null,
@@ -2077,7 +2077,7 @@ export class WorkflowController {
    */
   @Post(':proposalId/return-council')
   @HttpCode(HttpStatus.OK)
-  @RequireRoles(UserRole.BAN_GIAM_HOC, UserRole.BGH)
+  @RequireRoles(UserRole.BAN_GIAM_HOC, UserRole.BAN_GIAM_HOC)
   @ApiOperation({
     summary: 'Yêu cầu sửa đổi từ Hội đồng',
     description:
@@ -2151,7 +2151,7 @@ export class WorkflowController {
    */
   @Post(':proposalId/accept-school')
   @HttpCode(HttpStatus.OK)
-  @RequireRoles(UserRole.BAN_GIAM_HOC, UserRole.BGH)
+  @RequireRoles(UserRole.BAN_GIAM_HOC, UserRole.BAN_GIAM_HOC)
   @ApiOperation({
     summary: 'Nghiệm thu cấp Trường',
     description:
@@ -2170,7 +2170,7 @@ export class WorkflowController {
         success: true,
         data: {
           proposalId: 'proposal-uuid',
-          previousState: 'SCHOOL_ACCEPTANCE_REVIEW',
+          previousState: 'SCHOOL_COUNCIL_ACCEPTANCE_REVIEW',
           currentState: 'HANDOVER',
           action: 'ACCEPT',
           holderUnit: 'PHONG_KHCN',
@@ -2242,7 +2242,7 @@ export class WorkflowController {
    */
   @Post(':proposalId/return-school')
   @HttpCode(HttpStatus.OK)
-  @RequireRoles(UserRole.BAN_GIAM_HOC, UserRole.BGH)
+  @RequireRoles(UserRole.BAN_GIAM_HOC, UserRole.BAN_GIAM_HOC)
   @ApiOperation({
     summary: 'Yêu cầu sửa đổi từ nghiệm thu cấp Trường',
     description:
