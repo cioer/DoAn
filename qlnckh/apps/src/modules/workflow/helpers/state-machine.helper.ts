@@ -49,17 +49,19 @@ export const VALID_TRANSITIONS: StateTransition[] = [
   },
 
   // Faculty Council Outline Review Outcomes
+  // Note: Only QUAN_LY_KHOA and THU_KY_KHOA can approve/return at faculty level
+  // GIANG_VIEN should NOT be able to approve their own proposals at faculty level
   {
     fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     toState: ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW,
     action: WorkflowAction.APPROVE,
-    allowedRoles: ['QUAN_LY_KHOA', 'GIANG_VIEN'], // Council chair and members
+    allowedRoles: ['QUAN_LY_KHOA', 'THU_KY_KHOA'], // Faculty management only
   },
   {
     fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     toState: ProjectState.CHANGES_REQUESTED,
     action: WorkflowAction.RETURN,
-    allowedRoles: ['QUAN_LY_KHOA', 'GIANG_VIEN'], // Council chair and members
+    allowedRoles: ['QUAN_LY_KHOA', 'THU_KY_KHOA'], // Faculty management only
   },
 
   // School Council Outline Review Outcomes
@@ -90,12 +92,12 @@ export const VALID_TRANSITIONS: StateTransition[] = [
     action: WorkflowAction.ASSIGN_COUNCIL,
     allowedRoles: ['PHONG_KHCN'],
   },
-  // Faculty council assignment by QUAN_LY_KHOA
+  // Faculty council assignment by QUAN_LY_KHOA or THU_KY_KHOA
   {
     fromState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     toState: ProjectState.FACULTY_COUNCIL_OUTLINE_REVIEW,
     action: WorkflowAction.ASSIGN_COUNCIL,
-    allowedRoles: ['QUAN_LY_KHOA'],
+    allowedRoles: ['QUAN_LY_KHOA', 'THU_KY_KHOA'],
   },
 
   // Changes Requested → Resubmit

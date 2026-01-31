@@ -63,7 +63,7 @@ model business_calendar {
 }
 
 model council_members {
-  id         String            @id
+  id         String            @id @default(uuid())
   council_id String
   user_id    String
   role       CouncilMemberRole
@@ -79,17 +79,22 @@ model council_members {
 }
 
 model councils {
-  id              String            @id
+  id              String            @id @default(uuid())
   name            String
   type            CouncilType
+  scope           CouncilScope      @default(SCHOOL)
+  faculty_id      String?
   secretary_id    String?
   created_at      DateTime          @default(now())
-  updated_at      DateTime
+  updated_at      DateTime          @updatedAt
   council_members council_members[]
+  faculty         faculties?        @relation(fields: [faculty_id], references: [id])
   users           users?            @relation(fields: [secretary_id], references: [id])
   proposals       proposals[]
 
   @@index([type])
+  @@index([scope])
+  @@index([faculty_id])
 }
 
 model document_manifests {
@@ -157,19 +162,22 @@ model documents {
 }
 
 model evaluations {
-  id           String          @id
+  id           String          @id @default(uuid())
   proposal_id  String
   evaluator_id String
+  level        EvaluationLevel @default(SCHOOL)
   state        EvaluationState @default(DRAFT)
   form_data    Json
   created_at   DateTime        @default(now())
-  updated_at   DateTime
+  updated_at   DateTime        @updatedAt
+  submitted_at DateTime?
   users        users           @relation(fields: [evaluator_id], references: [id])
   proposals    proposals       @relation(fields: [proposal_id], references: [id], onDelete: Cascade)
 
-  @@unique([proposal_id, evaluator_id])
+  @@unique([proposal_id, evaluator_id, level])
   @@index([evaluator_id])
   @@index([proposal_id])
+  @@index([level])
   @@index([state])
 }
 
@@ -180,6 +188,7 @@ model faculties {
   type       FacultyType @default(FACULTY)
   created_at DateTime    @default(now())
   updated_at DateTime
+  councils   councils[]
   proposals  proposals[]
   users      users[]
 
@@ -358,7 +367,7 @@ model users {
 }
 
 model workflow_logs {
-  id                        String         @id
+  id                        String         @id @default(uuid())
   proposal_id               String
   action                    WorkflowAction
   from_state                ProjectState?
@@ -380,6 +389,11 @@ enum CouncilMemberRole {
   CHAIR
   SECRETARY
   MEMBER
+}
+
+enum CouncilScope {
+  FACULTY
+  SCHOOL
 }
 
 enum CouncilType {
@@ -407,8 +421,14 @@ enum DocumentType {
   HANDOVER_CHECKLIST
 }
 
+enum EvaluationLevel {
+  FACULTY
+  SCHOOL
+}
+
 enum EvaluationState {
   DRAFT
+  SUBMITTED
   FINALIZED
 }
 

@@ -1,16 +1,27 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { MobileHeader } from './MobileHeader';
 import { SidebarProvider, useSidebar } from './SidebarContext';
 import { useAuthStore } from '../../stores/authStore';
 import { Chatbox } from '../ai-chat';
+import { registerLogoutHandler } from '../../lib/auth/auth';
 
 /**
  * Layout Content - Inner component that uses sidebar context
  */
 function LayoutContent({ children }: { children: ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const { logout } = useAuthStore();
   const { collapsed } = useSidebar();
+
+  // Register logout handler for token refresh failure
+  // This prevents race conditions when token expires
+  useEffect(() => {
+    registerLogoutHandler(async () => {
+      await logout();
+      window.location.href = '/auth/login';
+    });
+  }, [logout]);
 
   return (
     <>

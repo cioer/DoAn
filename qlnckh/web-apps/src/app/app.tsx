@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useAuthStore, useHasHydrated } from '../stores/authStore';
 import { Permission } from '../shared/types/permissions';
@@ -159,27 +159,36 @@ function RoleGuard({
  * - QUAN_LY_KHOA → /dashboard/faculty (Faculty dashboard)
  * - HOI_DONG, THU_KY_HOI_DONG → /dashboard (Council member dashboard)
  * - Others (PHONG_KHCN, ADMIN) → /dashboard (Admin dashboard)
+ *
+ * Uses useEffect for navigation to prevent redirect loops caused by
+ * Navigate component triggering re-renders during render phase.
  */
 function DefaultLandingPage() {
+  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
-  if (!user) {
-    return <Navigate to="/auth/login" replace />;
-  }
+  useEffect(() => {
+    // Prevent double redirects
+    if (isRedirecting) return;
 
-  // GIANG_VIEN gets their own dashboard
-  if (user.role === UserRole.GIANG_VIEN) {
-    return <Navigate to="/dashboard/researcher" replace />;
-  }
+    setIsRedirecting(true);
 
-  // QUAN_LY_KHOA gets faculty dashboard
-  if (user.role === UserRole.QUAN_LY_KHOA) {
-    return <Navigate to="/dashboard/faculty" replace />;
-  }
+    if (!user) {
+      navigate('/auth/login', { replace: true });
+    } else if (user.role === UserRole.GIANG_VIEN) {
+      // GIANG_VIEN gets their own dashboard
+      navigate('/dashboard/researcher', { replace: true });
+    } else if (user.role === UserRole.QUAN_LY_KHOA) {
+      // QUAN_LY_KHOA gets faculty dashboard
+      navigate('/dashboard/faculty', { replace: true });
+    } else {
+      // Council members, Admin/Department staff go to main dashboard
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user?.id, user?.role, navigate, isRedirecting]);
 
-  // Council members, Admin/Department staff go to main dashboard
-  // The dashboard page will detect role and load appropriate data
-  return <Navigate to="/dashboard" replace />;
+  return <RouteLoadingFallback />;
 }
 
 export function App() {

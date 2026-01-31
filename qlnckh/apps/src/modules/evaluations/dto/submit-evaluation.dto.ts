@@ -24,6 +24,7 @@ export class SubmitEvaluationResponseDto {
   @ApiProperty()
   data: {
     evaluationId: string;
+    level: string;
     state: string;
     proposalId: string;
     proposalState: string;

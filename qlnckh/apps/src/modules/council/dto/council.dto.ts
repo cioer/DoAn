@@ -222,3 +222,133 @@ export class ErrorResponseDto {
     message: string;
   };
 }
+
+// ==========================================
+// FACULTY COUNCIL DTOs
+// ==========================================
+
+/**
+ * Create Faculty Council DTO
+ * For creating faculty-level councils by QUAN_LY_KHOA or THU_KY_KHOA
+ */
+export class CreateFacultyCouncilDto {
+  @ApiProperty({ description: 'Tên hội đồng' })
+  @IsString()
+  name: string;
+
+  @ApiProperty({ enum: CouncilType, description: 'Loại hội đồng (FACULTY_OUTLINE, FACULTY_ACCEPTANCE)' })
+  @IsEnum(CouncilType)
+  type: CouncilType;
+
+  @ApiProperty({ description: 'ID thư ký hội đồng (phải thuộc khoa)' })
+  @IsUUID()
+  secretaryId: string;
+
+  @ApiProperty({ type: [String], description: 'Danh sách ID thành viên hội đồng (phải thuộc cùng khoa)' })
+  @IsArray()
+  @IsUUID('4', { each: true })
+  memberIds: string[];
+}
+
+/**
+ * Faculty Council Response DTO
+ */
+export class FacultyCouncilDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  name: string;
+
+  @ApiProperty({ enum: CouncilType })
+  type: CouncilType;
+
+  @ApiProperty({ description: 'Scope is always FACULTY' })
+  scope: string;
+
+  @ApiProperty()
+  facultyId: string;
+
+  @ApiPropertyOptional()
+  facultyName?: string;
+
+  @ApiPropertyOptional()
+  secretaryId?: string;
+
+  @ApiPropertyOptional()
+  secretaryName?: string;
+
+  @ApiProperty({ type: [CouncilMemberDto] })
+  members: CouncilMemberDto[];
+
+  @ApiProperty({ description: 'Số thành viên có quyền bỏ phiếu (không tính thư ký)' })
+  votingMemberCount: number;
+
+  @ApiProperty()
+  createdAt: Date;
+
+  @ApiProperty()
+  updatedAt: Date;
+}
+
+/**
+ * Create Faculty Council Response
+ */
+export interface CreateFacultyCouncilResponse {
+  success: true;
+  data: FacultyCouncilDto;
+  warnings?: string[];
+}
+
+/**
+ * Assign Faculty Council DTO
+ * For assigning faculty council to proposal at FACULTY_COUNCIL_OUTLINE_REVIEW state
+ */
+export class AssignFacultyCouncilDto {
+  @ApiProperty({ description: 'ID hội đồng khoa' })
+  @IsString()
+  councilId: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  idempotencyKey?: string;
+}
+
+/**
+ * Assign Faculty Council Response
+ */
+export interface AssignFacultyCouncilResponse {
+  success: true;
+  data: {
+    proposalId: string;
+    proposalCode: string;
+    councilId: string;
+    councilName: string;
+    secretaryId: string | null;
+    secretaryName: string | null;
+    eligibleVoters: string[];
+    excludedMembers: { id: string; reason: string }[];
+    totalEligibleVoters: number;
+    warning?: string;
+  };
+}
+
+/**
+ * Faculty Council Validation Response
+ */
+export interface FacultyCouncilValidationResponse {
+  valid: boolean;
+  errors: string[];
+  warnings?: string[];
+}
+
+/**
+ * Eligible Voters Info Response
+ */
+export interface EligibleVotersResponse {
+  eligibleVoters: string[];
+  excludedMembers: { id: string; reason: string }[];
+  totalEligible: number;
+  warning?: string;
+}

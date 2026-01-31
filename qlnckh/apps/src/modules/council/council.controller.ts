@@ -31,6 +31,11 @@ import {
   ErrorResponseDto,
   ChangeCouncilDto,
   ChangeCouncilResponse,
+  CreateFacultyCouncilDto,
+  CreateFacultyCouncilResponse,
+  AssignFacultyCouncilDto,
+  AssignFacultyCouncilResponse,
+  FacultyCouncilDto,
 } from './dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequireRoles } from '../../common/decorators/roles.decorator';
@@ -615,7 +620,7 @@ export class CouncilController {
     // Verify proposal exists
     const proposal = await this.prisma.proposal.findUnique({
       where: { id: proposalId },
-      select: { id: true, state: true, councilId: true },
+      select: { id: true, state: true, council_id: true },
     });
 
     if (!proposal) {
@@ -629,7 +634,7 @@ export class CouncilController {
     }
 
     // Verify proposal has a council assigned
-    if (!proposal.councilId) {
+    if (!proposal.council_id) {
       throw new BadRequestException({
         success: false,
         error: {
@@ -683,6 +688,354 @@ export class CouncilController {
         councilName: result.council.name,
         workflowLogId: 'audit-created',
       },
+    };
+  }
+
+  // ==========================================
+  // FACULTY COUNCIL ENDPOINTS
+  // ==========================================
+
+  /**
+   * GET /api/council/faculty/:facultyId
+   * List faculty councils for a specific faculty
+   *
+   * Only faculty members and faculty management can access
+   */
+  @Get('faculty/:facultyId')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.GIANG_VIEN, UserRole.QUAN_LY_KHOA, UserRole.THU_KY_KHOA, UserRole.PHONG_KHCN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Lấy danh sách hội đồng khoa',
+    description: 'Lấy danh sách hội đồng cấp khoa cho một khoa cụ thể.',
+  })
+  @ApiParam({
+    name: 'facultyId',
+    description: 'Faculty ID (UUID)',
+    example: 'faculty-uuid',
+  })
+  @ApiQuery({
+    name: 'type',
+    description: 'Loại hội đồng (FACULTY_OUTLINE, FACULTY_ACCEPTANCE)',
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách hội đồng khoa',
+  })
+  async listFacultyCouncils(
+    @Param('facultyId') facultyId: string,
+    @Query('type') type?: string,
+    @CurrentUser() user?: RequestUser,
+  ): Promise<{ councils: FacultyCouncilDto[]; total: number }> {
+    // Verify user has access to this faculty (unless admin/PHONG_KHCN)
+    if (
+      user &&
+      user.role !== 'ADMIN' &&
+      user.role !== 'PHONG_KHCN' &&
+      user.facultyId !== facultyId
+    ) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'FACULTY_ACCESS_DENIED',
+          message: 'Bạn chỉ có thể xem hội đồng thuộc khoa của mình',
+        },
+      });
+    }
+
+    const councils = await this.councilService.listFacultyCouncils(
+      facultyId,
+      type as any,
+    );
+    return {
+      councils: councils as FacultyCouncilDto[],
+      total: councils.length,
+    };
+  }
+
+  /**
+   * GET /api/council/faculty/:facultyId/members
+   * Get eligible faculty members for council membership
+   */
+  @Get('faculty/:facultyId/members')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.QUAN_LY_KHOA, UserRole.THU_KY_KHOA, UserRole.PHONG_KHCN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Lấy danh sách giảng viên có thể tham gia hội đồng khoa',
+    description: 'Lấy danh sách giảng viên thuộc khoa để chọn thành viên hội đồng.',
+  })
+  @ApiParam({
+    name: 'facultyId',
+    description: 'Faculty ID (UUID)',
+    example: 'faculty-uuid',
+  })
+  @ApiQuery({
+    name: 'excludeOwnerId',
+    description: 'ID chủ nhiệm đề tài để loại khỏi danh sách (nếu cần)',
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách giảng viên',
+  })
+  async getEligibleFacultyMembers(
+    @Param('facultyId') facultyId: string,
+    @Query('excludeOwnerId') excludeOwnerId?: string,
+    @CurrentUser() user?: RequestUser,
+  ): Promise<{ members: unknown[]; total: number }> {
+    // Verify user has access to manage this faculty (unless admin/PHONG_KHCN)
+    if (
+      user &&
+      user.role !== 'ADMIN' &&
+      user.role !== 'PHONG_KHCN' &&
+      user.facultyId !== facultyId
+    ) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'FACULTY_ACCESS_DENIED',
+          message: 'Bạn chỉ có thể quản lý hội đồng thuộc khoa của mình',
+        },
+      });
+    }
+
+    const members = await this.councilService.getEligibleFacultyMembers(
+      facultyId,
+      excludeOwnerId,
+    );
+    return {
+      members,
+      total: members.length,
+    };
+  }
+
+  /**
+   * POST /api/council/faculty
+   * Create a new faculty council
+   *
+   * Only QUAN_LY_KHOA and THU_KY_KHOA can create faculty councils
+   * Members must all belong to the same faculty
+   */
+  @Post('faculty')
+  @HttpCode(HttpStatus.CREATED)
+  @RequireRoles(UserRole.QUAN_LY_KHOA, UserRole.THU_KY_KHOA)
+  @ApiOperation({
+    summary: 'Tạo hội đồng khoa mới',
+    description:
+      'Tạo hội đồng cấp khoa với danh sách thành viên. ' +
+      'Chỉ QUAN_LY_KHOA và THU_KY_KHOA mới có thể thực hiện. ' +
+      'Tất cả thành viên phải thuộc cùng một khoa.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Hội đồng khoa được tạo thành công',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - thành viên không hợp lệ',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - không có quyền tạo hội đồng',
+  })
+  async createFacultyCouncil(
+    @Body() dto: CreateFacultyCouncilDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<CreateFacultyCouncilResponse> {
+    if (!user.facultyId) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'NO_FACULTY',
+          message: 'Bạn chưa được gán vào khoa nào',
+        },
+      });
+    }
+
+    const result = await this.councilService.createFacultyCouncil(
+      dto.name,
+      dto.type,
+      user.facultyId,
+      dto.secretaryId,
+      dto.memberIds,
+      user.id,
+    );
+
+    return {
+      success: true,
+      data: result as unknown as FacultyCouncilDto,
+      warnings: (result as any).warnings,
+    };
+  }
+
+  /**
+   * POST /api/council/faculty/:proposalId/assign
+   * Assign a faculty council to a proposal
+   *
+   * Only QUAN_LY_KHOA and THU_KY_KHOA can assign faculty councils
+   * Proposal must be in FACULTY_COUNCIL_OUTLINE_REVIEW state
+   */
+  @Post('faculty/:proposalId/assign')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.QUAN_LY_KHOA, UserRole.THU_KY_KHOA)
+  @UseInterceptors(IdempotencyInterceptor)
+  @ApiOperation({
+    summary: 'Phân công hội đồng khoa cho đề tài',
+    description:
+      'Gán hội đồng khoa cho đề tài ở trạng thái FACULTY_COUNCIL_OUTLINE_REVIEW. ' +
+      'Chỉ QUAN_LY_KHOA và THU_KY_KHOA mới có thể thực hiện.',
+  })
+  @ApiParam({
+    name: 'proposalId',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Hội đồng khoa được phân công thành công',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          proposalId: 'proposal-uuid',
+          proposalCode: 'DT-2026-001',
+          councilId: 'council-uuid',
+          councilName: 'Hội đồng CNTT #1',
+          secretaryId: 'secretary-uuid',
+          secretaryName: 'Nguyễn Văn A',
+          eligibleVoters: ['user-1', 'user-2', 'user-3'],
+          excludedMembers: [
+            { id: 'owner-uuid', reason: 'Chủ nhiệm đề tài (không tự đánh giá)' },
+          ],
+          totalEligibleVoters: 3,
+          warning: null,
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - proposal không ở trạng thái phù hợp hoặc không thuộc khoa',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - không có quyền phân công hội đồng',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal hoặc council không tồn tại',
+  })
+  async assignFacultyCouncil(
+    @Param('proposalId') proposalId: string,
+    @Body() dto: AssignFacultyCouncilDto,
+    @CurrentUser() user: RequestUser,
+  ): Promise<AssignFacultyCouncilResponse> {
+    if (!user.facultyId) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'NO_FACULTY',
+          message: 'Bạn chưa được gán vào khoa nào',
+        },
+      });
+    }
+
+    const result = await this.councilService.assignFacultyCouncilToProposal(
+      proposalId,
+      dto.councilId,
+      user.id,
+      user.facultyId,
+    );
+
+    return result as AssignFacultyCouncilResponse;
+  }
+
+  /**
+   * GET /api/council/faculty/:proposalId/voters
+   * Get eligible voters for a proposal in faculty council review
+   *
+   * Returns which council members can vote, and which are excluded (owner, secretary)
+   */
+  @Get('faculty/:proposalId/voters')
+  @HttpCode(HttpStatus.OK)
+  @RequireRoles(UserRole.GIANG_VIEN, UserRole.QUAN_LY_KHOA, UserRole.THU_KY_KHOA, UserRole.PHONG_KHCN, UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Lấy danh sách thành viên có quyền bỏ phiếu cho đề tài',
+    description:
+      'Trả về danh sách thành viên hội đồng có quyền bỏ phiếu cho đề tài cụ thể. ' +
+      'Loại trừ thư ký (chỉ tổng hợp) và chủ nhiệm đề tài (không tự đánh giá).',
+  })
+  @ApiParam({
+    name: 'proposalId',
+    description: 'Proposal ID (UUID)',
+    example: 'proposal-uuid',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách eligible voters',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal không tồn tại hoặc chưa có hội đồng',
+  })
+  async getEligibleVotersForProposal(
+    @Param('proposalId') proposalId: string,
+  ): Promise<{
+    success: boolean;
+    data: {
+      eligibleVoters: string[];
+      excludedMembers: { id: string; reason: string }[];
+      totalEligible: number;
+      warning?: string;
+    };
+  }> {
+    // Get proposal with council and owner
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: {
+        id: true,
+        owner_id: true,
+        council_id: true,
+        councils: {
+          include: {
+            council_members: {
+              select: { user_id: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException({
+        success: false,
+        error: {
+          code: 'PROPOSAL_NOT_FOUND',
+          message: 'Không tìm thấy đề tài',
+        },
+      });
+    }
+
+    if (!proposal.councils) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'NO_COUNCIL_ASSIGNED',
+          message: 'Đề tài chưa được gán hội đồng',
+        },
+      });
+    }
+
+    const memberIds = proposal.councils.council_members.map((m) => m.user_id);
+    const votersInfo = this.councilService.getEligibleVotersForProposal(
+      memberIds,
+      proposal.councils.secretary_id || '',
+      proposal.owner_id,
+    );
+
+    return {
+      success: true,
+      data: votersInfo,
     };
   }
 }

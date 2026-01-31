@@ -135,14 +135,15 @@ function canReturnFacultyAcceptance(proposalState: string, userRole: string): bo
 
 /**
  * Faculty Council Assignment: Can Assign Faculty Council check
- * Returns true if user has QUAN_LY_KHOA role
+ * Returns true if user has QUAN_LY_KHOA or THU_KY_KHOA role
  * AND proposal is in FACULTY_COUNCIL_OUTLINE_REVIEW state
  *
- * Note: Trưởng Khoa chỉ định thành viên hội đồng xét duyệt cấp Khoa
+ * Note: Trưởng Khoa hoặc Thư ký Khoa chỉ định thành viên hội đồng xét duyệt cấp Khoa
  */
 function canAssignFacultyCouncil(proposalState: string, userRole: string): boolean {
   return (
-    proposalState === 'FACULTY_COUNCIL_OUTLINE_REVIEW' && userRole === 'QUAN_LY_KHOA'
+    proposalState === 'FACULTY_COUNCIL_OUTLINE_REVIEW' &&
+    ['QUAN_LY_KHOA', 'THU_KY_KHOA'].includes(userRole)
   );
 }
 

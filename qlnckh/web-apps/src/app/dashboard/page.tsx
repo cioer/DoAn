@@ -52,11 +52,13 @@ export default function DashboardPage() {
   const { user } = useAuthStore();
 
   // Redirect BAN_GIAM_HOC to their specific dashboard
+  // Note: Depend only on user?.role, not entire user object, to prevent
+  // unnecessary re-renders when user object reference changes but role stays same
   useEffect(() => {
     if (user?.role === 'BAN_GIAM_HOC' || user?.role === 'BGH') {
       navigate('/dashboard/bgh', { replace: true });
     }
-  }, [user, navigate]);
+  }, [user?.role, navigate]);
 
   const [adminData, setAdminData] = useState<DashboardData | null>(null);
   const [councilData, setCouncilData] = useState<CouncilDashboardData | null>(

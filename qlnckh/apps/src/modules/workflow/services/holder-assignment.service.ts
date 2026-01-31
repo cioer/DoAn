@@ -57,17 +57,17 @@ export class HolderAssignmentService {
 
       case ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW:
         // PKHCN assigns council
+        // If council is already assigned, keep existing holder; otherwise PHONG_KHCN holds it
+        if (proposal.holderUnit && proposal.holderUnit !== SPECIAL_UNIT_CODES.PHONG_KHCN) {
+          // Council already assigned - keep existing holder
+          return {
+            holderUnit: proposal.holderUnit,
+            holderUser: proposal.holderUser || null,
+          };
+        }
         return {
           holderUnit: SPECIAL_UNIT_CODES.PHONG_KHCN,
           holderUser: null,
-        };
-
-      case ProjectState.SCHOOL_COUNCIL_OUTLINE_REVIEW:
-        // Assigned to council - holderUnit should be council_id
-        // This will be set by the ASSIGN_COUNCIL action
-        return {
-          holderUnit: proposal.holderUnit || null, // Keep existing if set
-          holderUser: proposal.holderUser || null,
         };
 
       // Phase B: Changes & Approval

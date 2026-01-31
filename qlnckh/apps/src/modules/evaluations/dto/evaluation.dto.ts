@@ -1,6 +1,6 @@
 import { IsString, IsEnum, IsUUID, IsOptional, IsObject } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { EvaluationState } from '@prisma/client';
+import { EvaluationState, EvaluationLevel } from '@prisma/client';
 
 /**
  * Evaluation Form Data Structure (Story 5.3)
@@ -77,6 +77,9 @@ export class EvaluationDto {
 
   @ApiProperty()
   evaluatorId: string;
+
+  @ApiProperty({ enum: EvaluationLevel, description: 'Evaluation level (FACULTY or SCHOOL)' })
+  level: EvaluationLevel;
 
   @ApiProperty({ enum: EvaluationState })
   state: EvaluationState;
@@ -158,6 +161,9 @@ export class EvaluationResultsDto {
   @ApiProperty()
   evaluatorId: string;
 
+  @ApiProperty({ enum: EvaluationLevel, description: 'Evaluation level (FACULTY or SCHOOL)' })
+  level: EvaluationLevel;
+
   @ApiProperty({ enum: EvaluationState })
   state: EvaluationState;
 
@@ -175,6 +181,29 @@ export class EvaluationResultsDto {
 }
 
 /**
+ * Brief evaluation summary for multi-evaluation response
+ */
+export class EvaluationSummaryDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty({ enum: EvaluationLevel })
+  level: EvaluationLevel;
+
+  @ApiProperty({ enum: EvaluationState })
+  state: EvaluationState;
+
+  @ApiProperty()
+  formData: Record<string, unknown>;
+
+  @ApiPropertyOptional()
+  evaluator?: {
+    displayName: string;
+    role: string;
+  };
+}
+
+/**
  * Get Evaluation Results Response DTO (GIANG_VIEN Feature)
  */
 export class GetEvaluationResultsResponse {
@@ -183,4 +212,7 @@ export class GetEvaluationResultsResponse {
 
   @ApiProperty()
   data: EvaluationResultsDto;
+
+  @ApiPropertyOptional({ type: [EvaluationSummaryDto], description: 'All evaluations for the proposal' })
+  allEvaluations?: EvaluationSummaryDto[];
 }
