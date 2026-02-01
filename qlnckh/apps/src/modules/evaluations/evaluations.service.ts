@@ -100,33 +100,33 @@ export class EvaluationService {
       where: { id: proposalId },
       select: {
         id: true,
-        council_id: true,
-        holder_user: true,
+        councilId: true,
+        holderUser: true,
       },
     });
 
-    if (!proposal || !proposal.council_id) {
+    if (!proposal || !proposal.councilId) {
       return null;
     }
 
     // Check if user is the secretary
-    if (proposal.holder_user === userId) {
+    if (proposal.holderUser === userId) {
       return {
         isSecretary: true,
-        councilId: proposal.council_id,
+        councilId: proposal.councilId,
       };
     }
 
     // Check if user is a council member
     const member = await this.prisma.councilMember.findFirst({
       where: {
-        council_id: proposal.council_id,
-        user_id: userId,
+        councilId: proposal.councilId,
+        userId: userId,
       },
       include: {
-        councils: {
+        council: {
           select: {
-            secretary_id: true,
+            secretaryId: true,
           },
         },
       },
@@ -134,8 +134,8 @@ export class EvaluationService {
 
     if (member) {
       return {
-        isSecretary: member.councils.secretary_id === userId,
-        councilId: proposal.council_id,
+        isSecretary: member.council.secretaryId === userId,
+        councilId: proposal.councilId,
         role: member.role,
       };
     }
@@ -188,8 +188,8 @@ export class EvaluationService {
       select: {
         id: true,
         state: true,
-        holder_user: true,
-        council_id: true,
+        holderUser: true,
+        councilId: true,
         code: true,
       },
     });
@@ -234,9 +234,9 @@ export class EvaluationService {
     // Try to get existing evaluation for this level
     let evaluation = await this.prisma.evaluation.findUnique({
       where: {
-        proposal_id_evaluator_id_level: {
-          proposal_id: proposalId,
-          evaluator_id: evaluatorId,
+        proposalId_evaluatorId_level: {
+          proposalId: proposalId,
+          evaluatorId: evaluatorId,
           level,
         },
       },
@@ -246,11 +246,11 @@ export class EvaluationService {
     if (!evaluation) {
       evaluation = await this.prisma.evaluation.create({
         data: {
-          proposal_id: proposalId,
-          evaluator_id: evaluatorId,
+          proposalId: proposalId,
+          evaluatorId: evaluatorId,
           level,
           state: EvaluationState.DRAFT,
-          form_data: {
+          formData: {
             scientificContent: { score: 3, comments: '' },
             researchMethod: { score: 3, comments: '' },
             feasibility: { score: 3, comments: '' },
@@ -298,9 +298,9 @@ export class EvaluationService {
 
     const evaluation = await this.prisma.evaluation.findUnique({
       where: {
-        proposal_id_evaluator_id_level: {
-          proposal_id: proposalId,
-          evaluator_id: evaluatorId,
+        proposalId_evaluatorId_level: {
+          proposalId: proposalId,
+          evaluatorId: evaluatorId,
           level: evalLevel,
         },
       },
@@ -329,7 +329,7 @@ export class EvaluationService {
 
     // Validate scores if provided (Story 5.3: scores must be 1-5)
     const mergedData = {
-      ...(evaluation.form_data as Record<string, unknown>),
+      ...(evaluation.formData as Record<string, unknown>),
       ...formData,
     };
 
@@ -352,14 +352,14 @@ export class EvaluationService {
     // Merge form data (partial update)
     const updatedEvaluation = await this.prisma.evaluation.update({
       where: {
-        proposal_id_evaluator_id_level: {
-          proposal_id: proposalId,
-          evaluator_id: evaluatorId,
+        proposalId_evaluatorId_level: {
+          proposalId: proposalId,
+          evaluatorId: evaluatorId,
           level: evalLevel,
         },
       },
       data: {
-        form_data: mergedData as Prisma.InputJsonValue,
+        formData: mergedData as Prisma.InputJsonValue,
       },
     });
 
@@ -378,10 +378,10 @@ export class EvaluationService {
   async getEvaluationByProposalId(proposalId: string, level?: EvaluationLevel) {
     return this.prisma.evaluation.findFirst({
       where: {
-        proposal_id: proposalId,
+        proposalId: proposalId,
         ...(level && { level }),
       },
-      orderBy: { updated_at: 'desc' },
+      orderBy: { updatedAt: 'desc' },
     });
   }
 
@@ -396,9 +396,9 @@ export class EvaluationService {
   async getEvaluation(proposalId: string, evaluatorId: string, level: EvaluationLevel = EvaluationLevel.SCHOOL) {
     return this.prisma.evaluation.findUnique({
       where: {
-        proposal_id_evaluator_id_level: {
-          proposal_id: proposalId,
-          evaluator_id: evaluatorId,
+        proposalId_evaluatorId_level: {
+          proposalId: proposalId,
+          evaluatorId: evaluatorId,
           level,
         },
       },
@@ -435,7 +435,7 @@ export class EvaluationService {
       select: {
         id: true,
         state: true,
-        holder_user: true,
+        holderUser: true,
       },
     });
 
@@ -465,9 +465,9 @@ export class EvaluationService {
     // Get evaluation for this level
     const evaluation = await this.prisma.evaluation.findUnique({
       where: {
-        proposal_id_evaluator_id_level: {
-          proposal_id: proposalId,
-          evaluator_id: evaluatorId,
+        proposalId_evaluatorId_level: {
+          proposalId: proposalId,
+          evaluatorId: evaluatorId,
           level,
         },
       },
@@ -493,7 +493,7 @@ export class EvaluationService {
     }
 
     // Validate form data is complete before submitting
-    const formData = evaluation.form_data as Record<string, unknown>;
+    const formData = evaluation.formData as Record<string, unknown>;
     if (!formData.conclusion) {
       throw new BadRequestException({
         success: false,
@@ -508,15 +508,15 @@ export class EvaluationService {
     // Multi-member: Don't transition proposal yet - secretary will finalize
     const submittedEvaluation = await this.prisma.evaluation.update({
       where: {
-        proposal_id_evaluator_id_level: {
-          proposal_id: proposalId,
-          evaluator_id: evaluatorId,
+        proposalId_evaluatorId_level: {
+          proposalId: proposalId,
+          evaluatorId: evaluatorId,
           level,
         },
       },
       data: {
         state: EvaluationState.SUBMITTED,
-        submitted_at: new Date(),
+        submittedAt: new Date(),
       },
     });
 
@@ -547,8 +547,8 @@ export class EvaluationService {
         code: true,
         title: true,
         state: true,
-        council_id: true,
-        holder_user: true,
+        councilId: true,
+        holderUser: true,
       },
     });
 
@@ -562,7 +562,7 @@ export class EvaluationService {
       });
     }
 
-    if (!proposal.council_id) {
+    if (!proposal.councilId) {
       throw new BadRequestException({
         success: false,
         error: {
@@ -575,9 +575,9 @@ export class EvaluationService {
     // Verify user is the secretary for this proposal's council
     const councilMembership = await this.prisma.councilMember.findUnique({
       where: {
-        council_id_user_id: {
-          council_id: proposal.council_id,
-          user_id: secretaryId,
+        councilId_userId: {
+          councilId: proposal.councilId,
+          userId: secretaryId,
         },
       },
     });
@@ -594,20 +594,20 @@ export class EvaluationService {
 
     // Get council info
     const council = await this.prisma.council.findUnique({
-      where: { id: proposal.council_id },
+      where: { id: proposal.councilId },
       include: {
-        users: {
+        secretary: {
           select: {
             id: true,
-            display_name: true,
+            displayName: true,
           },
         },
-        council_members: {
+        members: {
           include: {
-            users: {
+            user: {
               select: {
                 id: true,
-                display_name: true,
+                displayName: true,
               },
             },
           },
@@ -631,38 +631,38 @@ export class EvaluationService {
     // Get all evaluations for this proposal at this level
     const evaluations = await this.prisma.evaluation.findMany({
       where: {
-        proposal_id: proposalId,
+        proposalId: proposalId,
         level: evalLevel,
       },
       include: {
-        users: {
+        evaluator: {
           select: {
             id: true,
-            display_name: true,
+            displayName: true,
             role: true,
           },
         },
       },
       orderBy: {
-        updated_at: 'desc',
+        updatedAt: 'desc',
       },
     });
 
     // Map to response format
     const evaluationResponses: CouncilMemberEvaluation[] = evaluations.map((item) => {
-      const member = council.council_members.find((m) => m.user_id === item.evaluator_id);
-      const isSecretary = council.users?.id === item.evaluator_id;
+      const member = council.members.find((m) => m.userId === item.evaluatorId);
+      const isSecretary = council.secretary?.id === item.evaluatorId;
 
       return {
         id: item.id,
-        proposalId: item.proposal_id,
-        evaluatorId: item.evaluator_id,
-        evaluatorName: item.users.display_name,
-        evaluatorRole: item.users.role,
+        proposalId: item.proposalId,
+        evaluatorId: item.evaluatorId,
+        evaluatorName: item.evaluator.displayName,
+        evaluatorRole: item.evaluator.role,
         state: item.state,
-        formData: item.form_data as Record<string, unknown>,
-        createdAt: item.created_at,
-        updatedAt: item.updated_at,
+        formData: item.formData as Record<string, unknown>,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
         councilRole: member?.role,
         isSecretary,
       };
@@ -670,7 +670,7 @@ export class EvaluationService {
 
     // Count submitted evaluations
     const submittedCount = evaluations.filter((e) => e.state === EvaluationState.SUBMITTED || e.state === EvaluationState.FINALIZED).length;
-    const totalMembers = council.council_members.length;
+    const totalMembers = council.members.length;
 
     return {
       proposalId: proposal.id,
@@ -678,8 +678,8 @@ export class EvaluationService {
       proposalTitle: proposal.title,
       councilId: council.id,
       councilName: council.name,
-      secretaryId: council.users?.id || '',
-      secretaryName: council.users?.display_name || '',
+      secretaryId: council.secretary?.id || '',
+      secretaryName: council.secretary?.displayName || '',
       evaluations: evaluationResponses,
       totalMembers,
       submittedCount,
@@ -715,10 +715,10 @@ export class EvaluationService {
       select: {
         id: true,
         state: true,
-        holder_user: true,
-        owner_id: true,
-        faculty_id: true,
-        council_id: true,
+        holderUser: true,
+        ownerId: true,
+        facultyId: true,
+        councilId: true,
       },
     });
 
@@ -746,7 +746,7 @@ export class EvaluationService {
     const level = this.getEvaluationLevelFromState(proposal.state);
 
     // Verify user is the secretary
-    if (proposal.holder_user !== secretaryId) {
+    if (proposal.holderUser !== secretaryId) {
       throw new ForbiddenException({
         success: false,
         error: {
@@ -758,10 +758,10 @@ export class EvaluationService {
 
     // Check if all council members have submitted
     const council = await this.prisma.council.findUnique({
-      where: { id: proposal.council_id! },
+      where: { id: proposal.councilId! },
       include: {
-        users: true,
-        council_members: true,
+        secretary: true,
+        members: true,
       },
     });
 
@@ -778,12 +778,12 @@ export class EvaluationService {
     // Get all evaluations for this level
     const evaluations = await this.prisma.evaluation.findMany({
       where: {
-        proposal_id: proposalId,
+        proposalId: proposalId,
         level,
       },
     });
 
-    const totalMembers = council.council_members.length;
+    const totalMembers = council.members.length;
     const submittedCount = evaluations.filter((e) => e.state === EvaluationState.SUBMITTED || e.state === EvaluationState.FINALIZED).length;
 
     // Require minimum submissions before finalizing (at least secretary)
@@ -800,9 +800,9 @@ export class EvaluationService {
     // Execute transaction: finalize evaluations and transition proposal
     const result = await this.prisma.$transaction(async (tx) => {
       // Finalize all submitted evaluations
-      await tx.evaluations.updateMany({
+      await tx.evaluation.updateMany({
         where: {
-          proposal_id: proposalId,
+          proposalId: proposalId,
           level,
           state: EvaluationState.SUBMITTED,
         },
@@ -826,24 +826,24 @@ export class EvaluationService {
       }
 
       // Transition proposal
-      const updatedProposal = await tx.proposals.update({
+      const updatedProposal = await tx.proposal.update({
         where: { id: proposalId },
         data: {
           state: targetState,
-          holder_unit: proposal.faculty_id, // Return to owner's faculty
-          holder_user: proposal.owner_id, // Return to PI
+          holderUnit: proposal.facultyId, // Return to owner's faculty
+          holderUser: proposal.ownerId, // Return to PI
         },
       });
 
       // Log workflow entry
-      await tx.workflow_logs.create({
+      await tx.workflowLog.create({
         data: {
-          proposal_id: proposalId,
+          proposalId: proposalId,
           action: PrismaWorkflowAction.EVALUATION_SUBMITTED,
-          from_state: proposal.state,
-          to_state: targetState,
-          actor_id: secretaryId,
-          actor_name: level === EvaluationLevel.FACULTY ? 'Thư ký Hội đồng Khoa' : 'Thư ký Hội đồng Trường',
+          fromState: proposal.state,
+          toState: targetState,
+          actorId: secretaryId,
+          actorName: level === EvaluationLevel.FACULTY ? 'Thư ký Hội đồng Khoa' : 'Thư ký Hội đồng Trường',
           comment: `Hội đồng đã hoàn tất đánh giá. Kết luận: ${finalConclusion === 'DAT' ? 'Đạt' : 'Không đạt'}. ${finalComments || ''}`,
         },
       });
@@ -878,7 +878,7 @@ export class EvaluationService {
       where: { id: proposalId },
       select: {
         id: true,
-        owner_id: true,
+        ownerId: true,
         code: true,
         title: true,
         state: true,
@@ -896,7 +896,7 @@ export class EvaluationService {
     }
 
     // Verify user is the proposal owner
-    if (proposal.owner_id !== ownerId) {
+    if (proposal.ownerId !== ownerId) {
       throw new ForbiddenException({
         success: false,
         error: {
@@ -909,22 +909,22 @@ export class EvaluationService {
     // Get finalized evaluations for this proposal
     const evaluations = await this.prisma.evaluation.findMany({
       where: {
-        proposal_id: proposalId,
+        proposalId: proposalId,
         state: EvaluationState.FINALIZED,
         ...(level && { level }),
       },
       include: {
-        users: {
+        evaluator: {
           select: {
             id: true,
-            display_name: true,
+            displayName: true,
             email: true,
             role: true,
           },
         },
       },
       orderBy: {
-        updated_at: 'desc',
+        updatedAt: 'desc',
       },
     });
 
@@ -982,8 +982,8 @@ export class EvaluationService {
         code: true,
         title: true,
         state: true,
-        council_id: true,
-        holder_unit: true,
+        councilId: true,
+        holderUnit: true,
       },
     });
 
@@ -997,7 +997,7 @@ export class EvaluationService {
       });
     }
 
-    if (!proposal.council_id && !proposal.holder_unit) {
+    if (!proposal.councilId && !proposal.holderUnit) {
       throw new BadRequestException({
         success: false,
         error: {
@@ -1007,24 +1007,24 @@ export class EvaluationService {
       });
     }
 
-    const councilId = proposal.council_id || proposal.holder_unit;
+    const councilId = proposal.councilId || proposal.holderUnit;
 
     // Get council info with members
     const council = await this.prisma.council.findUnique({
       where: { id: councilId },
       include: {
-        users: {
+        secretary: {
           select: {
             id: true,
-            display_name: true,
+            displayName: true,
           },
         },
-        council_members: {
+        members: {
           include: {
-            users: {
+            user: {
               select: {
                 id: true,
-                display_name: true,
+                displayName: true,
                 email: true,
                 role: true,
               },
@@ -1050,25 +1050,25 @@ export class EvaluationService {
     // Get all evaluations for this proposal and level
     const evaluations = await this.prisma.evaluation.findMany({
       where: {
-        proposal_id: proposalId,
+        proposalId: proposalId,
         level: evalLevel,
       },
       include: {
-        users: {
+        evaluator: {
           select: {
             id: true,
-            display_name: true,
+            displayName: true,
             role: true,
           },
         },
       },
       orderBy: {
-        updated_at: 'desc',
+        updatedAt: 'desc',
       },
     });
 
     // Count total members
-    const totalMembers = council.council_members.length;
+    const totalMembers = council.members.length;
     const submittedCount = evaluations.filter((e) => e.state === EvaluationState.SUBMITTED || e.state === EvaluationState.FINALIZED).length;
 
     // Calculate aggregate scores from finalized evaluations
@@ -1094,14 +1094,14 @@ export class EvaluationService {
       : 0;
 
     // Get secretary's final conclusion
-    const secretaryEvaluation = evaluations.find((e) => e.evaluator_id === council.users?.id);
-    const formData = secretaryEvaluation?.form_data as Record<string, unknown> | undefined;
+    const secretaryEvaluation = evaluations.find((e) => e.evaluatorId === council.secretary?.id);
+    const formData = secretaryEvaluation?.formData as Record<string, unknown> | undefined;
     const finalConclusion = formData?.conclusion as 'DAT' | 'KHONG_DAT' | undefined;
     const finalComments = formData?.otherComments as string | undefined;
 
     // Build evaluation summaries
     const evaluationSummaries = finalizedEvaluations.map((item) => {
-      const evalFormData = item.form_data as Record<string, unknown>;
+      const evalFormData = item.formData as Record<string, unknown>;
       const scientificContent = evalFormData?.scientificContent as Record<string, unknown> | undefined;
       const researchMethod = evalFormData?.researchMethod as Record<string, unknown> | undefined;
       const feasibility = evalFormData?.feasibility as Record<string, unknown> | undefined;
@@ -1115,11 +1115,11 @@ export class EvaluationService {
 
       return {
         id: item.id,
-        evaluatorId: item.evaluator_id,
-        evaluatorName: item.users.display_name,
-        evaluatorRole: item.users.role,
+        evaluatorId: item.evaluatorId,
+        evaluatorName: item.evaluator.displayName,
+        evaluatorRole: item.evaluator.role,
         councilRole: undefined,
-        isSecretary: council.users?.id === item.evaluator_id,
+        isSecretary: council.secretary?.id === item.evaluatorId,
         state: item.state,
         scientificContentScore: sciScore,
         researchMethodScore: methScore,
@@ -1138,7 +1138,7 @@ export class EvaluationService {
       proposalCode: proposal.code,
       proposalTitle: proposal.title,
       councilName: council.name,
-      secretaryName: council.users?.display_name || '',
+      secretaryName: council.secretary?.displayName || '',
       level: evalLevel,
       submittedCount,
       totalMembers,
@@ -1159,7 +1159,7 @@ export class EvaluationService {
   ): { avg: number; min: number; max: number } {
     const scores = evaluations
       .map((e: unknown) => {
-        const formData = (e as { form_data: Record<string, unknown> }).form_data;
+        const formData = (e as { formData: Record<string, unknown> }).formData;
         const sectionData = formData?.[section] as Record<string, unknown> | undefined;
         return (sectionData?.score as number) || 0;
       })

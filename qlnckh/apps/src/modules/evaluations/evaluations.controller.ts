@@ -99,13 +99,13 @@ export class EvaluationController {
       success: true,
       data: {
         id: evaluation.id,
-        proposalId: evaluation.proposal_id,
-        evaluatorId: evaluation.evaluator_id,
+        proposalId: evaluation.proposalId,
+        evaluatorId: evaluation.evaluatorId,
         level: evaluation.level,
         state: evaluation.state,
-        formData: evaluation.form_data as Record<string, unknown>,
-        createdAt: evaluation.created_at,
-        updatedAt: evaluation.updated_at,
+        formData: evaluation.formData as Record<string, unknown>,
+        createdAt: evaluation.createdAt,
+        updatedAt: evaluation.updatedAt,
       },
     };
   }
@@ -155,13 +155,13 @@ export class EvaluationController {
       success: true,
       data: {
         id: evaluation.id,
-        proposalId: evaluation.proposal_id,
-        evaluatorId: evaluation.evaluator_id,
+        proposalId: evaluation.proposalId,
+        evaluatorId: evaluation.evaluatorId,
         level: evaluation.level,
         state: evaluation.state,
-        formData: evaluation.form_data as Record<string, unknown>,
-        createdAt: evaluation.created_at,
-        updatedAt: evaluation.updated_at,
+        formData: evaluation.formData as Record<string, unknown>,
+        createdAt: evaluation.createdAt,
+        updatedAt: evaluation.updatedAt,
       },
     };
   }
@@ -222,7 +222,7 @@ export class EvaluationController {
         state: result.evaluation.state,
         proposalId: result.proposal.id,
         proposalState: result.proposal.state,
-        submittedAt: result.evaluation.submitted_at || result.evaluation.updated_at,
+        submittedAt: result.evaluation.submittedAt || result.evaluation.updatedAt,
       },
     };
   }
@@ -275,18 +275,18 @@ export class EvaluationController {
       success: true,
       data: {
         id: evaluation.id,
-        proposalId: evaluation.proposal_id,
-        evaluatorId: evaluation.evaluator_id,
+        proposalId: evaluation.proposalId,
+        evaluatorId: evaluation.evaluatorId,
         level: evaluation.level,
         state: evaluation.state,
-        formData: evaluation.form_data as Record<string, unknown>,
-        createdAt: evaluation.created_at,
-        updatedAt: evaluation.updated_at,
-        evaluator: evaluation.users ? {
-          id: evaluation.users.id,
-          displayName: evaluation.users.display_name,
-          email: evaluation.users.email,
-          role: evaluation.users.role,
+        formData: evaluation.formData as Record<string, unknown>,
+        createdAt: evaluation.createdAt,
+        updatedAt: evaluation.updatedAt,
+        evaluator: evaluation.evaluator ? {
+          id: evaluation.evaluator.id,
+          displayName: evaluation.evaluator.displayName,
+          email: evaluation.evaluator.email,
+          role: evaluation.evaluator.role,
         } : undefined,
       },
       // Include all evaluations for the proposal
@@ -294,10 +294,10 @@ export class EvaluationController {
         id: e.id,
         level: e.level,
         state: e.state,
-        formData: e.form_data as Record<string, unknown>,
-        evaluator: e.users ? {
-          displayName: e.users.display_name,
-          role: e.users.role,
+        formData: e.formData as Record<string, unknown>,
+        evaluator: e.evaluator ? {
+          displayName: e.evaluator.displayName,
+          role: e.evaluator.role,
         } : undefined,
       })),
     };

@@ -15,27 +15,27 @@ describe('CouncilService - Faculty Council', () => {
 
   // Mock users for faculty council
   const mockFacultyMembers = [
-    { id: 'user-1', display_name: 'User 1', faculty_id: mockFacultyId, role: UserRole.GIANG_VIEN },
-    { id: 'user-2', display_name: 'User 2', faculty_id: mockFacultyId, role: UserRole.GIANG_VIEN },
-    { id: 'user-3', display_name: 'User 3', faculty_id: mockFacultyId, role: UserRole.GIANG_VIEN },
-    { id: 'user-4', display_name: 'User 4', faculty_id: mockFacultyId, role: UserRole.GIANG_VIEN },
-    { id: mockSecretaryId, display_name: 'Secretary', faculty_id: mockFacultyId, role: UserRole.GIANG_VIEN },
-    { id: mockOwnerId, display_name: 'Owner', faculty_id: mockFacultyId, role: UserRole.GIANG_VIEN },
+    { id: 'user-1', displayName: 'User 1', facultyId: mockFacultyId, role: UserRole.GIANG_VIEN },
+    { id: 'user-2', displayName: 'User 2', facultyId: mockFacultyId, role: UserRole.GIANG_VIEN },
+    { id: 'user-3', displayName: 'User 3', facultyId: mockFacultyId, role: UserRole.GIANG_VIEN },
+    { id: 'user-4', displayName: 'User 4', facultyId: mockFacultyId, role: UserRole.GIANG_VIEN },
+    { id: mockSecretaryId, displayName: 'Secretary', facultyId: mockFacultyId, role: UserRole.GIANG_VIEN },
+    { id: mockOwnerId, displayName: 'Owner', facultyId: mockFacultyId, role: UserRole.GIANG_VIEN },
   ];
 
   // Mock user from different faculty
   const mockOtherFacultyUser = {
     id: 'user-other-faculty',
-    display_name: 'Other Faculty User',
-    faculty_id: 'KHOA.DIEN',
+    displayName: 'Other Faculty User',
+    facultyId: 'KHOA.DIEN',
     role: UserRole.GIANG_VIEN,
   };
 
   // Mock non-lecturer user
   const mockNonLecturer = {
     id: 'user-admin',
-    display_name: 'Admin User',
-    faculty_id: mockFacultyId,
+    displayName: 'Admin User',
+    facultyId: mockFacultyId,
     role: UserRole.QUAN_LY_KHOA,
   };
 

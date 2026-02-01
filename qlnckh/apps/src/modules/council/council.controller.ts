@@ -620,7 +620,7 @@ export class CouncilController {
     // Verify proposal exists
     const proposal = await this.prisma.proposal.findUnique({
       where: { id: proposalId },
-      select: { id: true, state: true, council_id: true },
+      select: { id: true, state: true, councilId: true },
     });
 
     if (!proposal) {
@@ -634,7 +634,7 @@ export class CouncilController {
     }
 
     // Verify proposal has a council assigned
-    if (!proposal.council_id) {
+    if (!proposal.councilId) {
       throw new BadRequestException({
         success: false,
         error: {
@@ -994,12 +994,12 @@ export class CouncilController {
       where: { id: proposalId },
       select: {
         id: true,
-        owner_id: true,
-        council_id: true,
-        councils: {
+        ownerId: true,
+        councilId: true,
+        council: {
           include: {
-            council_members: {
-              select: { user_id: true },
+            members: {
+              select: { userId: true },
             },
           },
         },
@@ -1016,7 +1016,7 @@ export class CouncilController {
       });
     }
 
-    if (!proposal.councils) {
+    if (!proposal.council) {
       throw new BadRequestException({
         success: false,
         error: {
@@ -1026,11 +1026,11 @@ export class CouncilController {
       });
     }
 
-    const memberIds = proposal.councils.council_members.map((m) => m.user_id);
+    const memberIds = proposal.council.members.map((m) => m.userId);
     const votersInfo = this.councilService.getEligibleVotersForProposal(
       memberIds,
-      proposal.councils.secretary_id || '',
-      proposal.owner_id,
+      proposal.council.secretaryId || '',
+      proposal.ownerId,
     );
 
     return {
