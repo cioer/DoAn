@@ -44,31 +44,31 @@ export class CouncilService {
    * @returns List of councils with members
    */
   async listCouncils(type?: CouncilType) {
-    const where: Prisma.councilsWhereInput = type ? { type } : {};
+    const where: Prisma.CouncilWhereInput = type ? { type } : {};
 
     const councils = await this.prisma.council.findMany({
       where,
       include: {
-        users: {
+        secretary: {
           select: {
             id: true,
-            display_name: true,
+            displayName: true,
             email: true,
           },
         },
-        council_members: {
+        members: {
           include: {
-            users: {
+            user: {
               select: {
                 id: true,
-                display_name: true,
+                displayName: true,
                 email: true,
                 role: true,
               },
             },
           },
           orderBy: {
-            created_at: 'asc',
+            createdAt: 'asc',
           },
         },
       },
@@ -82,18 +82,18 @@ export class CouncilService {
       id: council.id,
       name: council.name,
       type: council.type,
-      secretaryId: council.secretary_id,
-      secretaryName: council.users?.display_name || null,
-      members: council.council_members.map((member) => ({
+      secretaryId: council.secretaryId,
+      secretaryName: council.secretary?.displayName || null,
+      members: council.members.map((member) => ({
         id: member.id,
-        councilId: member.council_id,
-        userId: member.user_id,
-        displayName: member.users.display_name,
+        councilId: member.councilId,
+        userId: member.userId,
+        displayName: member.user.displayName,
         role: member.role,
-        createdAt: member.created_at,
+        createdAt: member.createdAt,
       })),
-      createdAt: council.created_at,
-      updatedAt: council.updated_at,
+      createdAt: council.createdAt,
+      updatedAt: council.updatedAt,
     }));
   }
 
@@ -108,26 +108,26 @@ export class CouncilService {
     const council = await this.prisma.council.findUnique({
       where: { id },
       include: {
-        users: {
+        secretary: {
           select: {
             id: true,
-            display_name: true,
+            displayName: true,
             email: true,
           },
         },
-        council_members: {
+        members: {
           include: {
-            users: {
+            user: {
               select: {
                 id: true,
-                display_name: true,
+                displayName: true,
                 email: true,
                 role: true,
               },
             },
           },
           orderBy: {
-            created_at: 'asc',
+            createdAt: 'asc',
           },
         },
       },
@@ -147,18 +147,18 @@ export class CouncilService {
       id: council.id,
       name: council.name,
       type: council.type,
-      secretaryId: council.secretary_id,
-      secretaryName: council.users?.display_name || null,
-      members: council.council_members.map((member) => ({
+      secretaryId: council.secretaryId,
+      secretaryName: council.secretary?.displayName || null,
+      members: council.members.map((member) => ({
         id: member.id,
-        councilId: member.council_id,
-        userId: member.user_id,
-        displayName: member.users.display_name,
+        councilId: member.councilId,
+        userId: member.userId,
+        displayName: member.user.displayName,
         role: member.role,
-        createdAt: member.created_at,
+        createdAt: member.createdAt,
       })),
-      createdAt: council.created_at,
-      updatedAt: council.updated_at,
+      createdAt: council.createdAt,
+      updatedAt: council.updatedAt,
     };
   }
 
@@ -174,26 +174,26 @@ export class CouncilService {
         role: {
           in: ['GIANG_VIEN', 'GIANG_VIEN'],
         },
-        deleted_at: null,
+        deletedAt: null,
       },
       select: {
         id: true,
-        display_name: true,
+        displayName: true,
         email: true,
         role: true,
-        faculty_id: true,
+        facultyId: true,
       },
       orderBy: {
-        display_name: 'asc',
+        displayName: 'asc',
       },
     });
 
     return users.map((u) => ({
       id: u.id,
-      displayName: u.display_name,
+      displayName: u.displayName,
       email: u.email,
       role: u.role,
-      facultyId: u.faculty_id,
+      facultyId: u.facultyId,
     }));
   }
 
@@ -218,8 +218,8 @@ export class CouncilService {
     const council = await this.prisma.council.findUnique({
       where: { id: councilId },
       include: {
-        users: true,
-        council_members: true,
+        secretary: true,
+        members: true,
       },
     });
 
@@ -252,7 +252,7 @@ export class CouncilService {
     const updatedProposal = await this.prisma.proposal.update({
       where: { id: proposalId },
       data: {
-        council_id: councilId,
+        councilId: councilId,
       },
     });
 
@@ -287,44 +287,44 @@ export class CouncilService {
     // Create council with members in transaction
     const result = await this.prisma.$transaction(async (tx) => {
       // Create council
-      const council = await tx.councils.create({
+      const council = await tx.council.create({
         data: {
           name,
           type,
-          secretary_id: secretaryId,
+          secretaryId: secretaryId,
         },
       });
 
       // Create council members if provided
       if (memberIds && memberIds.length > 0) {
         const memberData = memberIds.map((userId) => ({
-          council_id: council.id,
-          user_id: userId,
+          councilId: council.id,
+          userId: userId,
           role: CouncilMemberRole.MEMBER,
         }));
 
-        await tx.council_members.createMany({
+        await tx.councilMember.createMany({
           data: memberData,
         });
       }
 
       // Fetch created council with members
-      const createdCouncil = await tx.councils.findUnique({
+      const createdCouncil = await tx.council.findUnique({
         where: { id: council.id },
         include: {
-          users: {
+          secretary: {
             select: {
               id: true,
-              display_name: true,
+              displayName: true,
               email: true,
             },
           },
-          council_members: {
+          members: {
             include: {
-              users: {
+              user: {
                 select: {
                   id: true,
-                  display_name: true,
+                  displayName: true,
                   email: true,
                   role: true,
                 },
@@ -342,7 +342,7 @@ export class CouncilService {
       action: 'COUNCIL_CREATE' as AuditAction,
       actorUserId: actorId,
       entityType: 'Council',
-      entityId: result.id,
+      entityId: result!.id,
       metadata: {
         councilName: name,
         councilType: type,
@@ -379,7 +379,7 @@ export class CouncilService {
     const existingCouncil = await this.prisma.council.findUnique({
       where: { id },
       include: {
-        council_members: true,
+        members: true,
       },
     });
 
@@ -396,53 +396,53 @@ export class CouncilService {
     // Update council with members in transaction
     const result = await this.prisma.$transaction(async (tx) => {
       // Update council basic info
-      const council = await tx.councils.update({
+      const council = await tx.council.update({
         where: { id },
         data: {
           ...(name && { name }),
           ...(type && { type }),
-          ...(secretaryId !== undefined && { secretary_id: secretaryId }),
+          ...(secretaryId !== undefined && { secretaryId: secretaryId }),
         },
       });
 
       // Update members if provided
       if (memberIds !== undefined) {
         // Delete existing members
-        await tx.council_members.deleteMany({
-          where: { council_id: id },
+        await tx.councilMember.deleteMany({
+          where: { councilId: id },
         });
 
         // Create new members if provided
         if (memberIds.length > 0) {
           const memberData = memberIds.map((userId) => ({
-            council_id: council.id,
-            user_id: userId,
+            councilId: council.id,
+            userId: userId,
             role: CouncilMemberRole.MEMBER,
           }));
 
-          await tx.council_members.createMany({
+          await tx.councilMember.createMany({
             data: memberData,
           });
         }
       }
 
       // Fetch updated council with members
-      const updatedCouncil = await tx.councils.findUnique({
+      const updatedCouncil = await tx.council.findUnique({
         where: { id: council.id },
         include: {
-          users: {
+          secretary: {
             select: {
               id: true,
-              display_name: true,
+              displayName: true,
               email: true,
             },
           },
-          council_members: {
+          members: {
             include: {
-              users: {
+              user: {
                 select: {
                   id: true,
-                  display_name: true,
+                  displayName: true,
                   email: true,
                   role: true,
                 },
@@ -461,7 +461,7 @@ export class CouncilService {
         action: 'COUNCIL_UPDATE' as AuditAction,
         actorUserId: actorId,
         entityType: 'Council',
-        entityId: result.id,
+        entityId: result!.id,
         metadata: {
           councilName: name,
           councilType: type,
@@ -471,7 +471,7 @@ export class CouncilService {
       });
     }
 
-    this.logger.log(`Council updated: ${result.name} (${result.type})`);
+    this.logger.log(`Council updated: ${result!.name} (${result!.type})`);
 
     return result;
   }
@@ -551,15 +551,15 @@ export class CouncilService {
     const proposal = await this.prisma.proposal.findUnique({
       where: { id: proposalId },
       select: {
-        council_id: true,
+        councilId: true,
       },
     });
 
-    if (!proposal || !proposal.council_id) {
+    if (!proposal || !proposal.councilId) {
       return null;
     }
 
-    return this.getCouncilById(proposal.council_id);
+    return this.getCouncilById(proposal.councilId);
   }
 
   /**
@@ -586,7 +586,7 @@ export class CouncilService {
       select: {
         id: true,
         code: true,
-        council_id: true,
+        councilId: true,
         title: true,
       },
     });
@@ -601,7 +601,7 @@ export class CouncilService {
       });
     }
 
-    if (!proposal.council_id) {
+    if (!proposal.councilId) {
       throw new BadRequestException({
         success: false,
         error: {
@@ -615,8 +615,8 @@ export class CouncilService {
     const newCouncil = await this.prisma.council.findUnique({
       where: { id: newCouncilId },
       include: {
-        users: true,
-        council_members: true,
+        secretary: true,
+        members: true,
       },
     });
 
@@ -646,7 +646,7 @@ export class CouncilService {
     }
 
     // Check if trying to assign the same council
-    if (proposal.council_id === newCouncilId) {
+    if (proposal.councilId === newCouncilId) {
       throw new BadRequestException({
         success: false,
         error: {
@@ -656,15 +656,15 @@ export class CouncilService {
       });
     }
 
-    const previousCouncilId = proposal.council_id;
+    const previousCouncilId = proposal.councilId;
 
     // Update proposal with new council assignment
     const updatedProposal = await this.prisma.proposal.update({
       where: { id: proposalId },
       data: {
-        council_id: newCouncilId,
-        holder_unit: newCouncilId,
-        holder_user: newSecretaryId,
+        councilId: newCouncilId,
+        holderUnit: newCouncilId,
+        holderUser: newSecretaryId,
       },
     });
 
@@ -727,10 +727,10 @@ export class CouncilService {
     // Get all users
     const users = await this.prisma.user.findMany({
       where: { id: { in: memberIds } },
-      select: { id: true, display_name: true, faculty_id: true, role: true },
+      select: { id: true, displayName: true, facultyId: true, role: true },
     });
 
-    const userMap = new Map(users.map((u) => [u.id, u]));
+    const userMap = new Map<string, typeof users[number]>(users.map((u) => [u.id, u]));
 
     // Rule 1: All members must belong to the same faculty
     for (const memberId of memberIds) {
@@ -739,11 +739,11 @@ export class CouncilService {
         errors.push(`Không tìm thấy người dùng với ID: ${memberId}`);
         continue;
       }
-      if (user.faculty_id !== facultyId) {
-        errors.push(`${user.display_name} không thuộc khoa này`);
+      if (user.facultyId !== facultyId) {
+        errors.push(`${user.displayName} không thuộc khoa này`);
       }
       if (user.role !== UserRole.GIANG_VIEN) {
-        errors.push(`${user.display_name} không phải giảng viên`);
+        errors.push(`${user.displayName} không phải giảng viên`);
       }
     }
 
@@ -833,35 +833,35 @@ export class CouncilService {
    * @returns List of faculty councils
    */
   async listFacultyCouncils(facultyId: string, type?: CouncilType) {
-    const where: Prisma.councilsWhereInput = {
+    const where: Prisma.CouncilWhereInput = {
       scope: CouncilScope.FACULTY,
-      faculty_id: facultyId,
+      facultyId: facultyId,
       ...(type && { type }),
     };
 
     const councils = await this.prisma.council.findMany({
       where,
       include: {
-        users: {
+        secretary: {
           select: {
             id: true,
-            display_name: true,
+            displayName: true,
             email: true,
           },
         },
-        council_members: {
+        members: {
           include: {
-            users: {
+            user: {
               select: {
                 id: true,
-                display_name: true,
+                displayName: true,
                 email: true,
                 role: true,
               },
             },
           },
           orderBy: {
-            created_at: 'asc',
+            createdAt: 'asc',
           },
         },
         faculty: {
@@ -882,23 +882,23 @@ export class CouncilService {
       name: council.name,
       type: council.type,
       scope: council.scope,
-      facultyId: council.faculty_id,
+      facultyId: council.facultyId,
       facultyName: council.faculty?.name || null,
-      secretaryId: council.secretary_id,
-      secretaryName: council.users?.display_name || null,
-      members: council.council_members.map((member) => ({
+      secretaryId: council.secretaryId,
+      secretaryName: council.secretary?.displayName || null,
+      members: council.members.map((member) => ({
         id: member.id,
-        councilId: member.council_id,
-        userId: member.user_id,
-        displayName: member.users.display_name,
+        councilId: member.councilId,
+        userId: member.userId,
+        displayName: member.user.displayName,
         role: member.role,
-        createdAt: member.created_at,
+        createdAt: member.createdAt,
       })),
-      votingMemberCount: council.council_members.filter(
-        (m) => m.user_id !== council.secretary_id,
+      votingMemberCount: council.members.filter(
+        (m) => m.userId !== council.secretaryId,
       ).length,
-      createdAt: council.created_at,
-      updatedAt: council.updated_at,
+      createdAt: council.createdAt,
+      updatedAt: council.updatedAt,
     }));
   }
 
@@ -913,29 +913,29 @@ export class CouncilService {
   async getEligibleFacultyMembers(facultyId: string, excludeOwnerId?: string) {
     const users = await this.prisma.user.findMany({
       where: {
-        faculty_id: facultyId,
+        facultyId: facultyId,
         role: UserRole.GIANG_VIEN,
-        deleted_at: null,
+        deletedAt: null,
         ...(excludeOwnerId && { id: { not: excludeOwnerId } }),
       },
       select: {
         id: true,
-        display_name: true,
+        displayName: true,
         email: true,
         role: true,
-        faculty_id: true,
+        facultyId: true,
       },
       orderBy: {
-        display_name: 'asc',
+        displayName: 'asc',
       },
     });
 
     return users.map((u) => ({
       id: u.id,
-      displayName: u.display_name,
+      displayName: u.displayName,
       email: u.email,
       role: u.role,
-      facultyId: u.faculty_id,
+      facultyId: u.facultyId,
     }));
   }
 
@@ -979,44 +979,44 @@ export class CouncilService {
     // Create council with members in transaction
     const result = await this.prisma.$transaction(async (tx) => {
       // Create council
-      const council = await tx.councils.create({
+      const council = await tx.council.create({
         data: {
           name,
           type,
           scope: CouncilScope.FACULTY,
-          faculty_id: facultyId,
-          secretary_id: secretaryId,
+          facultyId: facultyId,
+          secretaryId: secretaryId,
         },
       });
 
       // Create council members
       const memberData = memberIds.map((userId) => ({
-        council_id: council.id,
-        user_id: userId,
+        councilId: council.id,
+        userId: userId,
         role: userId === secretaryId ? CouncilMemberRole.SECRETARY : CouncilMemberRole.MEMBER,
       }));
 
-      await tx.council_members.createMany({
+      await tx.councilMember.createMany({
         data: memberData,
       });
 
       // Fetch created council with members
-      const createdCouncil = await tx.councils.findUnique({
+      const createdCouncil = await tx.council.findUnique({
         where: { id: council.id },
         include: {
-          users: {
+          secretary: {
             select: {
               id: true,
-              display_name: true,
+              displayName: true,
               email: true,
             },
           },
-          council_members: {
+          members: {
             include: {
-              users: {
+              user: {
                 select: {
                   id: true,
-                  display_name: true,
+                  displayName: true,
                   email: true,
                   role: true,
                 },
@@ -1041,7 +1041,7 @@ export class CouncilService {
       action: 'COUNCIL_CREATE' as AuditAction,
       actorUserId: actorId,
       entityType: 'Council',
-      entityId: result.id,
+      entityId: result!.id,
       metadata: {
         councilName: name,
         councilType: type,
@@ -1084,9 +1084,9 @@ export class CouncilService {
         id: true,
         code: true,
         state: true,
-        owner_id: true,
-        faculty_id: true,
-        council_id: true,
+        ownerId: true,
+        facultyId: true,
+        councilId: true,
       },
     });
 
@@ -1112,7 +1112,7 @@ export class CouncilService {
     }
 
     // Validate faculty match
-    if (proposal.faculty_id !== actorFacultyId) {
+    if (proposal.facultyId !== actorFacultyId) {
       throw new BadRequestException({
         success: false,
         error: {
@@ -1126,11 +1126,11 @@ export class CouncilService {
     const council = await this.prisma.council.findUnique({
       where: { id: councilId },
       include: {
-        users: true,
-        council_members: {
+        secretary: true,
+        members: {
           include: {
-            users: {
-              select: { id: true, display_name: true },
+            user: {
+              select: { id: true, displayName: true },
             },
           },
         },
@@ -1158,7 +1158,7 @@ export class CouncilService {
       });
     }
 
-    if (council.faculty_id !== proposal.faculty_id) {
+    if (council.facultyId !== proposal.facultyId) {
       throw new BadRequestException({
         success: false,
         error: {
@@ -1168,21 +1168,70 @@ export class CouncilService {
       });
     }
 
+    // ISSUE #2 FIX: Validate secretary is set
+    if (!council.secretaryId) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'COUNCIL_NO_SECRETARY',
+          message: 'Hội đồng chưa có thư ký. Vui lòng chỉ định thư ký trước khi phân công.',
+        },
+      });
+    }
+
     // Get eligible voters info
-    const memberIds = council.council_members.map((m) => m.user_id);
+    const memberIds = council.members.map((m) => m.userId);
     const votersInfo = this.getEligibleVotersForProposal(
       memberIds,
-      council.secretary_id || '',
-      proposal.owner_id,
+      council.secretaryId,
+      proposal.ownerId,
     );
+
+    // ISSUE #1 FIX: Validate voter count after owner exclusion
+    // Check if proposal owner is a council member (which would reduce voter count)
+    const isOwnerMember = memberIds.includes(proposal.ownerId);
+    if (isOwnerMember) {
+      this.logger.warn(
+        `Proposal owner ${proposal.ownerId} is a member of council ${council.id}. ` +
+        `Eligible voters reduced from ${memberIds.length - 1} to ${votersInfo.totalEligible}.`
+      );
+    }
+
+    // Validate minimum voters
+    if (votersInfo.totalEligible < 3) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'INSUFFICIENT_VOTERS',
+          message: `Không đủ thành viên bỏ phiếu (cần tối thiểu 3, có ${votersInfo.totalEligible}). ` +
+            (isOwnerMember
+              ? 'Chủ nhiệm đề tài là thành viên hội đồng nên bị loại trừ.'
+              : 'Vui lòng thêm thành viên vào hội đồng.'),
+        },
+      });
+    }
+
+    // Validate odd number of voters
+    if (votersInfo.totalEligible % 2 === 0) {
+      throw new BadRequestException({
+        success: false,
+        error: {
+          code: 'EVEN_VOTER_COUNT',
+          message: `Số thành viên bỏ phiếu là số chẵn (${votersInfo.totalEligible}), có thể xảy ra hòa phiếu. ` +
+            (isOwnerMember
+              ? 'Do chủ nhiệm đề tài là thành viên hội đồng bị loại trừ. Vui lòng thêm/bớt 1 thành viên.'
+              : 'Vui lòng thêm/bớt 1 thành viên để đảm bảo số lẻ.'),
+        },
+      });
+    }
 
     // Update proposal
     const updatedProposal = await this.prisma.proposal.update({
       where: { id: proposalId },
       data: {
-        council_id: councilId,
-        holder_unit: councilId,
-        holder_user: council.secretary_id,
+        councilId: councilId,
+        holderUnit: councilId,
+        holderUser: council.secretaryId,
       },
     });
 
@@ -1197,7 +1246,7 @@ export class CouncilService {
         councilId,
         councilName: council.name,
         councilScope: 'FACULTY',
-        secretaryId: council.secretary_id,
+        secretaryId: council.secretaryId,
         eligibleVoters: votersInfo.totalEligible,
         excludedMembers: votersInfo.excludedMembers,
         warning: votersInfo.warning,
@@ -1215,8 +1264,8 @@ export class CouncilService {
         proposalCode: proposal.code,
         councilId: council.id,
         councilName: council.name,
-        secretaryId: council.secretary_id,
-        secretaryName: council.users?.display_name,
+        secretaryId: council.secretaryId,
+        secretaryName: council.secretary?.displayName,
         eligibleVoters: votersInfo.eligibleVoters,
         excludedMembers: votersInfo.excludedMembers,
         totalEligibleVoters: votersInfo.totalEligible,
