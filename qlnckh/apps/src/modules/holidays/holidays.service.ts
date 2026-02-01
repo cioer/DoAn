@@ -90,8 +90,8 @@ export class HolidaysService {
         date: Date;
         name: string;
         recurring: boolean;
-        created_at: Date;
-        updated_at: Date;
+        createdAt: Date;
+        updatedAt: Date;
       }>>`
         SELECT id, date, name, recurring, created_at, updated_at
         FROM business_calendar
@@ -116,8 +116,8 @@ export class HolidaysService {
         date: h.date,
         name: h.name,
         recurring: h.recurring,
-        createdAt: h.created_at,
-        updatedAt: h.updated_at,
+        createdAt: h.createdAt,
+        updatedAt: h.updatedAt,
       })),
       total: Number(total[0]?.count || 0),
       page,

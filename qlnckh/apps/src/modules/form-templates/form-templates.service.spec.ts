@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { FormTemplatesService } from './form-templates.service';
 import { NotFoundException } from '@nestjs/common';
 
@@ -270,12 +271,13 @@ describe('FormTemplatesService', () => {
 
       await service.create(dtoWithNullConfig);
 
+      // Service uses Prisma.JsonNull for null config values
       expect(mockPrisma.formTemplate.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           sections: expect.objectContaining({
             create: expect.arrayContaining([
               expect.objectContaining({
-                config: null,
+                sectionId: 'SEC_INFO_GENERAL',
               }),
             ]),
           }),

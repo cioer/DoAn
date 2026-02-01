@@ -8,10 +8,10 @@ import { getStateBadge, getStateBadgeClasses, getStateLabel, isPKHCNQueueState, 
 
 describe('States Constants (Story 5.1)', () => {
   describe('SCHOOL_SELECTION_REVIEW State Badge', () => {
-    it('should have correct Vietnamese label "Đang xét (Trường)"', () => {
+    it('should have correct Vietnamese label "Hội đồng Trường - Đề cương"', () => {
       const badge = getStateBadge('SCHOOL_COUNCIL_OUTLINE_REVIEW');
 
-      expect(badge.label).toBe('Đang xét (Trường)');
+      expect(badge.label).toBe('Hội đồng Trường - Đề cương');
     });
 
     it('should have Clock icon for pending state', () => {
@@ -62,8 +62,8 @@ describe('States Constants (Story 5.1)', () => {
   describe('Vietnamese Localization', () => {
     it('should provide Vietnamese labels for all states', () => {
       expect(getStateLabel('DRAFT')).toBe('Nháp');
-      expect(getStateLabel('FACULTY_COUNCIL_OUTLINE_REVIEW')).toBe('Đang xét (Khoa)');
-      expect(getStateLabel('SCHOOL_COUNCIL_OUTLINE_REVIEW')).toBe('Đang xét (Trường)');
+      expect(getStateLabel('FACULTY_COUNCIL_OUTLINE_REVIEW')).toBe('Hội đồng Khoa - Đề cương');
+      expect(getStateLabel('SCHOOL_COUNCIL_OUTLINE_REVIEW')).toBe('Hội đồng Trường - Đề cương');
       expect(getStateLabel('CHANGES_REQUESTED')).toBe('Yêu cầu sửa');
       expect(getStateLabel('APPROVED')).toBe('Đã duyệt');
       expect(getStateLabel('REJECTED')).toBe('Từ chối');

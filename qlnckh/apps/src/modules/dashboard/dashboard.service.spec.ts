@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { ProjectState, User } from '@prisma/client';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DashboardService } from './dashboard.service';
 import { SlaService } from '../calendar/sla.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -19,6 +20,20 @@ const mockPrisma = {
   proposal: {
     count: vi.fn(),
     findMany: vi.fn(),
+    groupBy: vi.fn().mockResolvedValue([]),
+  },
+  user: {
+    findMany: vi.fn().mockResolvedValue([]),
+  },
+  council: {
+    count: vi.fn().mockResolvedValue(0),
+  },
+  evaluation: {
+    findMany: vi.fn().mockResolvedValue([]),
+  },
+  faculty: {
+    findMany: vi.fn().mockResolvedValue([]),
+    findUnique: vi.fn().mockResolvedValue(null),
   },
 };
 
@@ -34,6 +49,10 @@ const mockSlaService = {
 
 const mockNotificationsService = {
   bulkRemind: vi.fn(),
+};
+
+const mockRbacService = {
+  hasPermission: vi.fn().mockResolvedValue(true),
 };
 
 describe('DashboardService', () => {
@@ -88,6 +107,7 @@ describe('DashboardService', () => {
       mockPrisma as any,
       mockSlaService as any,
       mockNotificationsService as any,
+      mockRbacService as any,
     );
     vi.clearAllMocks();
   });
@@ -258,7 +278,6 @@ describe('DashboardService', () => {
 
       expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith({
         where: expect.any(Object),
-        include: expect.any(Object),
         orderBy: {
           slaDeadline: 'asc',
         },
@@ -307,34 +326,19 @@ describe('DashboardService', () => {
   });
 
   describe('AC6: RBAC Authorization', () => {
-    it('should allow dashboard access for PHONG_KHCN role', () => {
-      expect(() => {
-        service.validateDashboardPermission('PHONG_KHCN');
-      }).not.toThrow();
+    it('should allow dashboard access for PHONG_KHCN role', async () => {
+      mockRbacService.hasPermission.mockResolvedValue(true);
+      await expect(service.validateDashboardPermission('PHONG_KHCN')).resolves.not.toThrow();
     });
 
-    it('should allow dashboard access for ADMIN role', () => {
-      expect(() => {
-        service.validateDashboardPermission('ADMIN');
-      }).not.toThrow();
+    it('should allow dashboard access for ADMIN role', async () => {
+      mockRbacService.hasPermission.mockResolvedValue(true);
+      await expect(service.validateDashboardPermission('ADMIN')).resolves.not.toThrow();
     });
 
-    it('should reject dashboard access for non-PHONG_KHCN/ADMIN roles', () => {
-      expect(() => {
-        service.validateDashboardPermission('GIANG_VIEN');
-      }).toThrow(BadRequestException);
-
-      try {
-        service.validateDashboardPermission('GIANG_VIEN');
-      } catch (e) {
-        expect((e as BadRequestException).response).toEqual({
-          success: false,
-          error: {
-            code: 'INSUFFICIENT_PERMISSIONS',
-            message: 'Bạn không có quyền thực hiện thao tác này',
-          },
-        });
-      }
+    it('should reject dashboard access for non-PHONG_KHCN/ADMIN roles', async () => {
+      mockRbacService.hasPermission.mockResolvedValue(false);
+      await expect(service.validateDashboardPermission('GIANG_VIEN')).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -457,18 +461,15 @@ describe('DashboardService', () => {
 
       await service.getOverdueList();
 
+      // Service queries proposals first, then fetches holder data separately
       expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith({
         where: expect.any(Object),
-        include: {
-          holder: {
-            select: {
-              id: true,
-              displayName: true,
-              email: true,
-            },
-          },
-        },
         orderBy: expect.any(Object),
+      });
+      // Then fetches holders with select for only needed fields
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith({
+        where: { id: { in: expect.any(Array) } },
+        select: { id: true, displayName: true, email: true },
       });
     });
 

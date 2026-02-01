@@ -84,7 +84,10 @@ describe('FileUpload Component (Story 2.4)', () => {
       />
     );
 
-    expect(screen.getByText(/Đã dùng: 10\.0 MB \/ 50 MB/)).toBeDefined();
+    // Component shows "10.0 MB / 50 MB" text and "Dung lượng lưu trữ" label
+    expect(screen.getByText(/10\.0 MB/)).toBeDefined();
+    expect(screen.getByText(/50 MB/)).toBeDefined();
+    expect(screen.getByText('Dung lượng lưu trữ')).toBeDefined();
   });
 
   it('should validate file size before upload (AC2)', async () => {

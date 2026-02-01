@@ -7,383 +7,409 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model attachments {
-  id          String    @id
-  proposal_id String
-  file_name   String
-  file_url    String
-  file_size   Int
-  mime_type   String
-  type        String    @default("GENERAL")
-  uploaded_by String
-  uploaded_at DateTime  @default(now())
-  deleted_at  DateTime?
-  proposals   proposals @relation(fields: [proposal_id], references: [id], onDelete: Cascade)
+// ============================================================
+// MODELS WITH CAMELCASE NAMES AND @map() DIRECTIVES
+// ============================================================
 
-  @@index([deleted_at])
-  @@index([proposal_id])
+model Attachment {
+  id         String    @id
+  proposalId String    @map("proposal_id")
+  fileName   String    @map("file_name")
+  fileUrl    String    @map("file_url")
+  fileSize   Int       @map("file_size")
+  mimeType   String    @map("mime_type")
+  type       String    @default("GENERAL")
+  uploadedBy String    @map("uploaded_by")
+  uploadedAt DateTime  @default(now()) @map("uploaded_at")
+  deletedAt  DateTime? @map("deleted_at")
+  proposal   Proposal  @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@index([deletedAt])
+  @@index([proposalId])
   @@index([type])
-  @@index([uploaded_by])
+  @@index([uploadedBy])
+  @@map("attachments")
 }
 
-model audit_events {
-  id                                          String   @id
-  occurred_at                                 DateTime @default(now())
-  actor_user_id                               String
-  acting_as_user_id                           String?
-  action                                      String
-  entity_type                                 String?
-  entity_id                                   String?
-  metadata                                    Json?
-  ip                                          String?
-  user_agent                                  String?
-  request_id                                  String?
-  created_at                                  DateTime @default(now())
-  users_audit_events_acting_as_user_idTousers users?   @relation("audit_events_acting_as_user_idTousers", fields: [acting_as_user_id], references: [id])
-  users_audit_events_actor_user_idTousers     users    @relation("audit_events_actor_user_idTousers", fields: [actor_user_id], references: [id])
+model AuditEvent {
+  id            String   @id
+  occurredAt    DateTime @default(now()) @map("occurred_at")
+  actorUserId   String   @map("actor_user_id")
+  actingAsUserId String? @map("acting_as_user_id")
+  action        String
+  entityType    String?  @map("entity_type")
+  entityId      String?  @map("entity_id")
+  metadata      Json?
+  ip            String?
+  userAgent     String?  @map("user_agent")
+  requestId     String?  @map("request_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  actingAsUser  User?    @relation("AuditActingAs", fields: [actingAsUserId], references: [id])
+  actorUser     User     @relation("AuditActor", fields: [actorUserId], references: [id])
 
   @@index([action])
-  @@index([actor_user_id])
-  @@index([created_at])
-  @@index([entity_type, entity_id])
-  @@index([occurred_at])
+  @@index([actorUserId])
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@index([occurredAt])
+  @@map("audit_events")
 }
 
-model business_calendar {
-  id             String   @id
-  date           DateTime @unique @db.Date
-  name           String
-  is_holiday     Boolean  @default(true)
-  is_working_day Boolean  @default(false)
-  recurring      Boolean  @default(false)
-  created_at     DateTime @default(now())
-  updated_at     DateTime
+model BusinessCalendar {
+  id          String   @id @default(uuid())
+  date        DateTime @unique @db.Date
+  name        String
+  isHoliday   Boolean  @default(true) @map("is_holiday")
+  isWorkingDay Boolean @default(false) @map("is_working_day")
+  recurring   Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@index([date])
+  @@map("business_calendar")
 }
 
-model council_members {
-  id         String            @id @default(uuid())
-  council_id String
-  user_id    String
-  role       CouncilMemberRole
-  created_at DateTime          @default(now())
-  is_author  Boolean           @default(false)
-  councils   councils          @relation(fields: [council_id], references: [id], onDelete: Cascade)
-  users      users             @relation(fields: [user_id], references: [id])
+model CouncilMember {
+  id        String            @id @default(uuid())
+  councilId String            @map("council_id")
+  userId    String            @map("user_id")
+  role      CouncilMemberRole
+  createdAt DateTime          @default(now()) @map("created_at")
+  isAuthor  Boolean           @default(false) @map("is_author")
+  council   Council           @relation(fields: [councilId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id])
 
-  @@unique([council_id, user_id])
-  @@index([council_id])
-  @@index([is_author])
-  @@index([user_id])
+  @@unique([councilId, userId])
+  @@index([councilId])
+  @@index([isAuthor])
+  @@index([userId])
+  @@map("council_members")
 }
 
-model councils {
-  id              String            @id @default(uuid())
-  name            String
-  type            CouncilType
-  scope           CouncilScope      @default(SCHOOL)
-  faculty_id      String?
-  secretary_id    String?
-  created_at      DateTime          @default(now())
-  updated_at      DateTime          @updatedAt
-  council_members council_members[]
-  faculty         faculties?        @relation(fields: [faculty_id], references: [id])
-  users           users?            @relation(fields: [secretary_id], references: [id])
-  proposals       proposals[]
+model Council {
+  id          String          @id @default(uuid())
+  name        String
+  type        CouncilType
+  scope       CouncilScope    @default(SCHOOL)
+  facultyId   String?         @map("faculty_id")
+  secretaryId String?         @map("secretary_id")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  members     CouncilMember[]
+  faculty     Faculty?        @relation(fields: [facultyId], references: [id])
+  secretary   User?           @relation("CouncilSecretary", fields: [secretaryId], references: [id])
+  proposals   Proposal[]
 
   @@index([type])
   @@index([scope])
-  @@index([faculty_id])
+  @@index([facultyId])
+  @@map("councils")
 }
 
-model document_manifests {
-  id                  String    @id
-  document_id         String    @unique
-  template_id         String
-  template_version    Int
-  proposal_data       Json
-  generated_by        String
-  generated_at        DateTime  @default(now())
-  verified_at         DateTime?
-  verified_by         String?
-  verification_result String?
-  documents           documents @relation(fields: [document_id], references: [id])
+model DocumentManifest {
+  id                 String    @id @default(uuid())
+  documentId         String    @unique @map("document_id")
+  templateId         String    @map("template_id")
+  templateVersion    Int       @map("template_version")
+  proposalData       Json      @map("proposal_data")
+  generatedBy        String    @map("generated_by")
+  generatedAt        DateTime  @default(now()) @map("generated_at")
+  verifiedAt         DateTime? @map("verified_at")
+  verifiedBy         String?   @map("verified_by")
+  verificationResult String?   @map("verification_result")
+  document           Document  @relation(fields: [documentId], references: [id])
 
-  @@index([document_id])
+  @@index([documentId])
+  @@map("document_manifests")
 }
 
-model document_templates {
-  id            String               @id
-  name          String
-  description   String?
-  template_type DocumentTemplateType
-  file_path     String
-  file_name     String
-  file_size     Int
-  sha256_hash   String
-  version       Int                  @default(1)
-  placeholders  String[]
-  is_active     Boolean              @default(false)
-  created_by    String
-  created_at    DateTime             @default(now())
-  updated_at    DateTime
-  deleted_at    DateTime?
-  documents     documents[]
+model DocumentTemplate {
+  id           String               @id @default(uuid())
+  name         String
+  description  String?
+  templateType DocumentTemplateType @map("template_type")
+  filePath     String               @map("file_path")
+  fileName     String               @map("file_name")
+  fileSize     Int                  @map("file_size")
+  sha256Hash   String               @map("sha256_hash")
+  version      Int                  @default(1)
+  placeholders String[]
+  isActive     Boolean              @default(false) @map("is_active")
+  createdBy    String               @map("created_by")
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+  deletedAt    DateTime?            @map("deleted_at")
+  documents    Document[]
 
-  @@unique([template_type, is_active])
-  @@index([deleted_at])
-  @@index([is_active])
-  @@index([template_type])
+  @@unique([templateType, isActive])
+  @@index([deletedAt])
+  @@index([isActive])
+  @@index([templateType])
+  @@map("document_templates")
 }
 
-model documents {
-  id                 String              @id
-  proposal_id        String
-  document_type      DocumentType
-  template_id        String
-  template_version   Int
-  file_path          String
-  file_name          String
-  file_size          Int
-  sha256_hash        String              @unique
-  generated_by       String
-  generated_at       DateTime            @default(now())
-  deleted_at         DateTime?
-  retention_until    DateTime?
-  document_manifests document_manifests?
-  proposals          proposals           @relation(fields: [proposal_id], references: [id])
-  document_templates document_templates  @relation(fields: [template_id], references: [id])
+model Document {
+  id              String            @id @default(uuid())
+  proposalId      String            @map("proposal_id")
+  documentType    DocumentType      @map("document_type")
+  templateId      String            @map("template_id")
+  templateVersion Int               @map("template_version")
+  filePath        String            @map("file_path")
+  fileName        String            @map("file_name")
+  fileSize        Int               @map("file_size")
+  sha256Hash      String            @unique @map("sha256_hash")
+  generatedBy     String            @map("generated_by")
+  generatedAt     DateTime          @default(now()) @map("generated_at")
+  deletedAt       DateTime?         @map("deleted_at")
+  retentionUntil  DateTime?         @map("retention_until")
+  manifest        DocumentManifest?
+  proposal        Proposal          @relation(fields: [proposalId], references: [id])
+  template        DocumentTemplate  @relation(fields: [templateId], references: [id])
 
-  @@index([deleted_at])
-  @@index([generated_at])
-  @@index([proposal_id])
-  @@index([sha256_hash])
+  @@index([deletedAt])
+  @@index([generatedAt])
+  @@index([proposalId])
+  @@index([sha256Hash])
+  @@map("documents")
 }
 
-model evaluations {
-  id           String          @id @default(uuid())
-  proposal_id  String
-  evaluator_id String
-  level        EvaluationLevel @default(SCHOOL)
-  state        EvaluationState @default(DRAFT)
-  form_data    Json
-  created_at   DateTime        @default(now())
-  updated_at   DateTime        @updatedAt
-  submitted_at DateTime?
-  users        users           @relation(fields: [evaluator_id], references: [id])
-  proposals    proposals       @relation(fields: [proposal_id], references: [id], onDelete: Cascade)
+model Evaluation {
+  id          String          @id @default(uuid())
+  proposalId  String          @map("proposal_id")
+  evaluatorId String          @map("evaluator_id")
+  level       EvaluationLevel @default(SCHOOL)
+  state       EvaluationState @default(DRAFT)
+  formData    Json            @map("form_data")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  submittedAt DateTime?       @map("submitted_at")
+  evaluator   User            @relation(fields: [evaluatorId], references: [id])
+  proposal    Proposal        @relation(fields: [proposalId], references: [id], onDelete: Cascade)
 
-  @@unique([proposal_id, evaluator_id, level])
-  @@index([evaluator_id])
-  @@index([proposal_id])
+  @@unique([proposalId, evaluatorId, level])
+  @@index([evaluatorId])
+  @@index([proposalId])
   @@index([level])
   @@index([state])
+  @@map("evaluations")
 }
 
-model faculties {
-  id         String      @id
-  code       String      @unique
-  name       String
-  type       FacultyType @default(FACULTY)
-  created_at DateTime    @default(now())
-  updated_at DateTime
-  councils   councils[]
-  proposals  proposals[]
-  users      users[]
+model Faculty {
+  id        String      @id @default(uuid())
+  code      String      @unique
+  name      String
+  type      FacultyType @default(FACULTY)
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+  councils  Council[]
+  proposals Proposal[]
+  users     User[]
 
   @@index([code])
+  @@map("faculties")
 }
 
-model form_sections {
-  id             String         @id
-  template_id    String
-  section_id     SectionId
-  label          String
-  component      String
-  display_order  Int
-  is_required    Boolean        @default(false)
-  config         Json?
-  created_at     DateTime       @default(now())
-  updated_at     DateTime
-  form_templates form_templates @relation(fields: [template_id], references: [id], onDelete: Cascade)
+model FormSection {
+  id           String       @id @default(uuid())
+  templateId   String       @map("template_id")
+  sectionId    SectionId    @map("section_id")
+  label        String
+  component    String
+  displayOrder Int          @map("display_order")
+  isRequired   Boolean      @default(false) @map("is_required")
+  config       Json?
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  template     FormTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
-  @@unique([template_id, section_id])
-  @@index([template_id])
+  @@unique([templateId, sectionId])
+  @@index([templateId])
+  @@map("form_sections")
 }
 
-model form_templates {
-  id            String          @id
-  code          String          @unique
-  name          String
-  version       String          @default("v1.0")
-  description   String?
-  is_active     Boolean         @default(true)
-  project_type  String          @default("CAP_TRUONG")
-  created_at    DateTime        @default(now())
-  updated_at    DateTime
-  form_sections form_sections[]
-  proposals     proposals[]
+model FormTemplate {
+  id          String        @id @default(uuid())
+  code        String        @unique
+  name        String
+  version     String        @default("v1.0")
+  description String?
+  isActive    Boolean       @default(true) @map("is_active")
+  projectType String        @default("CAP_TRUONG") @map("project_type")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  sections    FormSection[]
+  proposals   Proposal[]
 
   @@index([code])
-  @@index([is_active])
+  @@index([isActive])
+  @@map("form_templates")
 }
 
-model proposal_documents {
-  id               String             @id
-  proposal_id      String
-  form_type        FormType
-  status           FormDocumentStatus @default(DRAFT)
-  version          Int                @default(1)
-  file_path        String?
-  file_name        String?
-  file_size        Int?
-  sha256_hash      String?
-  form_data        Json?
-  created_by       String
-  created_at       DateTime           @default(now())
-  updated_at       DateTime
-  approved_by      String?
-  approved_at      DateTime?
-  rejected_by      String?
-  rejected_at      DateTime?
-  rejection_reason String?
-  deleted_at       DateTime?
-  proposals        proposals          @relation(fields: [proposal_id], references: [id], onDelete: Cascade)
+model ProposalDocument {
+  id              String             @id @default(uuid())
+  proposalId      String             @map("proposal_id")
+  formType        FormType           @map("form_type")
+  status          FormDocumentStatus @default(DRAFT)
+  version         Int                @default(1)
+  filePath        String?            @map("file_path")
+  fileName        String?            @map("file_name")
+  fileSize        Int?               @map("file_size")
+  sha256Hash      String?            @map("sha256_hash")
+  formData        Json?              @map("form_data")
+  createdBy       String             @map("created_by")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+  approvedBy      String?            @map("approved_by")
+  approvedAt      DateTime?          @map("approved_at")
+  rejectedBy      String?            @map("rejected_by")
+  rejectedAt      DateTime?          @map("rejected_at")
+  rejectionReason String?            @map("rejection_reason")
+  deletedAt       DateTime?          @map("deleted_at")
+  proposal        Proposal           @relation(fields: [proposalId], references: [id], onDelete: Cascade)
 
-  @@unique([proposal_id, form_type, version])
-  @@index([created_at])
-  @@index([deleted_at])
-  @@index([form_type])
-  @@index([proposal_id])
+  @@unique([proposalId, formType, version])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@index([formType])
+  @@index([proposalId])
   @@index([status])
+  @@map("proposal_documents")
 }
 
-model proposals {
-  id                                    String               @id
-  code                                  String               @unique
-  title                                 String
-  state                                 ProjectState         @default(DRAFT)
-  owner_id                              String
-  faculty_id                            String
-  council_id                            String?
-  holder_unit                           String?
-  holder_user                           String?
-  sla_start_date                        DateTime?
-  sla_deadline                          DateTime?
-  actual_start_date                     DateTime?
-  completed_date                        DateTime?
-  template_id                           String?
-  template_version                      String?
-  form_data                             Json?
-  cancelled_at                          DateTime?
-  withdrawn_at                          DateTime?
-  rejected_at                           DateTime?
-  rejected_by_id                        String?
-  paused_at                             DateTime?
-  resumed_at                            DateTime?
-  pause_reason                          String?
-  expected_resume_at                    DateTime?
-  pre_pause_state                       ProjectState?
-  pre_pause_holder_unit                 String?
-  pre_pause_holder_user                 String?
-  created_at                            DateTime             @default(now())
-  updated_at                            DateTime
-  deleted_at                            DateTime?
-  attachments                           attachments[]
-  documents                             documents[]
-  evaluations                           evaluations[]
-  proposal_documents                    proposal_documents[]
-  councils                              councils?            @relation(fields: [council_id], references: [id])
-  faculties                             faculties            @relation(fields: [faculty_id], references: [id])
-  users_proposals_owner_idTousers       users                @relation("proposals_owner_idTousers", fields: [owner_id], references: [id])
-  users_proposals_rejected_by_idTousers users?               @relation("proposals_rejected_by_idTousers", fields: [rejected_by_id], references: [id])
-  form_templates                        form_templates?      @relation(fields: [template_id], references: [id])
-  workflow_logs                         workflow_logs[]
+model Proposal {
+  id                 String             @id @default(uuid())
+  code               String             @unique
+  title              String
+  state              ProjectState       @default(DRAFT)
+  ownerId            String             @map("owner_id")
+  facultyId          String             @map("faculty_id")
+  councilId          String?            @map("council_id")
+  holderUnit         String?            @map("holder_unit")
+  holderUser         String?            @map("holder_user")
+  slaStartDate       DateTime?          @map("sla_start_date")
+  slaDeadline        DateTime?          @map("sla_deadline")
+  actualStartDate    DateTime?          @map("actual_start_date")
+  completedDate      DateTime?          @map("completed_date")
+  templateId         String?            @map("template_id")
+  templateVersion    String?            @map("template_version")
+  formData           Json?              @map("form_data")
+  cancelledAt        DateTime?          @map("cancelled_at")
+  withdrawnAt        DateTime?          @map("withdrawn_at")
+  rejectedAt         DateTime?          @map("rejected_at")
+  rejectedById       String?            @map("rejected_by_id")
+  pausedAt           DateTime?          @map("paused_at")
+  resumedAt          DateTime?          @map("resumed_at")
+  pauseReason        String?            @map("pause_reason")
+  expectedResumeAt   DateTime?          @map("expected_resume_at")
+  prePauseState      ProjectState?      @map("pre_pause_state")
+  prePauseHolderUnit String?            @map("pre_pause_holder_unit")
+  prePauseHolderUser String?            @map("pre_pause_holder_user")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+  deletedAt          DateTime?          @map("deleted_at")
+  attachments        Attachment[]
+  documents          Document[]
+  evaluations        Evaluation[]
+  proposalDocuments  ProposalDocument[]
+  council            Council?           @relation(fields: [councilId], references: [id])
+  faculty            Faculty            @relation(fields: [facultyId], references: [id])
+  owner              User               @relation("ProposalOwner", fields: [ownerId], references: [id])
+  rejectedBy         User?              @relation("RejectedBy", fields: [rejectedById], references: [id])
+  template           FormTemplate?      @relation(fields: [templateId], references: [id])
+  workflowLogs       WorkflowLog[]
 
-  @@index([cancelled_at])
+  @@index([cancelledAt])
   @@index([code])
-  @@index([council_id])
-  @@index([deleted_at])
-  @@index([expected_resume_at])
-  @@index([faculty_id])
-  @@index([holder_unit])
-  @@index([holder_user])
-  @@index([owner_id])
-  @@index([paused_at])
-  @@index([rejected_at])
-  @@index([rejected_by_id])
-  @@index([resumed_at])
-  @@index([sla_deadline])
+  @@index([councilId])
+  @@index([deletedAt])
+  @@index([expectedResumeAt])
+  @@index([facultyId])
+  @@index([holderUnit])
+  @@index([holderUser])
+  @@index([ownerId])
+  @@index([pausedAt])
+  @@index([rejectedAt])
+  @@index([rejectedById])
+  @@index([resumedAt])
+  @@index([slaDeadline])
   @@index([state])
-  @@index([template_id])
-  @@index([withdrawn_at])
+  @@index([templateId])
+  @@index([withdrawnAt])
+  @@map("proposals")
 }
 
-model refresh_tokens {
-  id         String    @id
-  token      String    @unique
-  user_id    String
-  expires_at DateTime
-  created_at DateTime  @default(now())
-  revoked_at DateTime?
-  users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+model RefreshToken {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  userId    String    @map("user_id")
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  revokedAt DateTime? @map("revoked_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])
-  @@index([user_id])
+  @@index([userId])
+  @@map("refresh_tokens")
 }
 
-model role_permissions {
-  id         String     @id
+model RolePermission {
+  id         String     @id @default(uuid())
   role       UserRole
   permission Permission
-  created_at DateTime   @default(now())
+  createdAt  DateTime   @default(now()) @map("created_at")
 
   @@unique([role, permission])
+  @@map("role_permissions")
 }
 
-model users {
-  id                                                 String            @id
-  email                                              String            @unique
-  password_hash                                      String
-  display_name                                       String
-  role                                               UserRole
-  faculty_id                                         String?
-  created_at                                         DateTime          @default(now())
-  updated_at                                         DateTime
-  deleted_at                                         DateTime?
-  audit_events_audit_events_acting_as_user_idTousers audit_events[]    @relation("audit_events_acting_as_user_idTousers")
-  audit_events_audit_events_actor_user_idTousers     audit_events[]    @relation("audit_events_actor_user_idTousers")
-  council_members                                    council_members[]
-  councils                                           councils[]
-  evaluations                                        evaluations[]
-  proposals_proposals_owner_idTousers                proposals[]       @relation("proposals_owner_idTousers")
-  proposals_proposals_rejected_by_idTousers          proposals[]       @relation("proposals_rejected_by_idTousers")
-  refresh_tokens                                     refresh_tokens[]
-  faculties                                          faculties?        @relation(fields: [faculty_id], references: [id])
+model User {
+  id                String          @id @default(uuid())
+  email             String          @unique
+  passwordHash      String          @map("password_hash")
+  displayName       String          @map("display_name")
+  role              UserRole
+  facultyId         String?         @map("faculty_id")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  deletedAt         DateTime?       @map("deleted_at")
+  auditEventsAsActing AuditEvent[]  @relation("AuditActingAs")
+  auditEventsAsActor  AuditEvent[]  @relation("AuditActor")
+  councilMemberships  CouncilMember[]
+  secretaryCouncils   Council[]     @relation("CouncilSecretary")
+  evaluations         Evaluation[]
+  ownedProposals      Proposal[]    @relation("ProposalOwner")
+  rejectedProposals   Proposal[]    @relation("RejectedBy")
+  refreshTokens       RefreshToken[]
+  faculty             Faculty?      @relation(fields: [facultyId], references: [id])
 
   @@index([email])
-  @@index([faculty_id])
+  @@index([facultyId])
+  @@map("users")
 }
 
-model workflow_logs {
-  id                        String         @id @default(uuid())
-  proposal_id               String
-  action                    WorkflowAction
-  from_state                ProjectState?
-  to_state                  ProjectState
-  actor_id                  String
-  actor_name                String
-  return_target_state       ProjectState?
-  return_target_holder_unit String?
-  reason_code               String?
-  comment                   String?
-  timestamp                 DateTime       @default(now())
-  proposals                 proposals      @relation(fields: [proposal_id], references: [id], onDelete: Cascade)
+model WorkflowLog {
+  id                    String        @id @default(uuid())
+  proposalId            String        @map("proposal_id")
+  action                WorkflowAction
+  fromState             ProjectState? @map("from_state")
+  toState               ProjectState  @map("to_state")
+  actorId               String        @map("actor_id")
+  actorName             String        @map("actor_name")
+  returnTargetState     ProjectState? @map("return_target_state")
+  returnTargetHolderUnit String?      @map("return_target_holder_unit")
+  reasonCode            String?       @map("reason_code")
+  comment               String?
+  timestamp             DateTime      @default(now())
+  proposal              Proposal      @relation(fields: [proposalId], references: [id], onDelete: Cascade)
 
-  @@index([proposal_id])
+  @@index([proposalId])
   @@index([timestamp])
+  @@map("workflow_logs")
 }
+
+// ============================================================
+// ENUMS
+// ============================================================
 
 enum CouncilMemberRole {
   CHAIR

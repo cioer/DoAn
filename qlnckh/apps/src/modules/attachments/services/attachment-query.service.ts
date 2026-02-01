@@ -131,7 +131,17 @@ export class AttachmentQueryService {
     uploadedBy: string;
   }) {
     return this.prisma.attachment.create({
-      data,
+      data: {
+        id: `att-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        fileName: data.fileName,
+        fileUrl: data.fileUrl,
+        fileSize: data.fileSize,
+        mimeType: data.mimeType,
+        uploadedBy: data.uploadedBy,
+        proposal: {
+          connect: { id: data.proposalId },
+        },
+      },
     });
   }
 

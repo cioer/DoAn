@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
 import { HolidaysService } from './holidays.service';
 import { AuditService } from '../audit/audit.service';
@@ -64,7 +65,7 @@ describe('HolidaysService', () => {
   describe('AC1, AC2: Get Holidays', () => {
     beforeEach(() => {
       mockPrisma.$queryRaw.mockResolvedValueOnce([
-        { id: 'holiday-1', date: new Date('2026-01-01'), name: 'Tết Dương lịch', recurring: true, created_at: new Date(), updated_at: new Date() },
+        { id: 'holiday-1', date: new Date('2026-01-01'), name: 'Tết Dương lịch', recurring: true, createdAt: new Date(), updatedAt: new Date() },
       ]);
       mockPrisma.$queryRaw.mockResolvedValueOnce([{ count: 1 }]);
     });
@@ -85,7 +86,7 @@ describe('HolidaysService', () => {
     it('should filter by year', async () => {
       mockPrisma.$queryRaw.mockClear();
       mockPrisma.$queryRaw.mockResolvedValueOnce([
-        { id: 'holiday-1', date: new Date('2026-01-01'), name: 'Tết Dương lịch', recurring: true, created_at: new Date(), updated_at: new Date() },
+        { id: 'holiday-1', date: new Date('2026-01-01'), name: 'Tết Dương lịch', recurring: true, createdAt: new Date(), updatedAt: new Date() },
       ]);
       mockPrisma.$queryRaw.mockResolvedValueOnce([{ count: 1 }]);
 
@@ -102,7 +103,7 @@ describe('HolidaysService', () => {
     it('should filter by recurring', async () => {
       mockPrisma.$queryRaw.mockClear();
       mockPrisma.$queryRaw.mockResolvedValueOnce([
-        { id: 'holiday-1', date: new Date('2026-01-01'), name: 'Tết Dương lịch', recurring: true, created_at: new Date(), updated_at: new Date() },
+        { id: 'holiday-1', date: new Date('2026-01-01'), name: 'Tết Dương lịch', recurring: true, createdAt: new Date(), updatedAt: new Date() },
       ]);
       mockPrisma.$queryRaw.mockResolvedValueOnce([{ count: 1 }]);
 

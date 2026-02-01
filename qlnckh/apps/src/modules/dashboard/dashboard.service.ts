@@ -189,7 +189,7 @@ export class DashboardService {
         })
       : [];
 
-    const holderMap = new Map(holders.map((h) => [h.id, h]));
+    const holderMap = new Map<string, typeof holders[number]>(holders.map((h) => [h.id, h]));
 
     // Map to DTO - Proper typing, NO as unknown (Epic 7 retro pattern)
     const result: OverdueProposalDto[] = proposals.map((p) => {
@@ -815,7 +815,7 @@ export class DashboardService {
       },
     });
 
-    const evaluationMap = new Map(evaluations.map((e) => [e.proposalId, e]));
+    const evaluationMap = new Map<string, typeof evaluations[number]>(evaluations.map((e) => [e.proposalId, e]));
 
     // Calculate KPI
     const totalAssigned = proposals.length;

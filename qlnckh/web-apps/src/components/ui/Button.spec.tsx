@@ -23,7 +23,7 @@ describe('Button Component', () => {
       render(<Button>Click me</Button>);
 
       const button = screen.getByRole('button');
-      expect(button).toHaveClass('bg-primary-600');
+      expect(button).toHaveClass('from-primary-600');
       expect(button).toHaveClass('text-white');
     });
 
@@ -31,7 +31,8 @@ describe('Button Component', () => {
       render(<Button variant="primary">Primary</Button>);
 
       const button = screen.getByRole('button');
-      expect(button).toHaveClass('bg-primary-600');
+      expect(button).toHaveClass('bg-gradient-to-r');
+      expect(button).toHaveClass('from-primary-600');
     });
 
     it('should render secondary variant', () => {
@@ -47,14 +48,14 @@ describe('Button Component', () => {
       render(<Button variant="destructive">Delete</Button>);
 
       const button = screen.getByRole('button');
-      expect(button).toHaveClass('bg-red-600');
+      expect(button).toHaveClass('bg-error-600');
     });
 
     it('should render ghost variant', () => {
       render(<Button variant="ghost">Ghost</Button>);
 
       const button = screen.getByRole('button');
-      expect(button).toHaveClass('text-gray-700');
+      expect(button).toHaveClass('text-gray-600');
       expect(button).toHaveClass('hover:bg-gray-100');
     });
 
@@ -62,14 +63,14 @@ describe('Button Component', () => {
       render(<Button variant="success">Success</Button>);
 
       const button = screen.getByRole('button');
-      expect(button).toHaveClass('bg-green-600');
+      expect(button).toHaveClass('bg-success-500');
     });
 
     it('should render warning variant', () => {
       render(<Button variant="warning">Warning</Button>);
 
       const button = screen.getByRole('button');
-      expect(button).toHaveClass('bg-amber-500');
+      expect(button).toHaveClass('bg-warning-500');
     });
   });
 
@@ -78,8 +79,8 @@ describe('Button Component', () => {
       render(<Button>Default</Button>);
 
       const button = screen.getByRole('button');
-      expect(button).toHaveClass('px-4');
-      expect(button).toHaveClass('py-2');
+      expect(button).toHaveClass('px-5');
+      expect(button).toHaveClass('py-2.5');
       expect(button).toHaveClass('text-sm');
     });
 
@@ -87,18 +88,18 @@ describe('Button Component', () => {
       render(<Button size="xs">XS</Button>);
 
       const button = screen.getByRole('button');
-      expect(button).toHaveClass('px-2');
-      expect(button).toHaveClass('py-1');
+      expect(button).toHaveClass('px-3');
+      expect(button).toHaveClass('py-1.5');
       expect(button).toHaveClass('text-xs');
-      expect(button).toHaveClass('rounded-sm');
+      expect(button).toHaveClass('rounded-lg');
     });
 
     it('should render sm size', () => {
       render(<Button size="sm">Small</Button>);
 
       const button = screen.getByRole('button');
-      expect(button).toHaveClass('px-3');
-      expect(button).toHaveClass('py-1.5');
+      expect(button).toHaveClass('px-3.5');
+      expect(button).toHaveClass('py-2');
       expect(button).toHaveClass('text-sm');
     });
 
@@ -107,7 +108,7 @@ describe('Button Component', () => {
 
       const button = screen.getByRole('button');
       expect(button).toHaveClass('px-6');
-      expect(button).toHaveClass('py-3');
+      expect(button).toHaveClass('py-3.5');
       expect(button).toHaveClass('text-base');
     });
   });
@@ -234,7 +235,7 @@ describe('Button Component', () => {
       render(<Button disabled>Disabled</Button>);
 
       const button = screen.getByRole('button');
-      expect(button).toHaveClass('disabled:opacity-50');
+      expect(button).toHaveClass('disabled:opacity-60');
       expect(button).toHaveClass('disabled:cursor-not-allowed');
     });
   });
@@ -247,7 +248,7 @@ describe('Button Component', () => {
       expect(button).toHaveClass('mt-4');
       expect(button).toHaveClass('rounded-full');
       // Should also have base variant classes
-      expect(button).toHaveClass('bg-primary-600');
+      expect(button).toHaveClass('from-primary-600');
     });
 
     it('should override conflicting classes with cn utility', () => {

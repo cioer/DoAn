@@ -1,4 +1,4 @@
-import { StateVerificationService } from './helpers/state-verification.service';
+import { StateVerificationService } from './state-verification.service';
 import { ProjectState, WorkflowAction } from '@prisma/client';
 
 /**
@@ -78,7 +78,14 @@ describe('StateVerificationService', () => {
   describe('AC1: Verify State Integrity', () => {
     beforeEach(() => {
       mockPrisma.proposal.findMany.mockResolvedValue(mockProposals);
-      mockPrisma.workflowLog.findMany.mockResolvedValue(mockWorkflowLogs);
+      // Mock workflowLog.findMany to return filtered logs based on proposalId
+      mockPrisma.workflowLog.findMany.mockImplementation((args) => {
+        const proposalId = args?.where?.proposalId;
+        if (!proposalId) return Promise.resolve(mockWorkflowLogs);
+        return Promise.resolve(
+          mockWorkflowLogs.filter((log) => log.proposalId === proposalId)
+        );
+      });
     });
 
     it('should return verification report', async () => {
@@ -100,7 +107,7 @@ describe('StateVerificationService', () => {
     });
 
     it('should identify mismatched states', async () => {
-      // Proposal 1 has mismatched state
+      // Proposal 3 has mismatched state (current state DRAFT, but should be APPROVED based on logs)
       mockPrisma.proposal.findMany.mockResolvedValue([
         mockProposals[0],
         mockProposals[1],
@@ -139,8 +146,9 @@ describe('StateVerificationService', () => {
 
   describe('AC2: Compute Expected State', () => {
     it('should compute DRAFT as initial state', async () => {
-      const state = await service.computeExpectedState('proposal-no-logs');
       mockPrisma.workflowLog.findMany.mockResolvedValue([]);
+
+      const state = await service.computeExpectedState('proposal-no-logs');
 
       expect(state).toBe(ProjectState.DRAFT);
     });

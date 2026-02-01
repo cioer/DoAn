@@ -40,8 +40,8 @@ export interface RenderFormResult {
   pdf_url: string | null;
   template: string;
   timestamp: string;
-  user_id: string;
-  proposal_id: string | null;
+  userId: string;
+  proposalId: string | null;
   sha256_docx: string;
   sha256_pdf: string | null;
 }

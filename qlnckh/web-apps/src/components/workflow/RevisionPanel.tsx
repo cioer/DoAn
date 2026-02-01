@@ -17,7 +17,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { CheckCircle, AlertTriangle, Send, Download } from 'lucide-react';
-import { workflowApi, CANONICAL_SECTIONS, WorkflowLog, generateIdempotencyKey, downloadRevisionPdf } from '@/lib/api/workflow';
+import { workflowApi, CANONICAL_SECTIONS, WorkflowLog, generateIdempotencyKey, downloadRevisionPdf } from '../../lib/api/workflow';
 import { Button, Alert } from '../ui';
 
 export interface RevisionPanelProps {

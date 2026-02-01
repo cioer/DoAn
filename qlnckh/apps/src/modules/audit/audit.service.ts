@@ -65,9 +65,12 @@ export class AuditService {
     try {
       await this.prisma.auditEvent.create({
         data: {
+          id: `audit-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
           action: dto.action,
-          actorUserId: dto.actorUserId,
-          actingAsUserId: dto.actingAsUserId || null,
+          actorUser: {
+            connect: { id: dto.actorUserId },
+          },
+          actingAsUser: dto.actingAsUserId ? { connect: { id: dto.actingAsUserId } } : undefined,
           entityType: dto.entityType || null,
           entityId: dto.entityId || null,
           metadata: (dto.metadata ?? Prisma.JsonNull) as any,

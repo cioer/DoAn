@@ -62,8 +62,8 @@ export class FormEngineService {
         {
           template_name: dto.templateName,
           context: dto.context,
-          user_id: dto.userId,
-          proposal_id: dto.proposalId,
+          userId: dto.userId,
+          proposalId: dto.proposalId,
         },
       );
 

@@ -306,7 +306,7 @@ export class FullDumpExportService {
             name: true,
           },
         },
-        rejectedByUser: {
+        rejectedBy: {
           select: {
             displayName: true,
           },
@@ -327,7 +327,7 @@ export class FullDumpExportService {
         })
       : [];
 
-    const holderMap = new Map(holders.map((h) => [h.id, h]));
+    const holderMap = new Map<string, typeof holders[number]>(holders.map((h) => [h.id, h]));
 
     return proposals.map((proposal) => {
       const holder = proposal.holderUser ? holderMap.get(proposal.holderUser) : null;

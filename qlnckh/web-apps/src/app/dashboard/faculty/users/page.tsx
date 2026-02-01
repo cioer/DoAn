@@ -195,7 +195,7 @@ export default function FacultyUsersPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {toast.show && (
-        <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 ${
+        <div className={`fixed top-4 right-4 z-[1000] px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 ${
           toast.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
         }`}>
           {toast.type === 'success' ? <Check className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
@@ -382,7 +382,7 @@ export default function FacultyUsersPage() {
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
             <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-4">
               <h2 className="text-xl font-bold text-white">Thêm người dùng mới</h2>
@@ -447,7 +447,7 @@ export default function FacultyUsersPage() {
 
       {/* Edit Modal */}
       {showEditModal && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
             <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-4">
               <h2 className="text-xl font-bold text-white">Chỉnh sửa người dùng</h2>
@@ -509,7 +509,7 @@ export default function FacultyUsersPage() {
 
       {/* Delete Modal */}
       {showDeleteModal && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
             <div className="p-6 text-center">
               <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -546,7 +546,7 @@ export default function FacultyUsersPage() {
 
       {/* Password Modal */}
       {showPasswordModal && temporaryPassword && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
             <div className="p-6 text-center">
               <div className="w-20 h-20 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">

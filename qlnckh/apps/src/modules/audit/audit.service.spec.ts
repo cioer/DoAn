@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AuditService } from './audit.service';
 import { AuditAction } from './audit-action.enum';
 import { Prisma } from '@prisma/client';

@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { ProjectState, User, Faculty } from '@prisma/client';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ExportsService } from './exports.service';
 import { AuditService } from '../audit/audit.service';
 import { ExcelExportService } from './excel-export.service';
@@ -20,6 +21,9 @@ import { SlaService } from '../calendar/sla.service';
 const mockPrisma = {
   proposal: {
     findMany: vi.fn(),
+  },
+  user: {
+    findMany: vi.fn().mockResolvedValue([]),
   },
 };
 
@@ -126,7 +130,6 @@ describe('ExportsService', () => {
         where: { deletedAt: null },
         include: {
           owner: { select: { displayName: true, email: true } },
-          holder: { select: { displayName: true } },
           faculty: { select: { name: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -374,7 +377,7 @@ describe('ExportsService', () => {
       await service.exportProposalsExcel(dto, mockContext);
 
       const filename = mockExcelExportService.generateProposalsExcel.mock.calls[0][1];
-      expect(filename).toBe('faculty_review');
+      expect(filename).toBe('faculty_council_outline_review');
     });
 
     it('should generate "overdue" for overdue filter', async () => {

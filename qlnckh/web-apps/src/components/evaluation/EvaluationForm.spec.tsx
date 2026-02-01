@@ -46,6 +46,7 @@ describe('EvaluationForm (Story 5.3)', () => {
     currentUserId: 'test-secretary-id',
     currentUserRole: 'THU_KY_HOI_DONG',
     isSecretary: true,
+    isCouncilMember: true,
   };
 
   beforeEach(() => {
@@ -95,9 +96,11 @@ describe('EvaluationForm (Story 5.3)', () => {
     });
 
     it('should show not authorized message when user is not the assigned secretary', async () => {
+      // When isCouncilMember is false, component shows unauthorized message
       const unauthorizedProps = {
         ...mockProps,
         holderUser: 'different-secretary-id',
+        isCouncilMember: false, // Not a council member
       };
 
       render(<EvaluationForm {...unauthorizedProps} />);
@@ -106,7 +109,7 @@ describe('EvaluationForm (Story 5.3)', () => {
         expect(screen.getByText('Không thể đánh giá')).toBeDefined();
       });
       expect(
-        screen.getByText('Đề tài chưa được phân bổ cho bạn đánh giá.'),
+        screen.getByText('Chỉ thành viên hội đồng mới có thể đánh giá đề tài này.'),
       ).toBeDefined();
     });
 
@@ -115,6 +118,7 @@ describe('EvaluationForm (Story 5.3)', () => {
         ...mockProps,
         currentUserRole: 'GIANG_VIEN',
         isSecretary: false,
+        isCouncilMember: false,
       };
 
       render(<EvaluationForm {...nonSecretaryProps} />);
@@ -123,7 +127,7 @@ describe('EvaluationForm (Story 5.3)', () => {
         expect(screen.getByText('Không thể đánh giá')).toBeDefined();
       });
       expect(
-        screen.getByText(/Chỉ Thư ký Hội đồng được phân công mới có thể đánh giá/),
+        screen.getByText('Chỉ thành viên hội đồng mới có thể đánh giá đề tài này.'),
       ).toBeDefined();
     });
 
@@ -131,6 +135,7 @@ describe('EvaluationForm (Story 5.3)', () => {
       const wrongStateProps = {
         ...mockProps,
         currentState: 'FACULTY_COUNCIL_OUTLINE_REVIEW',
+        // isCouncilMember is true from mockProps
       };
 
       render(<EvaluationForm {...wrongStateProps} />);
@@ -138,6 +143,10 @@ describe('EvaluationForm (Story 5.3)', () => {
       await waitFor(() => {
         expect(screen.getByText('Không thể đánh giá')).toBeDefined();
       });
+      // Council member but wrong state
+      expect(
+        screen.getByText('Đề tài không ở trạng thái chờ đánh giá của hội đồng.'),
+      ).toBeDefined();
     });
   });
 

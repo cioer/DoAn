@@ -1,6 +1,7 @@
 import { UsersController } from './users.controller';
 import { UserRole, User } from '@prisma/client';
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 /**
  * Users Controller Unit Tests
@@ -83,6 +84,8 @@ describe('UsersController', () => {
       expect(mockUsersService.createUser).toHaveBeenCalledWith(
         createUserDto,
         mockCurrentUser.id,
+        mockCurrentUser.role,
+        mockCurrentUser.facultyId,
         '127.0.0.1',
         'test',
       );
@@ -198,6 +201,8 @@ describe('UsersController', () => {
         'user-id',
         updateUserDto,
         mockCurrentUser.id,
+        mockCurrentUser.role,
+        mockCurrentUser.facultyId,
         '127.0.0.1',
         'test',
       );
@@ -223,6 +228,8 @@ describe('UsersController', () => {
       expect(mockUsersService.softDeleteUser).toHaveBeenCalledWith(
         'user-id',
         mockCurrentUser.id,
+        mockCurrentUser.role,
+        mockCurrentUser.facultyId,
         '127.0.0.1',
         'test',
       );
@@ -300,6 +307,8 @@ describe('UsersController', () => {
         'user-id',
         { role: UserRole.QUAN_LY_KHOA },
         mockCurrentUser.id,
+        mockCurrentUser.role,
+        mockCurrentUser.facultyId,
         '192.168.1.1',
         'Mozilla',
       );
@@ -315,6 +324,8 @@ describe('UsersController', () => {
       expect(mockUsersService.softDeleteUser).toHaveBeenCalledWith(
         'user-id',
         mockCurrentUser.id,
+        mockCurrentUser.role,
+        mockCurrentUser.facultyId,
         '192.168.1.1',
         'Mozilla',
       );

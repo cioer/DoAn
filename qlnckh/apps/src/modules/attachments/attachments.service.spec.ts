@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
@@ -266,7 +267,7 @@ describe('AttachmentsService', () => {
         new ForbiddenException({
           success: false,
           error: {
-            code: 'PROPOSAL_NOT_DRAFT',
+            code: 'PROPOSAL_NOT_EDITABLE',
             message: 'Không thể sửa sau khi nộp. Vui lòng liên hệ admin nếu cần sửa.',
           },
         }),
@@ -587,7 +588,7 @@ describe('AttachmentsService', () => {
         new ForbiddenException({
           success: false,
           error: {
-            code: 'PROPOSAL_NOT_DRAFT',
+            code: 'PROPOSAL_NOT_EDITABLE',
             message: 'Không thể sửa sau khi nộp. Vui lòng liên hệ admin nếu cần sửa.',
           },
         }),
@@ -840,7 +841,7 @@ describe('AttachmentsService', () => {
         new ForbiddenException({
           success: false,
           error: {
-            code: 'PROPOSAL_NOT_DRAFT',
+            code: 'PROPOSAL_NOT_EDITABLE',
             message: 'Không thể sửa sau khi nộp. Vui lòng liên hệ admin nếu cần sửa.',
           },
         }),

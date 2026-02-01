@@ -1,6 +1,7 @@
 import { WorkflowController } from './workflow.controller';
 import { WorkflowAction, ProjectState, WorkflowLog } from '@prisma/client';
 import { NotFoundException } from '@nestjs/common';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueueFilterType } from './dto/queue-filter.dto';
 
 /**
@@ -251,11 +252,8 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([mockProposals[0]]);
 
         const result = await controller.getQueue(
-          QueueFilterType.MY_QUEUE,
-          undefined,
-          undefined,
-          undefined,
           mockUser,
+          QueueFilterType.MY_QUEUE,
         );
 
         expect(result.success).toBe(true);
@@ -278,11 +276,8 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([]);
 
         await controller.getQueue(
-          QueueFilterType.MY_QUEUE,
-          undefined,
-          undefined,
-          undefined,
           mockPhongKHCNUser,
+          QueueFilterType.MY_QUEUE,
         );
 
         expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
@@ -302,11 +297,8 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([]);
 
         await controller.getQueue(
-          QueueFilterType.MY_QUEUE,
-          undefined,
-          undefined,
-          undefined,
           mockUser,
+          QueueFilterType.MY_QUEUE,
         );
 
         expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
@@ -332,11 +324,8 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue(mockProposals);
 
         const result = await controller.getQueue(
-          QueueFilterType.MY_PROPOSALS,
-          undefined,
-          undefined,
-          undefined,
           mockUser,
+          QueueFilterType.MY_PROPOSALS,
         );
 
         expect(result.success).toBe(true);
@@ -356,11 +345,8 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue(mockProposals);
 
         const result = await controller.getQueue(
-          QueueFilterType.ALL,
-          undefined,
-          undefined,
-          undefined,
           mockUser,
+          QueueFilterType.ALL,
         );
 
         expect(result.success).toBe(true);
@@ -388,11 +374,8 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([]);
 
         await controller.getQueue(
-          QueueFilterType.OVERDUE,
-          undefined,
-          undefined,
-          undefined,
           mockUser,
+          QueueFilterType.OVERDUE,
         );
 
         expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
@@ -409,11 +392,8 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([]);
 
         await controller.getQueue(
-          QueueFilterType.OVERDUE,
-          undefined,
-          undefined,
-          undefined,
           mockUser,
+          QueueFilterType.OVERDUE,
         );
 
         const callArgs = mockPrisma.proposal.findMany.mock.calls[0][0];
@@ -430,11 +410,8 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([]);
 
         await controller.getQueue(
-          QueueFilterType.UPCOMING,
-          undefined,
-          undefined,
-          undefined,
           mockUser,
+          QueueFilterType.UPCOMING,
         );
 
         expect(mockSlaService.addBusinessDays).toHaveBeenCalledWith(
@@ -451,11 +428,8 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([]);
 
         await controller.getQueue(
-          QueueFilterType.UPCOMING,
-          undefined,
-          undefined,
-          undefined,
           mockUser,
+          QueueFilterType.UPCOMING,
         );
 
         expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
@@ -478,11 +452,8 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([]);
 
         await controller.getQueue(
-          QueueFilterType.UPCOMING,
-          undefined,
-          undefined,
-          undefined,
           mockUser,
+          QueueFilterType.UPCOMING,
         );
 
         const callArgs = mockPrisma.proposal.findMany.mock.calls[0][0];
@@ -499,11 +470,8 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([]);
 
         await controller.getQueue(
-          QueueFilterType.ALL,
-          undefined,
-          undefined,
-          undefined,
           mockUser,
+          QueueFilterType.ALL,
         );
 
         expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
@@ -519,11 +487,10 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([]);
 
         await controller.getQueue(
+          mockUser,
           QueueFilterType.ALL,
           '2',
           '10',
-          undefined,
-          mockUser,
         );
 
         expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
@@ -539,11 +506,10 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([]);
 
         const result = await controller.getQueue(
+          mockUser,
           QueueFilterType.ALL,
           undefined,
           '10',
-          undefined,
-          mockUser,
         );
 
         expect(result.meta.totalPages).toBe(3);
@@ -554,11 +520,10 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue(mockProposals);
 
         const result = await controller.getQueue(
+          mockUser,
           QueueFilterType.MY_QUEUE,
           '1',
           '20',
-          undefined,
-          mockUser,
         );
 
         expect(result.meta).toEqual({
@@ -576,11 +541,9 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([]);
 
         const result = await controller.getQueue(
+          mockUser,
           QueueFilterType.ALL,
           'abc', // Invalid - should default to 1
-          undefined,
-          undefined,
-          mockUser,
         );
 
         expect(result.meta.page).toBe(1);
@@ -596,11 +559,9 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([]);
 
         const result = await controller.getQueue(
+          mockUser,
           QueueFilterType.ALL,
           '-5', // Invalid - should default to 1
-          undefined,
-          undefined,
-          mockUser,
         );
 
         expect(result.meta.page).toBe(1);
@@ -616,11 +577,10 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([]);
 
         const result = await controller.getQueue(
+          mockUser,
           QueueFilterType.ALL,
           undefined,
           'xyz', // Invalid - should default to 20
-          undefined,
-          mockUser,
         );
 
         expect(result.meta.pageSize).toBe(20);
@@ -636,11 +596,10 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([]);
 
         const result = await controller.getQueue(
+          mockUser,
           QueueFilterType.ALL,
           undefined,
           '-10', // Invalid - should default to 20
-          undefined,
-          mockUser,
         );
 
         expect(result.meta.pageSize).toBe(20);
@@ -651,11 +610,10 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([]);
 
         const result = await controller.getQueue(
+          mockUser,
           QueueFilterType.ALL,
           undefined,
           '999', // Should be capped at 100
-          undefined,
-          mockUser,
         );
 
         expect(result.meta.pageSize).toBe(100);
@@ -673,11 +631,11 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([mockProposals[0]]);
 
         await controller.getQueue(
+          mockUser,
           QueueFilterType.ALL,
           undefined,
           undefined,
           'AI',
-          mockUser,
         );
 
         expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
@@ -702,11 +660,11 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([mockProposals[0]]);
 
         await controller.getQueue(
+          mockUser,
           QueueFilterType.ALL,
           undefined,
           undefined,
           'DT-2024-001',
-          mockUser,
         );
 
         expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
@@ -731,11 +689,11 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([]);
 
         await controller.getQueue(
+          mockUser,
           QueueFilterType.ALL,
           undefined,
           undefined,
           '  AI  ',
-          mockUser,
         );
 
         expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
@@ -760,11 +718,11 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue(mockProposals);
 
         await controller.getQueue(
+          mockUser,
           QueueFilterType.ALL,
           undefined,
           undefined,
           '',
-          mockUser,
         );
 
         expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
@@ -783,11 +741,8 @@ describe('WorkflowController', () => {
         mockPrisma.proposal.findMany.mockResolvedValue([mockProposals[0]]);
 
         const result = await controller.getQueue(
-          QueueFilterType.MY_QUEUE,
-          undefined,
-          undefined,
-          undefined,
           mockUser,
+          QueueFilterType.MY_QUEUE,
         );
 
         expect(result.success).toBe(true);

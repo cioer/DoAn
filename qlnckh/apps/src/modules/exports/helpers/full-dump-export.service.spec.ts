@@ -96,7 +96,7 @@ describe('FullDumpExportService', () => {
       holder: {
         displayName: 'Admin User',
       },
-      rejectedByUser: null,
+      rejectedBy: null,
     },
   ];
 
@@ -258,7 +258,7 @@ describe('FullDumpExportService', () => {
       expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           select: expect.objectContaining({
-            rejectedByUser: {
+            rejectedBy: {
               select: { displayName: true },
             },
           }),

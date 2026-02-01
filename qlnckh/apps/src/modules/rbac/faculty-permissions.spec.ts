@@ -8,8 +8,8 @@
  * - FACULTY_DASHBOARD_VIEW
  * - FACULTY_USER_MANAGE
  */
-import { RbacService } from '../rbac.service';
-import { Permission } from '../permissions.enum';
+import { RbacService } from './rbac.service';
+import { Permission } from './permissions.enum';
 import { UserRole } from '@prisma/client';
 
 describe('RbacService - Faculty Permissions Integration', () => {
@@ -22,8 +22,10 @@ describe('RbacService - Faculty Permissions Integration', () => {
   };
 
   beforeEach(() => {
+    vi.clearAllMocks(); // Clear mocks BEFORE creating service
+    mockPrisma.rolePermission.findMany.mockReset(); // Explicitly reset findMany
     service = new RbacService(mockPrisma as any);
-    vi.clearAllMocks();
+    // Note: New instance has fresh empty cache, no need to clear
   });
 
   describe('FACULTY_APPROVE Permission', () => {

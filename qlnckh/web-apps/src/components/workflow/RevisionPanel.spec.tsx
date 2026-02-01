@@ -14,10 +14,10 @@ import '@testing-library/jest-dom';
 import { vi, beforeEach, describe, it, expect, afterEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { RevisionPanel } from './RevisionPanel';
-import { workflowApi, WorkflowLog } from '@/lib/api/workflow';
+import { workflowApi, WorkflowLog } from '../../lib/api/workflow';
 
 // Mock the workflow API
-vi.mock('@/lib/api/workflow', () => ({
+vi.mock('../../lib/api/workflow', () => ({
   workflowApi: {
     getLatestReturn: vi.fn(),
   },
@@ -61,6 +61,9 @@ describe('RevisionPanel (Story 4.4)', () => {
   afterEach(() => {
     localStorage.clear();
   });
+
+  // Helper function to match component's localStorage key
+  const getStorageKey = (proposalId: string) => `qlnckh.revision.${proposalId}`;
 
   describe('AC1: Panel displays when state = CHANGES_REQUESTED', () => {
     it('should display panel when proposal state = CHANGES_REQUESTED', async () => {
@@ -176,8 +179,14 @@ describe('RevisionPanel (Story 4.4)', () => {
   });
 
   describe('AC3: Click to scroll and highlight', () => {
-    it('should scroll to section when label clicked', async () => {
+    it('should scroll to section when "Xem trong form" button clicked', async () => {
       vi.mocked(workflowApi.getLatestReturn).mockResolvedValue(mockReturnLog);
+
+      // Create a test element that can be found by scrollToSection
+      const testElement = document.createElement('div');
+      testElement.id = 'method';
+      testElement.setAttribute('data-section', 'SEC_METHOD');
+      document.body.appendChild(testElement);
 
       // Mock scrollIntoView
       const mockScroll = vi.fn();
@@ -191,13 +200,18 @@ describe('RevisionPanel (Story 4.4)', () => {
       );
 
       await waitFor(() => {
-        const label = screen.getByText('Phương pháp nghiên cứu');
-        fireEvent.click(label);
+        expect(screen.getByText('Phương pháp nghiên cứu')).toBeDefined();
       });
 
-      // Note: scrollIntoView was called but element might not be found
-      // This is expected in test environment
+      // Click the "Xem trong form" button which triggers scroll
+      const viewButton = screen.getAllByText('Xem trong form →')[0];
+      fireEvent.click(viewButton);
+
+      // scrollIntoView should be called on the element
       expect(mockScroll).toHaveBeenCalled();
+
+      // Cleanup
+      document.body.removeChild(testElement);
     });
 
     it('should add highlight class to element on scroll', async () => {
@@ -248,7 +262,7 @@ describe('RevisionPanel (Story 4.4)', () => {
       await userEvent.click(checkboxes[0]);
 
       // Check localStorage
-      const stored = localStorage.getItem(`revision-${mockProposalId}`);
+      const stored = localStorage.getItem(getStorageKey(mockProposalId));
       expect(stored).toBeTruthy();
       expect(JSON.parse(stored!)).toEqual(['SEC_METHOD']);
     });
@@ -256,7 +270,7 @@ describe('RevisionPanel (Story 4.4)', () => {
     it('should load checkbox state from localStorage on mount', async () => {
       // Pre-populate localStorage
       localStorage.setItem(
-        `revision-${mockProposalId}`,
+        getStorageKey(mockProposalId),
         JSON.stringify(['SEC_METHOD', 'SEC_BUDGET']),
       );
 
@@ -295,7 +309,7 @@ describe('RevisionPanel (Story 4.4)', () => {
       const checkboxes = screen.getAllByRole('checkbox');
       await userEvent.click(checkboxes[0]);
 
-      expect(localStorage.getItem(`revision-${mockProposalId}`)).toBeTruthy();
+      expect(localStorage.getItem(getStorageKey(mockProposalId))).toBeTruthy();
 
       // Change state to FACULTY_REVIEW
       rerender(
@@ -306,7 +320,7 @@ describe('RevisionPanel (Story 4.4)', () => {
       );
 
       // localStorage should be cleared
-      expect(localStorage.getItem(`revision-${mockProposalId}`)).toBeNull();
+      expect(localStorage.getItem(getStorageKey(mockProposalId))).toBeNull();
     });
   });
 
@@ -344,14 +358,20 @@ describe('RevisionPanel (Story 4.4)', () => {
         />,
       );
 
+      // Wait for content to load and verify initial count (0/3)
       await waitFor(() => {
-        expect(screen.getByText('(0/3 đã sửa)')).toBeDefined();
+        const button = screen.getByRole('button', { name: /Nộp lại/ });
+        expect(button.textContent).toContain('0/3');
       });
 
       const checkboxes = screen.getAllByRole('checkbox');
       await userEvent.click(checkboxes[0]);
 
-      expect(screen.getByText('(1/3 đã sửa)')).toBeDefined();
+      // Verify count updates to 1/3 after checking one checkbox
+      await waitFor(() => {
+        const button = screen.getByRole('button', { name: /Nộp lại/ });
+        expect(button.textContent).toContain('1/3');
+      });
     });
 
     it('should support controlled component mode', async () => {
@@ -367,12 +387,17 @@ describe('RevisionPanel (Story 4.4)', () => {
         />,
       );
 
+      // Wait for loading to complete and checkboxes to appear
       await waitFor(() => {
-        expect(screen.getByText('(1/3 đã sửa)')).toBeDefined();
+        const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+        expect(checkboxes.length).toBe(3);
+        // Note: SEC_METHOD is the first in mock's revisionSections
+        expect(checkboxes[0]).toBeChecked();
       });
 
-      const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
-      expect(checkboxes[0]).toBeChecked();
+      // Verify the controlled state is reflected in the button text
+      const button = screen.getByRole('button', { name: /Nộp lại/ });
+      expect(button.textContent).toContain('1/3');
     });
   });
 
@@ -424,7 +449,8 @@ describe('RevisionPanel (Story 4.4)', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Cần sửa các phần:')).toBeDefined();
-        expect(screen.getByText(/Không thể tải chi tiết yêu cầu sửa/)).toBeDefined();
+        // Component sets error to 'Không thể tải thông tin yêu cầu sửa' on API failure
+        expect(screen.getByText(/Không thể tải thông tin yêu cầu sửa/)).toBeDefined();
       });
     });
 
@@ -440,7 +466,8 @@ describe('RevisionPanel (Story 4.4)', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Cần sửa các phần:')).toBeDefined();
-        expect(screen.getByText(/Không thể tải chi tiết yêu cầu sửa/)).toBeDefined();
+        // Component shows fallback message when returnLog is null (no error set)
+        expect(screen.getByText(/Không thể tải chi tiết yêu cầu sửa\. Vui lòng kiểm tra lịch sử thay đổi\./)).toBeDefined();
       });
     });
   });
@@ -494,8 +521,9 @@ describe('RevisionPanel (Story 4.4)', () => {
       await userEvent.click(checkboxes[0]);
 
       await waitFor(() => {
-        const greenBackgrounds = container.querySelectorAll('.bg-green-50');
-        expect(greenBackgrounds.length).toBeGreaterThan(0);
+        // Component uses success gradient for checked items
+        const successBackgrounds = container.querySelectorAll('.from-success-50');
+        expect(successBackgrounds.length).toBeGreaterThan(0);
       });
     });
   });

@@ -297,7 +297,7 @@ export class ProposalDocumentsService {
     const proposal = await this.prisma.proposal.findUnique({
       where: { id: proposalId },
       include: {
-        proposalDocs: {
+        proposalDocuments: {
           where: { deletedAt: null },
           orderBy: [{ formType: 'asc' }, { version: 'desc' }],
         },
@@ -312,7 +312,7 @@ export class ProposalDocumentsService {
     const mapping = STATUS_FORM_MAPPING[currentState];
 
     // Get completed forms (status = APPROVED or FINALIZED)
-    const completedForms = proposal.proposalDocs
+    const completedForms = proposal.proposalDocuments
       .filter(d => d.status === FormDocumentStatus.APPROVED || d.status === FormDocumentStatus.FINALIZED)
       .map(d => d.formType);
 
@@ -320,7 +320,7 @@ export class ProposalDocumentsService {
     const missingForms = mapping.required.filter(f => !completedForms.includes(f));
 
     // Enrich documents with form info
-    const documentsWithInfo = proposal.proposalDocs.map(doc => ({
+    const documentsWithInfo = proposal.proposalDocuments.map(doc => ({
       ...doc,
       formInfo: {
         ...FORM_INFO[doc.formType],
@@ -719,7 +719,7 @@ export class ProposalDocumentsService {
       },
     });
 
-    const existingFormTypes = new Map(
+    const existingFormTypes = new Map<string, string>(
       existingDocs.map(doc => [doc.formType, doc.id])
     );
 

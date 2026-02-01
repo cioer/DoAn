@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AuditService, AuditStatistics } from './audit.service';
 import { AuditAction } from './audit-action.enum';
 import { UserRole, User } from '@prisma/client';
@@ -75,30 +76,28 @@ describe('AuditService - Story 10.4 Extensions', () => {
 
   describe('AC1: Statistics Dashboard', () => {
     beforeEach(() => {
-      // Mock count to return different values based on where clause
+      // Mock count to return different values based on call order
+      // Service calls: 1) totalEvents (no args), 2) todayEvents, 3) thisWeekEvents, 4) thisMonthEvents
+      // Using call order tracking since dates can be equal (e.g., Feb 1, 2026 is Sunday = start of week = start of month)
+      let countCallIndex = 0;
       mockPrisma.auditEvent.count.mockImplementation((args?: { where?: unknown }) => {
-        // If no where clause, return total count
+        countCallIndex++;
+        // If no where clause, return total count (call 1)
         if (!args || !args.where) {
           return Promise.resolve(100);
         }
-        // Check if it's a time-based query by inspecting the where clause
+        // Time-based queries are called in order via Promise.all
+        // Call 2: todayEvents, Call 3: thisWeekEvents, Call 4: thisMonthEvents
         const where = args.where as { occurredAt?: { gte?: Date } };
         if (where.occurredAt?.gte) {
-          const date = where.occurredAt.gte;
-          const now = new Date();
-          const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          const startOfWeek = new Date(startOfDay);
-          startOfWeek.setDate(startOfWeek.getDate() - startOfDay.getDay());
-          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-          // Match based on the date range
-          if (date.getTime() === startOfDay.getTime()) {
+          // Use call order to determine which count this is
+          if (countCallIndex === 2) {
             return Promise.resolve(5); // today
           }
-          if (date.getTime() === startOfWeek.getTime()) {
+          if (countCallIndex === 3) {
             return Promise.resolve(15); // this week
           }
-          if (date.getTime() === startOfMonth.getTime()) {
+          if (countCallIndex === 4) {
             return Promise.resolve(50); // this month
           }
         }

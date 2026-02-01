@@ -253,7 +253,7 @@ describe('ProposalsService', () => {
         id: 'proposal-123',
         code: 'DT-001',
       }));
-      expect(mockCrudService.findById).toHaveBeenCalledWith('proposal-123');
+      expect(mockCrudService.findById).toHaveBeenCalledWith('proposal-123', mockUser.id);
       expect(mockValidationService.validateAccess).toHaveBeenCalledWith('proposal-123', mockUser.id);
     });
 

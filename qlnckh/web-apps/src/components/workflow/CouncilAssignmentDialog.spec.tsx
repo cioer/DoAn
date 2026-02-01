@@ -98,8 +98,8 @@ describe('CouncilAssignmentDialog', () => {
       />,
     );
 
-    // Button shows loading spinner with "Loading..." text when isLoading is true
-    const submitButton = await screen.findByRole('button', { name: /Loading.../i });
+    // Button shows loading spinner with Vietnamese "Đang xử lý..." text when isLoading is true
+    const submitButton = await screen.findByRole('button', { name: /Đang xử lý.../i });
     expect(submitButton).toBeDisabled();
 
     // Check for the spinner icon (svg with animate-spin)

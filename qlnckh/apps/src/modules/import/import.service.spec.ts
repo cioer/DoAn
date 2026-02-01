@@ -299,7 +299,7 @@ describe('ImportService', () => {
       const file = {
         buffer: Buffer.from('excel data'),
         originalname: 'users.xlsx',
-      });
+      };
 
       const result = await service.importUsers(file, mockContext);
 
@@ -639,8 +639,8 @@ describe('ImportService', () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
       mockPrisma.user.create.mockImplementation((data) => {
         // Verify role is UserRole enum, not string cast
-        expect(data.role).toBe(UserRole.ADMIN);
-        return {};
+        expect(data.data.role).toBe(UserRole.ADMIN);
+        return Promise.resolve({ id: 'new-user' });
       });
 
       const file = {

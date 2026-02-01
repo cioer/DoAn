@@ -48,8 +48,8 @@ describe('ProgressBar Component (Story 2.4)', () => {
     render(<ProgressBar progress={50} />);
     const bar = screen.getByRole('progressbar');
 
-    // Check for className attribute - component uses bg-primary-600, not bg-blue-600
-    expect(bar.getAttribute('class')).toContain('bg-primary-600');
+    // Check for className attribute - component uses gradient from-primary-500
+    expect(bar.getAttribute('class')).toContain('from-primary-500');
     expect(bar.getAttribute('class')).toContain('h-2');
     expect(bar.getAttribute('class')).toContain('rounded-full');
   });

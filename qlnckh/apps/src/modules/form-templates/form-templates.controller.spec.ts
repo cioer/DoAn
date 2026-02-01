@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { FormTemplatesController } from './form-templates.controller';
 import { NotFoundException } from '@nestjs/common';
 
@@ -42,8 +43,13 @@ describe('FormTemplatesController', () => {
       remove: vi.fn(),
     };
 
-    // Manually create controller with mock service - bypass DI
-    controller = new FormTemplatesController(mockService);
+    // Create mock WordParserService (required by controller constructor)
+    const mockWordParserService = {
+      parseFormTemplates: vi.fn(),
+    };
+
+    // Manually create controller with mock services - bypass DI
+    controller = new FormTemplatesController(mockService, mockWordParserService as any);
     vi.clearAllMocks();
   });
 
@@ -57,8 +63,9 @@ describe('FormTemplatesController', () => {
 
       const result = await controller.findAll();
 
-      expect(result).toEqual([mockTemplate]);
-      expect(mockService.findAll).toHaveBeenCalledWith();
+      // Controller wraps response in { success: true, data: [...] }
+      expect(result).toEqual({ success: true, data: [mockTemplate] });
+      expect(mockService.findAll).toHaveBeenCalled();
     });
 
     it('should return empty array when no templates', async () => {
@@ -66,7 +73,7 @@ describe('FormTemplatesController', () => {
 
       const result = await controller.findAll();
 
-      expect(result).toEqual([]);
+      expect(result).toEqual({ success: true, data: [] });
     });
   });
 
@@ -76,7 +83,8 @@ describe('FormTemplatesController', () => {
 
       const result = await controller.findOne('MAU_01B');
 
-      expect(result).toEqual(mockTemplate);
+      // Controller wraps response in { success: true, data: {...} }
+      expect(result).toEqual({ success: true, data: mockTemplate });
       expect(mockService.findOne).toHaveBeenCalledWith('MAU_01B');
     });
 

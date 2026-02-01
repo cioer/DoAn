@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { WorkflowValidatorService } from './workflow-validator.service';
 import { PrismaService } from '../../auth/prisma.service';
 import { ProjectState, WorkflowAction, Proposal, User, UserRole } from '@prisma/client';
@@ -47,7 +48,7 @@ describe('WorkflowValidatorService', () => {
           provide: PrismaService,
           useValue: {
             proposal: {
-              findUnique: jest.fn(),
+              findUnique: vi.fn(),
             },
           },
         },
@@ -250,7 +251,7 @@ describe('WorkflowValidatorService', () => {
         service.validateExceptionAction(
           pausedProposal,
           WorkflowAction.PAUSE,
-          'PKHCN',
+          'PHONG_KHCN',
         );
       }).not.toThrow();
     });
@@ -271,7 +272,7 @@ describe('WorkflowValidatorService', () => {
           WorkflowAction.PAUSE,
           'KHOA',
         );
-      }).toThrow('Chỉ PKHCN mới có thể tạm dừng đề tài');
+      }).toThrow('Chỉ Phòng KHCN mới có thể tạm dừng đề tài');
     });
 
     it('should allow PKHCN to RESUME paused proposal', () => {
@@ -281,7 +282,7 @@ describe('WorkflowValidatorService', () => {
         service.validateExceptionAction(
           pausedProposal,
           WorkflowAction.RESUME,
-          'PKHCN',
+          'PHONG_KHCN',
         );
       }).not.toThrow();
     });
@@ -302,7 +303,7 @@ describe('WorkflowValidatorService', () => {
           WorkflowAction.RESUME,
           'KHOA',
         );
-      }).toThrow('Chỉ PKHCN mới có thể tiếp tục đề tài đã tạm dừng');
+      }).toThrow('Chỉ Phòng KHCN mới có thể tiếp tục đề tài đã tạm dừng');
     });
 
     it('should allow owner to CANCEL DRAFT proposal', () => {
@@ -415,7 +416,7 @@ describe('WorkflowValidatorService', () => {
           WorkflowAction.APPROVE,
           'PHONG_KHCN',
         );
-      }).toThrow('Chỉ có thể duyệt khi đề tài đang được Phòng KHCN xem xét');
+      }).toThrow('Chỉ có thể duyệt khi đề tài đang được xét duyệt bởi Hội đồng Trường');
     });
   });
 

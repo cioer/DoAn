@@ -1,24 +1,35 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { FormEngineService } from './form-engine.service';
 import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import axios from 'axios';
 
 // Mock axios
-jest.mock('axios');
-const mockedAxios = axios as jest.Mocked<typeof axios>;
+vi.mock('axios', () => {
+  const mockAxiosInstance = {
+    post: vi.fn(),
+    get: vi.fn(),
+  };
+  return {
+    default: {
+      create: vi.fn(() => mockAxiosInstance),
+    },
+    __mockAxiosInstance: mockAxiosInstance,
+  };
+});
 
 describe('FormEngineService', () => {
   let service: FormEngineService;
   let mockAxiosInstance: any;
 
   beforeEach(async () => {
-    // Create mock axios instance
-    mockAxiosInstance = {
-      post: jest.fn(),
-      get: jest.fn(),
-    };
+    // Get the mock axios instance
+    const axiosMock = await import('axios');
+    mockAxiosInstance = (axiosMock as any).__mockAxiosInstance;
 
-    mockedAxios.create.mockReturnValue(mockAxiosInstance);
+    // Reset mocks
+    mockAxiosInstance.post.mockReset();
+    mockAxiosInstance.get.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [FormEngineService],
@@ -28,7 +39,7 @@ describe('FormEngineService', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('renderForm', () => {
@@ -40,8 +51,8 @@ describe('FormEngineService', () => {
         pdf_url: 'http://localhost:8080/files/2026-01-16/1b_123456.pdf',
         template: '1b.docx',
         timestamp: '2026-01-16T12:34:56.789',
-        user_id: 'test_user',
-        proposal_id: 'test_proposal',
+        userId: 'test_user',
+        proposalId: 'test_proposal',
         sha256_docx: 'abc123',
         sha256_pdf: 'def456',
       };
@@ -64,8 +75,8 @@ describe('FormEngineService', () => {
       expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/v1/forms/render', {
         template_name: '1b.docx',
         context: { ten_de_tai: 'Test' },
-        user_id: 'test_user',
-        proposal_id: 'test_proposal',
+        userId: 'test_user',
+        proposalId: 'test_proposal',
       });
     });
 

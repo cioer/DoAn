@@ -20,6 +20,7 @@ const mockPrisma = {
 const mockWorkflowService = {
   submitProposal: vi.fn(),
   approveFacultyReview: vi.fn(),
+  approveFacultyAcceptance: vi.fn(),
   approveCouncilReview: vi.fn(),
   acceptSchoolReview: vi.fn(),
   transitionState: vi.fn(),
@@ -115,14 +116,14 @@ describe('ProposalsWorkflowService', () => {
       );
     });
 
-    it('facultyAcceptance should merge formData and call approveFacultyReview', async () => {
+    it('facultyAcceptance should merge formData and call approveFacultyAcceptance', async () => {
       mockPrisma.proposal.findUnique.mockResolvedValue({
         formData: { existingField: 'value' },
       });
       mockPrisma.proposal.update.mockResolvedValue({ id: proposalId });
-      mockWorkflowService.approveFacultyReview.mockResolvedValue({ success: true });
+      mockWorkflowService.approveFacultyAcceptance.mockResolvedValue({ success: true });
 
-      const acceptanceData = { evaluation: 'passed' };
+      const acceptanceData = { decision: 'DAT', evaluation: 'passed' };
       await service.facultyAcceptance(proposalId, acceptanceData, context);
 
       expect(mockPrisma.proposal.update).toHaveBeenCalledWith({
@@ -134,7 +135,7 @@ describe('ProposalsWorkflowService', () => {
           },
         },
       });
-      expect(mockWorkflowService.approveFacultyReview).toHaveBeenCalled();
+      expect(mockWorkflowService.approveFacultyAcceptance).toHaveBeenCalled();
     });
   });
 });

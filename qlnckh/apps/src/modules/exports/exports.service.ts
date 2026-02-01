@@ -140,7 +140,7 @@ export class ExportsService {
         })
       : [];
 
-    const holderMap = new Map(holders.map((h) => [h.id, h]));
+    const holderMap = new Map<string, typeof holders[number]>(holders.map((h) => [h.id, h]));
 
     // Transform to row data - Proper typing, NO as unknown (Epic 7 retro pattern)
     const rowData: ProposalRowData[] = proposals.map((p) => {

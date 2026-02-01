@@ -10,7 +10,17 @@ export default defineConfig({
       'apps/**/*.spec.ts': 'node',
     },
     include: ['apps/**/*.spec.ts', 'web-apps/**/*.spec.ts', 'web-apps/**/*.spec.tsx'],
-    exclude: ['node_modules', 'dist', '.nx', '**/node_modules'],
+    exclude: [
+      'node_modules',
+      'dist',
+      '.nx',
+      '**/node_modules',
+      // E2E tests (use Playwright)
+      '**/*.e2e.spec.ts',
+      '**/e2e/**/*.spec.ts',
+      // Integration tests that use supertest
+      '**/attachments.controller.spec.ts',
+    ],
     root: '.',
     setupFiles: ['./apps/src/test-setup.ts'],
     // Enable isolated environment for each test

@@ -41,9 +41,9 @@ export class AuditController {
    * Query audit logs with filters and pagination
    *
    * Query parameters:
-   * - entity_type: Filter by entity type (e.g., "users", "holidays")
-   * - entity_id: Filter by entity ID
-   * - actor_user_id: Filter by actor user ID
+   * - entityType: Filter by entity type (e.g., "users", "holidays")
+   * - entityId: Filter by entity ID
+   * - actor_userId: Filter by actor user ID
    * - action: Filter by action type
    * - from_date: ISO date string for start date
    * - to_date: ISO date string for end date

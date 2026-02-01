@@ -13,7 +13,7 @@
 
 import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, CheckCircle, XCircle, Users, BarChart3, Star, AlertCircle, Crown, Loader2 } from 'lucide-react';
-import { workflowApi, CouncilEvaluationSummaryData, AggregateScores } from '@/lib/api/workflow';
+import { workflowApi, CouncilEvaluationSummaryData, AggregateScores } from '../../lib/api/workflow';
 
 interface CouncilEvaluationSummaryProps {
   proposalId: string;
