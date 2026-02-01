@@ -481,6 +481,10 @@ export const workflowApi = {
    * @throws 404 if proposal or council not found
    * @throws 409 if idempotency key was already used
    */
+  /**
+   * Assign School-level Council (for PHONG_KHCN)
+   * Transitions SCHOOL_SELECTION_REVIEW → SCHOOL_COUNCIL_OUTLINE_REVIEW
+   */
   assignCouncil: async (
     proposalId: string,
     councilId: string,
@@ -495,6 +499,34 @@ export const workflowApi = {
         councilId,
         secretaryId,
         memberIds,
+        idempotencyKey,
+      },
+      {
+        headers: {
+          'X-Idempotency-Key': idempotencyKey,
+        },
+      },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Assign Faculty-level Council (for QUAN_LY_KHOA, THU_KY_KHOA)
+   * Updates proposal's councilId at FACULTY_COUNCIL_OUTLINE_REVIEW state
+   *
+   * @throws 400 if proposal not in correct state or faculty mismatch
+   * @throws 403 if user lacks QUAN_LY_KHOA or THU_KY_KHOA role
+   * @throws 404 if proposal or council not found
+   */
+  assignFacultyCouncil: async (
+    proposalId: string,
+    councilId: string,
+    idempotencyKey: string,
+  ): Promise<TransitionResult> => {
+    const response = await apiClient.post<AssignCouncilResponse>(
+      `/council/faculty/${proposalId}/assign`,
+      {
+        councilId,
         idempotencyKey,
       },
       {

@@ -444,7 +444,10 @@ export function ProposalActions({
   /**
    * Faculty Council Assignment: Assign Faculty Council
    * Assigns a faculty-level council to review the proposal
-   * Trưởng Khoa chỉ định thành viên hội đồng xét duyệt cấp Khoa
+   * Trưởng Khoa/Quản lý Khoa chỉ định hội đồng xét duyệt cấp Khoa
+   *
+   * Uses /council/faculty/:proposalId/assign endpoint
+   * Requires QUAN_LY_KHOA or THU_KY_KHOA role
    */
   const handleAssignFacultyCouncil = async (data: {
     councilId: string;
@@ -456,11 +459,10 @@ export function ProposalActions({
     setError(null);
 
     try {
-      await workflowApi.assignCouncil(
+      // Use faculty-specific endpoint (requires QUAN_LY_KHOA or THU_KY_KHOA)
+      await workflowApi.assignFacultyCouncil(
         proposalId,
         data.councilId,
-        data.secretaryId,
-        data.memberIds,
         data.idempotencyKey,
       );
 
