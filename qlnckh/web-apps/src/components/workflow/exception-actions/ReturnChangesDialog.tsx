@@ -26,7 +26,7 @@ import {
   RETURN_REASON_LABELS,
   CANONICAL_SECTIONS,
   type ReturnReasonCode,
-} from '@/lib/api/workflow';
+} from '../../../lib/api/workflow';
 
 /**
  * Section item for the revision checklist
@@ -163,7 +163,7 @@ export function ReturnChangesDialog({
 
   return (
     <div
-      className="fixed inset-0 z-modal flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="return-changes-dialog-title"

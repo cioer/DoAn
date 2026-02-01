@@ -13,10 +13,12 @@
  */
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertCircle, Ban } from 'lucide-react';
 import { Button } from '../../ui';
 import { Select, SelectOption, Textarea } from '../../ui';
-import { REJECT_REASON_LABELS, RejectReasonCode } from '@/lib/api/workflow';
+import { REJECT_REASON_LABELS, RejectReasonCode } from '../../../lib/api/workflow';
+import { useDynamicZIndex } from '../../../lib/contexts/ZIndexContext';
 
 export interface RejectConfirmDialogProps {
   isOpen: boolean;
@@ -36,6 +38,9 @@ export function RejectConfirmDialog({
   const [reasonCode, setReasonCode] = useState<RejectReasonCode | ''>('');
   const [comment, setComment] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  // Dynamic z-index - dialogs opened later appear on top
+  const { style: zIndexStyle } = useDynamicZIndex(isOpen);
 
   // Validation: reasonCode required + comment MinLength(10)
   const isValid = reasonCode && comment.trim().length >= 10;
@@ -79,9 +84,13 @@ export function RejectConfirmDialog({
 
   if (!isOpen) return null;
 
-  return (
+  // Use portal to render at body level, outside any stacking context
+  if (typeof window === 'undefined') return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50"
+      style={zIndexStyle}
       role="dialog"
       aria-modal="true"
       aria-labelledby="reject-dialog-title"
@@ -181,6 +190,7 @@ export function RejectConfirmDialog({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

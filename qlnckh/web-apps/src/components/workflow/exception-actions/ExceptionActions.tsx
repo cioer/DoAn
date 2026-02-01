@@ -27,7 +27,7 @@ import {
   workflowApi,
   generateIdempotencyKey,
   RejectReasonCode,
-} from '@/lib/api/workflow';
+} from '../../../lib/api/workflow';
 import { Button } from '../../ui';
 import { CancelConfirmDialog } from './CancelConfirmDialog';
 import { WithdrawConfirmDialog } from './WithdrawConfirmDialog';

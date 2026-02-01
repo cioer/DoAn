@@ -91,7 +91,7 @@ function ReturnDialog({ isOpen, onClose, onSubmit, isSubmitting }: ReturnDialogP
 
   return (
     <div
-      className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50"
       role="dialog"
       aria-modal="true"
       aria-labelledby="council-return-dialog-title"
@@ -347,7 +347,7 @@ export function CouncilReviewApprovalActions({
       {/* Approve Confirmation Dialog */}
       {showApproveConfirm && (
         <div
-          className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50"
           role="dialog"
           aria-modal="true"
           aria-labelledby="council-approve-confirm-title"

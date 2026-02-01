@@ -166,14 +166,6 @@ export class ProposalDocumentsController {
   }
 
   /**
-   * Lấy document theo ID
-   */
-  @Get(':id')
-  async getById(@Param('id') id: string) {
-    return this.proposalDocumentsService.getById(id);
-  }
-
-  /**
    * Tạo mới proposal document
    */
   @Post()
@@ -223,20 +215,10 @@ export class ProposalDocumentsController {
   }
 
   /**
-   * Cập nhật document
-   */
-  @Patch(':id')
-  async update(
-    @Param('id') id: string,
-    @Body() dto: UpdateProposalDocumentDto,
-    @CurrentUser() user: any,
-  ) {
-    return this.proposalDocumentsService.update(id, dto, user.id);
-  }
-
-  /**
    * Approve hoặc reject document
    * Chỉ admin, faculty_admin, department_head có quyền
+   *
+   * NOTE: This route MUST be defined BEFORE @Get(':id') to avoid route conflicts
    */
   @Patch(':id/approve')
   @RequireRoles(UserRole.ADMIN, UserRole.QUAN_LY_KHOA, UserRole.PHONG_KHCN)
@@ -250,6 +232,8 @@ export class ProposalDocumentsController {
 
   /**
    * Download document file (DOCX)
+   *
+   * NOTE: This route MUST be defined BEFORE @Get(':id') to avoid route conflicts
    */
   @Get(':id/download')
   async download(
@@ -283,6 +267,8 @@ export class ProposalDocumentsController {
 
   /**
    * Download document file (PDF)
+   *
+   * NOTE: This route MUST be defined BEFORE @Get(':id') to avoid route conflicts
    */
   @Get(':id/download-pdf')
   async downloadPdf(
@@ -316,23 +302,51 @@ export class ProposalDocumentsController {
   }
 
   /**
+   * Cập nhật document
+   *
+   * NOTE: Generic :id routes must come AFTER specific :id/xxx routes
+   */
+  @Patch(':id')
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateProposalDocumentDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.proposalDocumentsService.update(id, dto, user.id);
+  }
+
+  /**
+   * Lấy document theo ID
+   *
+   * NOTE: This generic :id route MUST be defined AFTER all :id/xxx routes
+   * to avoid NestJS matching :id before :id/download, :id/download-pdf, etc.
+   */
+  @Get(':id')
+  async getById(@Param('id') id: string) {
+    return this.proposalDocumentsService.getById(id);
+  }
+
+  /**
    * Helper: Resolve file path from relative to absolute
    */
   private resolveFilePath(filePath: string): string {
-    const formEngineBaseDir =
-      process.env.FORM_ENGINE_OUTPUT_BASE || '/mnt/dulieu/DoAn/form-engine-service';
+    // Base directory for form-engine output files
+    // Default includes /output subdirectory where files are actually stored
+    const formEngineOutputDir =
+      process.env.FORM_ENGINE_OUTPUT_BASE || '/mnt/dulieu/DoAn/form-engine-service/output';
     let fullPath = filePath;
 
     // Handle legacy absolute paths from form-engine container
     // Convert /app/output/... to the mapped volume path
     if (fullPath.startsWith('/app/output/')) {
-      fullPath = fullPath.replace('/app/output/', `${formEngineBaseDir}/`);
+      fullPath = fullPath.replace('/app/output/', `${formEngineOutputDir}/`);
     }
     // Convert relative path to absolute
     else if (fullPath.startsWith('./')) {
-      fullPath = fullPath.replace('./', `${formEngineBaseDir}/`);
+      fullPath = fullPath.replace('./', `${formEngineOutputDir}/`);
     } else if (!fullPath.startsWith('/')) {
-      fullPath = `${formEngineBaseDir}/${fullPath}`;
+      // Path like "2026-02-01/2b_151533.docx" -> prepend output directory
+      fullPath = `${formEngineOutputDir}/${fullPath}`;
     }
 
     return fullPath;

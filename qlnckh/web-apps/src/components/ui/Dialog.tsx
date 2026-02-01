@@ -1,20 +1,21 @@
-import { cva, type VariantProps } from 'class-variance-authority';
-import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
+import { cva } from 'class-variance-authority';
+import { forwardRef, type HTMLAttributes, type ReactNode, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '../../lib/utils/cn';
-import { Button } from './Button';
+import { useZIndex, Z_INDEX_BASE } from '../../lib/contexts/ZIndexContext';
 
 /**
  * Dialog Component Variants - Modern Soft UI
+ * Note: z-index is applied dynamically via inline style
  */
 const dialogVariants = cva(
-  'fixed bg-gray-900/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 z-[9999]',
+  'fixed inset-0 bg-gray-900/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
   {
     variants: {
       position: {
-        center: 'inset-0 flex items-center justify-center p-4',
-        top: 'inset-x-0 top-0 flex items-center justify-center p-4',
+        center: 'flex items-center justify-center p-4',
+        top: 'flex items-center justify-center p-4',
       },
     },
     defaultVariants: {
@@ -49,9 +50,10 @@ const dialogSizes = {
 };
 
 /**
- * Dialog Component - Modern Soft UI
+ * Dialog Component - Modern Soft UI with Dynamic Z-Index
  *
  * Modal dialog with glassmorphism backdrop and soft shadows.
+ * Z-index is managed dynamically - dialogs opened later appear on top.
  *
  * @example
  * ```tsx
@@ -80,6 +82,23 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
     },
     ref
   ) => {
+    const { getNextZIndex, releaseZIndex } = useZIndex();
+    const zIndexRef = useRef<number | null>(null);
+
+    // Manage z-index lifecycle
+    useEffect(() => {
+      if (isOpen && zIndexRef.current === null) {
+        zIndexRef.current = getNextZIndex();
+      }
+
+      return () => {
+        if (zIndexRef.current !== null) {
+          releaseZIndex(zIndexRef.current);
+          zIndexRef.current = null;
+        }
+      };
+    }, [isOpen, getNextZIndex, releaseZIndex]);
+
     if (!isOpen) return null;
 
     const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -88,10 +107,14 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
       }
     };
 
+    // Use current z-index or fallback to base
+    const currentZIndex = zIndexRef.current ?? Z_INDEX_BASE.modal;
+
     const dialogContent = (
       <div
         ref={ref}
-        className={dialogVariants({ position: 'center', className })}
+        className={dialogVariants({ position: 'center' })}
+        style={{ zIndex: currentZIndex }}
         onClick={handleBackdropClick}
         role="dialog"
         aria-modal="true"
@@ -161,6 +184,7 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
 
     // Use Portal to render dialog at document.body level
     // This ensures the dialog is outside any parent stacking contexts
+    if (typeof window === 'undefined') return null;
     return createPortal(dialogContent, document.body);
   }
 );

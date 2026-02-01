@@ -266,12 +266,12 @@ export const components = {
   tableCell: 'px-6 py-4 whitespace-nowrap text-sm',
   tableRowHover: 'hover:bg-gray-50 cursor-pointer transition-colors',
 
-  // Sidebar
+  // Sidebar (z-[300] for fixed layer)
   sidebarBase:
-    'fixed left-0 top-0 h-full bg-white/90 backdrop-blur-xl border-r border-gray-200/50 shadow-soft-xl z-50 transition-all duration-300 flex flex-col',
+    'fixed left-0 top-0 h-full bg-white/90 backdrop-blur-xl border-r border-gray-200/50 shadow-soft-xl z-[300] transition-all duration-300 flex flex-col',
 
-  // Dialog/Modal
-  dialogBackdrop: 'fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[9999]',
+  // Dialog/Modal (z-index managed dynamically by ZIndexContext)
+  dialogBackdrop: 'fixed inset-0 bg-gray-900/60 backdrop-blur-sm',
   dialogContent:
     'bg-white/95 backdrop-blur-md rounded-2xl shadow-soft-lg w-full relative',
 } as const;
@@ -306,15 +306,31 @@ export const iconContainers = {
 
 /**
  * Z-index scale for layering
+ *
+ * Layer system:
+ * - dropdown: 100
+ * - sticky: 200
+ * - fixed (sidebar, header): 300
+ * - modal: 1000+ (dynamic, managed by ZIndexContext)
+ * - popover: 2000
+ * - tooltip: 3000
+ * - notification: 4000
+ *
+ * Note: Modal z-index is managed dynamically by ZIndexContext.
+ * Each new modal gets z-index = 1000 + (count * 10)
+ * This ensures modals opened later appear on top.
  */
 export const zIndex = {
-  dropdown: 'z-dropdown', // 1000
-  sticky: 'z-sticky', // 1020
-  fixed: 'z-fixed', // 1030
-  modalBackdrop: 'z-modalBackdrop', // 1040
-  modal: 'z-modal', // 1050
-  popover: 'z-popover', // 1060
-  tooltip: 'z-tooltip', // 1070
+  dropdown: 'z-[100]',
+  sticky: 'z-[200]',
+  fixed: 'z-[300]',
+  sidebar: 'z-[300]',
+  header: 'z-[300]',
+  modalBackdrop: 'z-[1000]', // Base value, actual value is dynamic
+  modal: 'z-[1000]', // Base value, actual value is dynamic
+  popover: 'z-[2000]',
+  tooltip: 'z-[3000]',
+  notification: 'z-[4000]',
 } as const;
 
 // =============================================================================

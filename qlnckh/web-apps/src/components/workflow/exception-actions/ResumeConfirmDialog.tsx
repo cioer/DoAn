@@ -65,7 +65,7 @@ export function ResumeConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50"
       role="dialog"
       aria-modal="true"
       aria-labelledby="resume-dialog-title"

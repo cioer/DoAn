@@ -116,7 +116,7 @@ export function EditUserModal({ isOpen, user, onClose, onSuccess }: EditUserModa
   if (!isOpen || !user) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 px-4">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">

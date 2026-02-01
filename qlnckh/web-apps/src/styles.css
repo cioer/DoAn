@@ -184,12 +184,22 @@
   --font-size-xxs: 0.625rem;
   --line-height-xxs: 0.75rem;
 
-  /* Z-index */
-  --z-dropdown: 1000;
-  --z-sticky: 1020;
-  --z-fixed: 1030;
-  --z-modal-backdrop: 1040;
-  --z-modal: 1050;
-  --z-popover: 1060;
-  --z-tooltip: 1070;
+  /* Z-index Layer System
+   * Base layers (fixed):
+   * - dropdown: 100
+   * - sticky: 200
+   * - fixed (sidebar, header): 300
+   * - modal: 1000+ (dynamic, managed by ZIndexContext)
+   * - popover: 2000
+   * - tooltip: 3000
+   * - notification: 4000
+   */
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-fixed: 300;
+  --z-modal-backdrop: 1000;
+  --z-modal: 1000;
+  --z-popover: 2000;
+  --z-tooltip: 3000;
+  --z-notification: 4000;
 }

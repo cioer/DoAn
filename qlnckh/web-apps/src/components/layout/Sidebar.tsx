@@ -406,26 +406,26 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Desktop Sidebar - Hidden on mobile */}
+      {/* Desktop Sidebar - Hidden on mobile, z-[300] for fixed layer */}
       <aside
-        className={`fixed left-0 top-0 h-full bg-white/90 backdrop-blur-xl border-r border-gray-200/50 shadow-soft-xl z-40 transition-all duration-300 hidden lg:flex flex-col ${
+        className={`fixed left-0 top-0 h-full bg-white/90 backdrop-blur-xl border-r border-gray-200/50 shadow-soft-xl z-[300] transition-all duration-300 hidden lg:flex flex-col ${
           collapsed ? 'w-20' : 'w-64'
         }`}
       >
         {sidebarContent(false)}
       </aside>
 
-      {/* Mobile Drawer Overlay */}
+      {/* Mobile Drawer Overlay - z-[400] below modals (1000+) */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 lg:hidden"
+          className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[400] lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
-      {/* Mobile Drawer */}
+      {/* Mobile Drawer - z-[450] above overlay but below modals */}
       <aside
-        className={`fixed left-0 top-0 h-full w-72 bg-white/95 backdrop-blur-xl border-r border-gray-200/50 shadow-soft-xl z-50 transition-transform duration-300 ease-in-out flex flex-col lg:hidden ${
+        className={`fixed left-0 top-0 h-full w-72 bg-white/95 backdrop-blur-xl border-r border-gray-200/50 shadow-soft-xl z-[450] transition-transform duration-300 ease-in-out flex flex-col lg:hidden ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

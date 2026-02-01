@@ -12,6 +12,8 @@
  */
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useDynamicZIndex } from '../../../lib/contexts/ZIndexContext';
 import { AlertCircle, AlertTriangle, XCircle } from 'lucide-react';
 import { Button } from '../../ui';
 import { Textarea } from '../../ui';
@@ -67,7 +69,7 @@ export function WithdrawConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-modal flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50"
       role="dialog"
       aria-modal="true"
       aria-labelledby="withdraw-dialog-title"

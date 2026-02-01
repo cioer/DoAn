@@ -42,7 +42,7 @@ export function DeleteFacultyDialog({
   if (!isOpen || !faculty) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
         {/* Header */}
         <div className="p-6 border-b">
