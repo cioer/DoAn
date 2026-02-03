@@ -156,10 +156,10 @@ export function EvaluationForm({
   /**
    * Check if current user can evaluate (Story 5.3: AC1, Multi-member)
    * - User must be a council member (HOI_DONG or THU_KY_HOI_DONG)
-   * - Proposal state must be OUTLINE_COUNCIL_REVIEW
+   * - Proposal state must be OUTLINE_COUNCIL_REVIEW (faculty or school level)
    * - User must be assigned to the proposal's council
    */
-  const canEvaluate = isCouncilMember && currentState === 'SCHOOL_COUNCIL_OUTLINE_REVIEW';
+  const canEvaluate = isCouncilMember && ['FACULTY_COUNCIL_OUTLINE_REVIEW', 'SCHOOL_COUNCIL_OUTLINE_REVIEW'].includes(currentState);
 
   /**
    * Load evaluation on mount (Story 5.3: AC1)

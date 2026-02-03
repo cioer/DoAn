@@ -149,7 +149,7 @@ export default function ProposalDetailPage() {
     if (!id || !proposal) return;
 
     // Only load evaluation for proposals in council review states
-    const councilReviewStates = ['SCHOOL_COUNCIL_OUTLINE_REVIEW', 'COUNCIL_REVIEW', 'APPROVED', 'CHANGES_REQUESTED'];
+    const councilReviewStates = ['FACULTY_COUNCIL_OUTLINE_REVIEW', 'SCHOOL_COUNCIL_OUTLINE_REVIEW', 'COUNCIL_REVIEW', 'APPROVED', 'CHANGES_REQUESTED'];
     if (!councilReviewStates.includes(proposal.state)) {
       return;
     }
@@ -177,7 +177,7 @@ export default function ProposalDetailPage() {
       void loadAttachments();
       void loadProposalDocuments();
       // Load evaluation if proposal is in a state that may have evaluations (GIANG_VIEN Feature)
-      const councilReviewStates = ['SCHOOL_COUNCIL_OUTLINE_REVIEW', 'COUNCIL_REVIEW', 'APPROVED', 'CHANGES_REQUESTED'];
+      const councilReviewStates = ['FACULTY_COUNCIL_OUTLINE_REVIEW', 'SCHOOL_COUNCIL_OUTLINE_REVIEW', 'COUNCIL_REVIEW', 'APPROVED', 'CHANGES_REQUESTED'];
       if (councilReviewStates.includes(proposal.state)) {
         void loadEvaluation();
       }
@@ -248,14 +248,14 @@ export default function ProposalDetailPage() {
   /**
    * Check if evaluation form should be shown (Story 5.3: AC1, AC5, Multi-member)
    * Conditions:
-   * - Proposal state is OUTLINE_COUNCIL_REVIEW
+   * - Proposal state is OUTLINE_COUNCIL_REVIEW (faculty or school level)
    * - Current user is a member of the assigned council (from API response)
    * - Fallback to role-based check if isUserCouncilMember not available
    */
   const shouldShowEvaluationForm = Boolean(
     proposal &&
       currentUser &&
-      proposal.state === 'SCHOOL_COUNCIL_OUTLINE_REVIEW' &&
+      ['FACULTY_COUNCIL_OUTLINE_REVIEW', 'SCHOOL_COUNCIL_OUTLINE_REVIEW'].includes(proposal.state) &&
       (proposal.isUserCouncilMember || isCouncilMember(currentUser.role)),
   );
 
@@ -544,7 +544,7 @@ export default function ProposalDetailPage() {
 
         {/* Council Finalization Section (Multi-member Evaluation) */}
         {/* Show for secretary to finalize after all members have submitted */}
-        {proposal && currentUser && proposal.state === 'SCHOOL_COUNCIL_OUTLINE_REVIEW' && (proposal.isUserCouncilSecretary || isCouncilSecretary(currentUser.role)) && (
+        {proposal && currentUser && ['FACULTY_COUNCIL_OUTLINE_REVIEW', 'SCHOOL_COUNCIL_OUTLINE_REVIEW'].includes(proposal.state) && (proposal.isUserCouncilSecretary || isCouncilSecretary(currentUser.role)) && (
           <section className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-900">
             <CouncilFinalizationSection
               proposalId={proposal.id}
