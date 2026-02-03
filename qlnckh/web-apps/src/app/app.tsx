@@ -44,6 +44,7 @@ const CreateProposalPage = lazy(() => import('./proposals/new/page'));
 const AuditLogPage = lazy(() => import('./audit/page'));
 const FormTemplatesPage = lazy(() => import('./form-templates/page'));
 const CouncilsPage = lazy(() => import('./councils/page'));
+const FacultyCouncilsPage = lazy(() => import('./faculty/councils/page'));
 
 /**
  * Loading fallback component for lazy-loaded routes
@@ -414,6 +415,22 @@ export function App() {
                 <LazyRoute>
                   <CouncilsPage />
                 </LazyRoute>
+              </RoleGuard>
+            </AuthGuard>
+          }
+        />
+
+        {/* Faculty Councils Management - QUAN_LY_KHOA */}
+        <Route
+          path="/faculty/councils"
+          element={
+            <AuthGuard>
+              <RoleGuard allowedRoles={[UserRole.QUAN_LY_KHOA]}>
+                <PermissionGuard permission={Permission.FACULTY_DASHBOARD_VIEW}>
+                  <LazyRoute>
+                    <FacultyCouncilsPage />
+                  </LazyRoute>
+                </PermissionGuard>
               </RoleGuard>
             </AuthGuard>
           }

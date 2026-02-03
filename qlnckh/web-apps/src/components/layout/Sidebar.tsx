@@ -128,6 +128,7 @@ export function Sidebar() {
   const canViewAuditLog = hasPermission(Permission.AUDIT_VIEW);
   const canViewFormTemplates = hasPermission(Permission.FORM_TEMPLATE_IMPORT);
   const canViewCouncils = effectiveUser?.role === 'PHONG_KHCN' || effectiveUser?.role === 'ADMIN';
+  const canViewFacultyCouncils = effectiveUser?.role === 'QUAN_LY_KHOA';
   const canViewImport = effectiveUser?.role === 'ADMIN';
   const canManageUsers = hasPermission(Permission.USER_MANAGE);
 
@@ -230,6 +231,18 @@ export function Sidebar() {
             collapsed={!isMobile && collapsed}
           >
             Khoa
+          </NavItem>
+        )}
+
+        {canViewFacultyCouncils && (
+          <NavItem
+            onClick={() => handleNavigate('/faculty/councils')}
+            isActive={isActive('/faculty/councils')}
+            icon={Users}
+            color="indigo"
+            collapsed={!isMobile && collapsed}
+          >
+            Hội đồng khoa
           </NavItem>
         )}
 
