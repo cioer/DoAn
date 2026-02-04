@@ -143,7 +143,7 @@ export function CouncilFinalizationSection({
         <h4 className="text-sm font-semibold text-gray-900 mb-3">Đánh giá của thành viên ({submittedCount}/{totalMembers})</h4>
         <div className="space-y-3">
           {evaluations.map((evaluation) => {
-            const isSubmitted = evaluation.state === 'FINALIZED';
+            const isSubmitted = evaluation.state === 'SUBMITTED' || evaluation.state === 'FINALIZED';
             const totalScore =
               (evaluation.formData.scientificContent?.score || 0) +
               (evaluation.formData.researchMethod?.score || 0) +
