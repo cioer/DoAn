@@ -22,12 +22,21 @@
  * Story 5.6: AC1 - PDF Export Button
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, memo, useMemo } from 'react';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import { evaluationApi, EvaluationFormData, DEFAULT_EVALUATION_DATA, EvaluationState } from '../../lib/api/evaluations';
 import { EvaluationPreviewModal } from './EvaluationPreviewModal';
 import { SubmittedBadge } from './SubmittedBadge';
 import { ExportPdfButton } from './ExportPdfButton';
+
+// Static score labels - defined outside component to avoid recreation
+const SCORE_LABELS: Record<number, string> = {
+  1: 'Kém',
+  2: 'Yếu',
+  3: 'Trung bình',
+  4: 'Tốt',
+  5: 'Xuất sắc',
+} as const;
 
 export interface EvaluationFormProps {
   proposalId: string;
@@ -69,20 +78,30 @@ interface ScoreSectionProps {
  * Renders a single evaluation section with score slider and comment textarea
  * Story 5.5: Added disabled prop for read-only mode
  */
-function ScoreSection({ title, score, comments, onScoreChange, onCommentsChange, disabled = false }: ScoreSectionProps) {
-  // Generate unique IDs for accessibility
-  const sectionId = title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+const ScoreSection = memo(function ScoreSection({
+  title,
+  score,
+  comments,
+  onScoreChange,
+  onCommentsChange,
+  disabled = false
+}: ScoreSectionProps) {
+  // Generate unique IDs for accessibility - memoize to avoid recomputation
+  const sectionId = useMemo(() =>
+    title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+    [title]
+  );
   const sliderId = `score-${sectionId}`;
   const textareaId = `comments-${sectionId}`;
 
-  // Score labels for aria-valuetext
-  const scoreLabels: Record<number, string> = {
-    1: 'Kém',
-    2: 'Yếu',
-    3: 'Trung bình',
-    4: 'Tốt',
-    5: 'Xuất sắc',
-  };
+  // Memoized handlers
+  const handleScoreChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    onScoreChange(Number(e.target.value));
+  }, [onScoreChange]);
+
+  const handleCommentsChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    onCommentsChange(e.target.value);
+  }, [onCommentsChange]);
 
   return (
     <div className="border rounded-lg p-4 space-y-3 bg-white">
@@ -92,7 +111,7 @@ function ScoreSection({ title, score, comments, onScoreChange, onCommentsChange,
       <div className="space-y-2">
         <div className="flex justify-between text-xs text-gray-600">
           <label htmlFor={sliderId}>Đánh giá:</label>
-          <span className="font-medium text-sm" aria-live="polite">{score}/5 - {scoreLabels[score]}</span>
+          <span className="font-medium text-sm" aria-live="polite">{score}/5 - {SCORE_LABELS[score]}</span>
         </div>
         <input
           id={sliderId}
@@ -101,12 +120,12 @@ function ScoreSection({ title, score, comments, onScoreChange, onCommentsChange,
           max={5}
           step={1}
           value={score}
-          onChange={(e) => onScoreChange(Number(e.target.value))}
+          onChange={handleScoreChange}
           disabled={disabled}
           aria-valuemin={1}
           aria-valuemax={5}
           aria-valuenow={score}
-          aria-valuetext={`${score} trên 5: ${scoreLabels[score]}`}
+          aria-valuetext={`${score} trên 5: ${SCORE_LABELS[score]}`}
           aria-describedby={`heading-${sectionId}`}
           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
         />
@@ -125,7 +144,7 @@ function ScoreSection({ title, score, comments, onScoreChange, onCommentsChange,
         <textarea
           id={textareaId}
           value={comments}
-          onChange={(e) => onCommentsChange(e.target.value)}
+          onChange={handleCommentsChange}
           placeholder="Nhập nhận xét cho mục này…"
           rows={3}
           disabled={disabled}
@@ -134,7 +153,7 @@ function ScoreSection({ title, score, comments, onScoreChange, onCommentsChange,
       </div>
     </div>
   );
-}
+});
 
 /**
  * Evaluation Form Component (Story 5.3)

@@ -186,13 +186,6 @@ export function ProposalActions({
     null,
   );
 
-  // Debug logging
-  console.log('ProposalActions:', {
-    proposalId,
-    proposalState,
-    currentUser: currentUser ? { id: currentUser.id, role: currentUser.role } : null,
-    ownerId,
-  });
 
   const showApproveButton = canApprove(proposalState, currentUser?.role || '');
   const showReturnButton = canReturn(proposalState, currentUser?.role || '');

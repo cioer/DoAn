@@ -93,19 +93,31 @@ export function useModalZIndex(isOpen: boolean): number {
   const zIndexRef = useRef<number | null>(null);
 
   // If no provider, use fallback z-index
-  if (!context) {
+  const hasContext = context !== null;
+  const getNextZIndex = context?.getNextZIndex;
+  const releaseZIndex = context?.releaseZIndex;
+
+  useEffect(() => {
+    if (!hasContext || !getNextZIndex || !releaseZIndex) {
+      return;
+    }
+
+    // Get z-index when opening
+    if (isOpen && zIndexRef.current === null) {
+      zIndexRef.current = getNextZIndex();
+    }
+
+    // Release z-index when closing
+    return () => {
+      if (zIndexRef.current !== null) {
+        releaseZIndex(zIndexRef.current);
+        zIndexRef.current = null;
+      }
+    };
+  }, [isOpen, hasContext, getNextZIndex, releaseZIndex]);
+
+  if (!hasContext) {
     return Z_INDEX_BASE.modal;
-  }
-
-  // Get z-index when opening
-  if (isOpen && zIndexRef.current === null) {
-    zIndexRef.current = context.getNextZIndex();
-  }
-
-  // Release z-index when closing
-  if (!isOpen && zIndexRef.current !== null) {
-    context.releaseZIndex(zIndexRef.current);
-    zIndexRef.current = null;
   }
 
   return zIndexRef.current ?? Z_INDEX_BASE.modal;

@@ -1,3 +1,4 @@
+import { memo, useCallback, useMemo } from 'react';
 import { ProjectState } from '../../lib/constants/states';
 
 /**
@@ -20,7 +21,7 @@ interface ProposalFilterProps {
 }
 
 /**
- * State options for dropdown
+ * State options for dropdown - static, defined outside component
  */
 const stateOptions: Array<{ value: ProjectState | ''; label: string }> = [
   { value: '', label: 'Tất cả trạng thái' },
@@ -49,16 +50,23 @@ const stateOptions: Array<{ value: ProjectState | ''; label: string }> = [
  * - Filter by state
  * - Filter by faculty
  */
-export function ProposalFilters({ filters, onFiltersChange, faculties = [] }: ProposalFilterProps) {
-  const updateFilter = (key: keyof ProposalFilters, value: string) => {
+export const ProposalFilters = memo(function ProposalFilters({
+  filters,
+  onFiltersChange,
+  faculties = [],
+}: ProposalFilterProps) {
+  const updateFilter = useCallback((key: keyof ProposalFilters, value: string) => {
     onFiltersChange({ ...filters, [key]: value });
-  };
+  }, [filters, onFiltersChange]);
 
-  const resetFilters = () => {
+  const resetFilters = useCallback(() => {
     onFiltersChange({ state: '', facultyId: '', search: '' });
-  };
+  }, [onFiltersChange]);
 
-  const hasActiveFilters = filters.state || filters.facultyId || filters.search;
+  const hasActiveFilters = useMemo(() =>
+    Boolean(filters.state || filters.facultyId || filters.search),
+    [filters.state, filters.facultyId, filters.search]
+  );
 
   return (
     <div className="space-y-4">
@@ -134,4 +142,4 @@ export function ProposalFilters({ filters, onFiltersChange, faculties = [] }: Pr
       </div>
     </div>
   );
-}
+});

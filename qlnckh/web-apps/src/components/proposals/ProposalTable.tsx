@@ -1,9 +1,13 @@
+import { memo, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ProjectState } from '../../lib/constants/states';
 import { StateBadge } from './StateBadge';
 import { Button } from '../ui';
 import { Eye, Edit2 } from 'lucide-react';
 import { ProposalCardList } from './ProposalCard';
+
+// Static skeleton items - defined outside to avoid recreation
+const SKELETON_ITEMS = [0, 1, 2, 3, 4] as const;
 
 /**
  * Proposal summary for list view
@@ -52,10 +56,10 @@ function EmptyState({ message }: { message: string }) {
   );
 }
 
-function LoadingSkeleton() {
+const LoadingSkeleton = memo(function LoadingSkeleton() {
   return (
     <div className="space-y-4">
-      {[...Array(5)].map((_, i) => (
+      {SKELETON_ITEMS.map((i) => (
         <div key={i} className="animate-pulse flex items-center p-4 bg-white rounded-xl border border-gray-100">
           <div className="h-4 bg-gray-100 rounded w-24 mr-8"></div>
           <div className="h-4 bg-gray-100 rounded flex-1 mr-8"></div>
@@ -64,10 +68,99 @@ function LoadingSkeleton() {
       ))}
     </div>
   );
+});
+
+/**
+ * Memoized table row component
+ */
+interface ProposalRowProps {
+  proposal: ProposalSummary;
+  onNavigate: (path: string) => void;
 }
 
-export function ProposalTable({ proposals, isLoading }: ProposalTableProps) {
+const ProposalRow = memo(function ProposalRow({ proposal, onNavigate }: ProposalRowProps) {
+  const handleRowClick = useCallback(() => {
+    onNavigate(`/proposals/${proposal.id}`);
+  }, [onNavigate, proposal.id]);
+
+  const handleViewClick = useCallback(() => {
+    onNavigate(`/proposals/${proposal.id}`);
+  }, [onNavigate, proposal.id]);
+
+  const handleEditClick = useCallback(() => {
+    onNavigate(`/proposals/${proposal.id}/edit`);
+  }, [onNavigate, proposal.id]);
+
+  const handleStopPropagation = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
+
+  return (
+    <tr
+      className="group hover:bg-primary-50/30 transition-colors duration-150 cursor-pointer"
+      onClick={handleRowClick}
+    >
+      <td className="px-6 py-5 whitespace-nowrap text-sm font-medium text-gray-900">
+        <span className="font-mono text-primary-600 bg-primary-50 px-2 py-1 rounded-md text-xs">
+          {proposal.code}
+        </span>
+      </td>
+      <td className="px-6 py-5 text-sm text-gray-700 max-w-xs font-medium">
+        <div className="line-clamp-2 md:line-clamp-1">
+          {proposal.title}
+        </div>
+      </td>
+      <td className="px-6 py-5 whitespace-nowrap">
+        <StateBadge state={proposal.state as ProjectState} />
+      </td>
+      <td className="px-6 py-5 whitespace-nowrap text-sm text-gray-500">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 text-white text-[10px] flex items-center justify-center font-bold">
+            {proposal.owner?.displayName?.charAt(0) || 'U'}
+          </div>
+          {proposal.owner?.displayName || '-'}
+        </div>
+      </td>
+      <td className="px-6 py-5 whitespace-nowrap text-sm text-gray-500">
+        {proposal.faculty?.name || '-'}
+      </td>
+      <td
+        className="px-6 py-5 whitespace-nowrap text-right text-sm font-medium"
+        onClick={handleStopPropagation}
+      >
+        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={handleViewClick}
+            title="Xem chi tiết"
+          >
+            <Eye size={16} className="text-gray-500" />
+          </Button>
+
+          {proposal.state === ProjectState.DRAFT && (
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={handleEditClick}
+              title="Chỉnh sửa"
+              className="hover:bg-primary-50 hover:text-primary-600"
+            >
+              <Edit2 size={16} />
+            </Button>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+});
+
+export const ProposalTable = memo(function ProposalTable({ proposals, isLoading }: ProposalTableProps) {
   const navigate = useNavigate();
+
+  const handleNavigate = useCallback((path: string) => {
+    navigate(path);
+  }, [navigate]);
 
   if (isLoading) {
     return <LoadingSkeleton />;
@@ -81,7 +174,7 @@ export function ProposalTable({ proposals, isLoading }: ProposalTableProps) {
     <>
       {/* Mobile Card View - visible on small screens */}
       <div className="md:hidden">
-        <ProposalCardList proposals={proposals} />
+        <ProposalCardList proposals={proposals} onNavigate={handleNavigate} />
       </div>
 
       {/* Desktop Table View - hidden on small screens */}
@@ -112,63 +205,11 @@ export function ProposalTable({ proposals, isLoading }: ProposalTableProps) {
             </thead>
             <tbody className="bg-white divide-y divide-gray-50">
               {proposals.map((proposal) => (
-                <tr
+                <ProposalRow
                   key={proposal.id}
-                  className="group hover:bg-primary-50/30 transition-colors duration-150 cursor-pointer"
-                  onClick={() => navigate(`/proposals/${proposal.id}`)}
-                >
-                  <td className="px-6 py-5 whitespace-nowrap text-sm font-medium text-gray-900">
-                    <span className="font-mono text-primary-600 bg-primary-50 px-2 py-1 rounded-md text-xs">
-                      {proposal.code}
-                    </span>
-                  </td>
-                  <td className="px-6 py-5 text-sm text-gray-700 max-w-xs font-medium">
-                    <div className="line-clamp-2 md:line-clamp-1">
-                      {proposal.title}
-                    </div>
-                  </td>
-                  <td className="px-6 py-5 whitespace-nowrap">
-                    <StateBadge state={proposal.state as ProjectState} />
-                  </td>
-                  <td className="px-6 py-5 whitespace-nowrap text-sm text-gray-500">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 text-white text-[10px] flex items-center justify-center font-bold">
-                        {proposal.owner?.displayName?.charAt(0) || 'U'}
-                      </div>
-                      {proposal.owner?.displayName || '-'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-5 whitespace-nowrap text-sm text-gray-500">
-                    {proposal.faculty?.name || '-'}
-                  </td>
-                  <td
-                    className="px-6 py-5 whitespace-nowrap text-right text-sm font-medium"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => navigate(`/proposals/${proposal.id}`)}
-                        title="Xem chi tiết"
-                      >
-                        <Eye size={16} className="text-gray-500" />
-                      </Button>
-
-                      {proposal.state === ProjectState.DRAFT && (
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => navigate(`/proposals/${proposal.id}/edit`)}
-                          title="Chỉnh sửa"
-                          className="hover:bg-primary-50 hover:text-primary-600"
-                        >
-                          <Edit2 size={16} />
-                        </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
+                  proposal={proposal}
+                  onNavigate={handleNavigate}
+                />
               ))}
             </tbody>
           </table>
@@ -176,4 +217,4 @@ export function ProposalTable({ proposals, isLoading }: ProposalTableProps) {
       </div>
     </>
   );
-}
+});

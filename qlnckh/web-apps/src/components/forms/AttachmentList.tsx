@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback, useMemo, memo } from 'react';
 import { Download, FileText, RefreshCw, Trash2, Lock, Loader2, File } from 'lucide-react';
 import { Attachment, attachmentsApi } from '../../lib/api/attachments';
 import { Alert, AlertActions, Button } from '../ui';
@@ -33,20 +33,24 @@ interface AttachmentListProps {
 
 const MAX_TOTAL_SIZE = 50 * 1024 * 1024; // 50MB
 
+// File type color map - static, defined outside component
+const FILE_TYPE_COLOR_MAP: Record<string, string> = {
+  pdf: 'from-red-500 to-rose-600',
+  doc: 'from-blue-500 to-indigo-600',
+  docx: 'from-blue-500 to-indigo-600',
+  xls: 'from-green-500 to-emerald-600',
+  xlsx: 'from-green-500 to-emerald-600',
+  jpg: 'from-amber-500 to-orange-600',
+  jpeg: 'from-amber-500 to-orange-600',
+  png: 'from-purple-500 to-violet-600',
+} as const;
+
+const DEFAULT_FILE_COLOR = 'from-gray-400 to-gray-500';
+
 // File type icons with gradient colors
 const getFileTypeColor = (fileName: string): string => {
   const ext = fileName.split('.').pop()?.toLowerCase() || '';
-  const colorMap: Record<string, string> = {
-    pdf: 'from-red-500 to-rose-600',
-    doc: 'from-blue-500 to-indigo-600',
-    docx: 'from-blue-500 to-indigo-600',
-    xls: 'from-green-500 to-emerald-600',
-    xlsx: 'from-green-500 to-emerald-600',
-    jpg: 'from-amber-500 to-orange-600',
-    jpeg: 'from-amber-500 to-orange-600',
-    png: 'from-purple-500 to-violet-600',
-  };
-  return colorMap[ext] || 'from-gray-400 to-gray-500';
+  return FILE_TYPE_COLOR_MAP[ext] || DEFAULT_FILE_COLOR;
 };
 
 export function AttachmentList({

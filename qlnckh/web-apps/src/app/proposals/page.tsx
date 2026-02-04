@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Download } from 'lucide-react';
 import { proposalsApi, type ProposalListParams } from '../../lib/api/proposals';
@@ -91,12 +91,8 @@ export default function ProposalsPage() {
     }
   }, [searchParams]);
 
-  // Load proposals
-  useEffect(() => {
-    loadProposals();
-  }, [page, filters]);
-
-  const loadProposals = async () => {
+  // Load proposals - memoized to prevent recreation
+  const loadProposals = useCallback(async () => {
     setIsLoading(true);
     setError('');
 
@@ -121,17 +117,22 @@ export default function ProposalsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [page, pageSize, filters]);
 
-  const totalPages = Math.ceil(totalCount / pageSize);
+  // Load proposals when dependencies change
+  useEffect(() => {
+    loadProposals();
+  }, [loadProposals]);
 
-  // Handle export
-  const handleExportClick = () => {
+  const totalPages = useMemo(() => Math.ceil(totalCount / pageSize), [totalCount, pageSize]);
+
+  // Handle export - memoized callbacks
+  const handleExportClick = useCallback(() => {
     setExportState(filters.state);
     setShowExportDialog(true);
-  };
+  }, [filters.state]);
 
-  const handleExport = async () => {
+  const handleExport = useCallback(async () => {
     setIsExporting(true);
 
     try {
@@ -149,7 +150,7 @@ export default function ProposalsPage() {
     } finally {
       setIsExporting(false);
     }
-  };
+  }, [exportState]);
 
   return (
     <div className="min-h-screen bg-gray-50 py-4 sm:py-6 md:py-8">

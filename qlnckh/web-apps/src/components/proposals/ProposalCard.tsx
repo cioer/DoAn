@@ -1,3 +1,4 @@
+import { memo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ProjectState } from '../../lib/constants/states';
 import { StateBadge } from './StateBadge';
@@ -7,6 +8,7 @@ import type { ProposalSummary } from './ProposalTable';
 
 interface ProposalCardProps {
   proposal: ProposalSummary;
+  onNavigate?: (path: string) => void;
 }
 
 /**
@@ -17,13 +19,26 @@ interface ProposalCardProps {
  * - Clear visual hierarchy
  * - Action buttons with proper spacing
  */
-export function ProposalCard({ proposal }: ProposalCardProps) {
+export const ProposalCard = memo(function ProposalCard({ proposal, onNavigate }: ProposalCardProps) {
   const navigate = useNavigate();
+  const handleNavigate = onNavigate || navigate;
+
+  const handleCardClick = useCallback(() => {
+    handleNavigate(`/proposals/${proposal.id}`);
+  }, [handleNavigate, proposal.id]);
+
+  const handleViewClick = useCallback(() => {
+    handleNavigate(`/proposals/${proposal.id}`);
+  }, [handleNavigate, proposal.id]);
+
+  const handleEditClick = useCallback(() => {
+    handleNavigate(`/proposals/${proposal.id}/edit`);
+  }, [handleNavigate, proposal.id]);
 
   return (
     <div
       className="bg-white rounded-xl border border-gray-100 shadow-soft p-4 active:bg-gray-50 transition-colors"
-      onClick={() => navigate(`/proposals/${proposal.id}`)}
+      onClick={handleCardClick}
     >
       {/* Header: Code + Status */}
       <div className="flex items-center justify-between mb-3">
@@ -65,7 +80,7 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate(`/proposals/${proposal.id}`)}
+            onClick={handleViewClick}
             className="min-h-[44px] min-w-[44px]"
           >
             <Eye size={18} className="text-gray-500" />
@@ -76,7 +91,7 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate(`/proposals/${proposal.id}/edit`)}
+              onClick={handleEditClick}
               className="min-h-[44px] min-w-[44px] hover:bg-primary-50 hover:text-primary-600"
             >
               <Edit2 size={18} />
@@ -89,16 +104,17 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
       </div>
     </div>
   );
-}
+});
 
 /**
  * ProposalCardList Component - List of proposal cards for mobile
  */
 interface ProposalCardListProps {
   proposals: ProposalSummary[];
+  onNavigate?: (path: string) => void;
 }
 
-export function ProposalCardList({ proposals }: ProposalCardListProps) {
+export const ProposalCardList = memo(function ProposalCardList({ proposals, onNavigate }: ProposalCardListProps) {
   if (proposals.length === 0) {
     return (
       <div className="text-center py-12 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
@@ -125,8 +141,8 @@ export function ProposalCardList({ proposals }: ProposalCardListProps) {
   return (
     <div className="space-y-3">
       {proposals.map((proposal) => (
-        <ProposalCard key={proposal.id} proposal={proposal} />
+        <ProposalCard key={proposal.id} proposal={proposal} onNavigate={onNavigate} />
       ))}
     </div>
   );
-}
+});
