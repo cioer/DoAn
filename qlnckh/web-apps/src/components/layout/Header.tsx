@@ -26,7 +26,8 @@ const NavItem = ({
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-2 rounded-lg text-sm transition-all duration-200 ${activeClass}`}
+      aria-current={isActive ? 'page' : undefined}
+      className={`px-3 py-2 rounded-lg text-sm transition-[background-color,color,box-shadow] duration-200 ${activeClass}`}
     >
       {children}
     </button>
@@ -90,14 +91,19 @@ export function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Left side: App title and Navigation */}
           <div className="flex items-center gap-8">
-            <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="flex items-center gap-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded-lg"
+              aria-label="Trang chủ NCKH"
+            >
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-soft">
                 QL
               </div>
               <h1 className="text-lg font-bold text-gray-900 tracking-tight">
                 NCKH
               </h1>
-            </div>
+            </button>
 
             {/* Navigation links */}
             <nav className="hidden lg:flex items-center gap-1.5">

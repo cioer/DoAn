@@ -193,15 +193,18 @@ export function FileUpload({
   return (
     <div className="space-y-4">
       {/* Upload Zone - Modern Soft UI */}
-      <div
+      <button
+        type="button"
         onClick={handleClick}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
+        disabled={disabled || uploading}
+        aria-label={disabled ? 'Upload bị vô hiệu hóa' : 'Chọn file để tải lên'}
         className={cn(
-          'group relative overflow-hidden rounded-2xl border-2 border-dashed p-8',
-          'text-center cursor-pointer transition-all duration-300',
-          'shadow-soft hover:shadow-soft-lg',
+          'group relative overflow-hidden rounded-2xl border-2 border-dashed p-8 w-full',
+          'text-center cursor-pointer transition-[border-color,background-color,box-shadow,transform] duration-300',
+          'shadow-soft hover:shadow-soft-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2',
           // Disabled/Uploading state
           (disabled || uploading) && [
             'bg-gray-50/80 border-gray-200 cursor-not-allowed opacity-60',
@@ -256,7 +259,7 @@ export function FileUpload({
           {uploading ? (
             <div className="space-y-3">
               <p className="text-sm font-semibold text-gray-700">
-                Đang tải lên...
+                Đang tải lên…
               </p>
               <div className="max-w-xs mx-auto">
                 <ProgressBar progress={progress} showPercentage />
@@ -268,7 +271,7 @@ export function FileUpload({
                 'text-sm font-semibold transition-colors duration-200',
                 isDragging ? 'text-primary-700' : 'text-gray-700 group-hover:text-gray-900'
               )}>
-                {disabled ? 'Upload bị vô hiệu' : 'Kéo file vào đây hoặc click để chọn'}
+                {disabled ? 'Upload bị vô hiệu hóa' : 'Kéo file vào đây hoặc click để chọn…'}
               </p>
               <p className="text-xs text-gray-500">
                 PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (tối đa 5MB)
@@ -276,7 +279,7 @@ export function FileUpload({
             </div>
           )}
         </div>
-      </div>
+      </button>
 
       {/* Storage indicator - Modern Soft UI */}
       {currentTotalSize > 0 && (

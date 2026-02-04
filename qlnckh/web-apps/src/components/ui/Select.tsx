@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from 'class-variance-authority';
-import { forwardRef, type SelectHTMLAttributes } from 'react';
+import { forwardRef, useId, type SelectHTMLAttributes } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/utils/cn';
 
@@ -7,10 +7,10 @@ import { cn } from '../../lib/utils/cn';
  * Select Component Variants - Modern Soft UI
  */
 const selectVariants = cva(
-  // Base classes
-  'w-full px-4 py-3 rounded-xl border appearance-none bg-white transition-all duration-200',
+  // Base classes - explicit background-color for dark mode compatibility
+  'w-full px-4 py-3 rounded-xl border appearance-none bg-white text-gray-900 transition-[border-color,box-shadow] duration-200',
   'focus:outline-none focus:ring-2 focus:ring-offset-0 pr-10',
-  'disabled:bg-gray-100 disabled:cursor-not-allowed',
+  'disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500',
   {
     variants: {
       // Size variants
@@ -100,7 +100,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     },
     ref
   ) => {
-    const selectId = id || `select-${Math.random().toString(36).substr(2, 9)}`;
+    const generatedId = useId();
+    const selectId = id || generatedId;
     const hasError = Boolean(error);
     const selectState = hasError ? 'error' : state;
 

@@ -53,7 +53,7 @@ export function ProposalForm({
           value={value}
           onChange={(e) => onChange(section.sectionId, e.target.value)}
           disabled={disabled}
-          placeholder={`Nhập nội dung cho ${section.label.toLowerCase()}`}
+          placeholder={`Nhập nội dung cho ${section.label.toLowerCase()}…`}
           rows={3}
           className={fieldClasses}
         />

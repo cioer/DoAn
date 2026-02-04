@@ -70,27 +70,47 @@ interface ScoreSectionProps {
  * Story 5.5: Added disabled prop for read-only mode
  */
 function ScoreSection({ title, score, comments, onScoreChange, onCommentsChange, disabled = false }: ScoreSectionProps) {
+  // Generate unique IDs for accessibility
+  const sectionId = title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  const sliderId = `score-${sectionId}`;
+  const textareaId = `comments-${sectionId}`;
+
+  // Score labels for aria-valuetext
+  const scoreLabels: Record<number, string> = {
+    1: 'Kém',
+    2: 'Yếu',
+    3: 'Trung bình',
+    4: 'Tốt',
+    5: 'Xuất sắc',
+  };
+
   return (
-    <div className="border rounded-lg p-4 space-y-3 bg-white dark:bg-gray-800">
-      <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100">{title}</h4>
+    <div className="border rounded-lg p-4 space-y-3 bg-white">
+      <h4 id={`heading-${sectionId}`} className="font-semibold text-sm text-gray-900">{title}</h4>
 
       {/* Score Slider */}
       <div className="space-y-2">
-        <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
-          <span>Đánh giá:</span>
-          <span className="font-medium text-sm">{score}/5</span>
+        <div className="flex justify-between text-xs text-gray-600">
+          <label htmlFor={sliderId}>Đánh giá:</label>
+          <span className="font-medium text-sm" aria-live="polite">{score}/5 - {scoreLabels[score]}</span>
         </div>
         <input
+          id={sliderId}
           type="range"
-          min="1"
-          max="5"
-          step="1"
+          min={1}
+          max={5}
+          step={1}
           value={score}
           onChange={(e) => onScoreChange(Number(e.target.value))}
           disabled={disabled}
-          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-valuemin={1}
+          aria-valuemax={5}
+          aria-valuenow={score}
+          aria-valuetext={`${score} trên 5: ${scoreLabels[score]}`}
+          aria-describedby={`heading-${sectionId}`}
+          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
         />
-        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-500">
+        <div className="flex justify-between text-xs text-gray-500" aria-hidden="true">
           <span>1 - Kém</span>
           <span>2 - Yếu</span>
           <span>3 - Trung bình</span>
@@ -101,14 +121,15 @@ function ScoreSection({ title, score, comments, onScoreChange, onCommentsChange,
 
       {/* Comments Textarea */}
       <div className="space-y-1">
-        <label className="text-xs text-gray-600 dark:text-gray-400">Nhận xét:</label>
+        <label htmlFor={textareaId} className="text-xs text-gray-600">Nhận xét:</label>
         <textarea
+          id={textareaId}
           value={comments}
           onChange={(e) => onCommentsChange(e.target.value)}
-          placeholder="Nhập nhận xét cho mục này..."
+          placeholder="Nhập nhận xét cho mục này…"
           rows={3}
           disabled={disabled}
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50 dark:disabled:bg-gray-900"
+          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50"
         />
       </div>
     </div>

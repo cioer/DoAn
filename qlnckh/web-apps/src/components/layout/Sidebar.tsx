@@ -57,7 +57,8 @@ const NavItem = ({
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 min-h-[44px] ${
+      aria-current={isActive ? 'page' : undefined}
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-[background,color,box-shadow] duration-200 min-h-[44px] ${
         isActive ? activeClasses[color] : inactiveClasses
       }`}
       title={collapsed ? String(children) : undefined}
@@ -149,29 +150,33 @@ export function Sidebar() {
       {/* Logo Section */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200/50 flex-shrink-0">
         {isMobile || !collapsed ? (
-          <div
-            className="flex items-center gap-2 cursor-pointer"
+          <button
+            type="button"
+            className="flex items-center gap-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded-xl"
             onClick={() => handleNavigate('/')}
+            aria-label="Trang chủ NCKH"
           >
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-soft-lg">
               QL
             </div>
-            <div>
+            <div className="text-left">
               <h1 className="text-base font-bold text-gray-900 tracking-tight">
                 NCKH
               </h1>
               <p className="text-xs text-gray-500">Quản lý NCKH</p>
             </div>
-          </div>
+          </button>
         ) : (
-          <div
-            className="flex items-center justify-center w-full cursor-pointer"
+          <button
+            type="button"
+            className="flex items-center justify-center w-full cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded-xl"
             onClick={() => handleNavigate('/')}
+            aria-label="Trang chủ NCKH"
           >
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-soft-lg">
               QL
             </div>
-          </div>
+          </button>
         )}
         {isMobile ? (
           <button
@@ -421,7 +426,7 @@ export function Sidebar() {
     <>
       {/* Desktop Sidebar - Hidden on mobile, z-[300] for fixed layer */}
       <aside
-        className={`fixed left-0 top-0 h-full bg-white/90 backdrop-blur-xl border-r border-gray-200/50 shadow-soft-xl z-[300] transition-all duration-300 hidden lg:flex flex-col ${
+        className={`fixed left-0 top-0 h-full bg-white/90 backdrop-blur-xl border-r border-gray-200/50 shadow-soft-xl z-[300] transition-[width] duration-300 hidden lg:flex flex-col ${
           collapsed ? 'w-20' : 'w-64'
         }`}
       >
@@ -438,7 +443,7 @@ export function Sidebar() {
 
       {/* Mobile Drawer - z-[450] above overlay but below modals */}
       <aside
-        className={`fixed left-0 top-0 h-full w-72 bg-white/95 backdrop-blur-xl border-r border-gray-200/50 shadow-soft-xl z-[450] transition-transform duration-300 ease-in-out flex flex-col lg:hidden ${
+        className={`fixed left-0 top-0 h-full w-72 bg-white/95 backdrop-blur-xl border-r border-gray-200/50 shadow-soft-xl z-[450] transition-[transform] duration-300 ease-in-out flex flex-col lg:hidden ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
